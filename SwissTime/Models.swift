@@ -6,6 +6,8 @@ struct Workout: Identifiable, Codable, Equatable {
     var details: String = ""
     var items: [WorkoutItem] = []
     var lastPlayedAt: Date?
+    /// Index into `Color.swissPalette`; optional so pre-palette files decode.
+    var colorIndex: Int?
 
     var totalDuration: TimeInterval {
         items.reduce(0) { $0 + $1.duration }

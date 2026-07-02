@@ -47,8 +47,12 @@ struct WorkoutListView: View {
                 }
             }
             .sheet(isPresented: $showingCreate) {
-                // Creating a workout drops you straight into it to add exercises.
-                WorkoutFormView(onCreated: { path = [$0] })
+                // Creating a workout drops you straight into it to add exercises;
+                // the default swatch rotates through the palette.
+                WorkoutFormView(
+                    defaultColorIndex: store.workouts.count % Color.swissPalette.count,
+                    onCreated: { path = [$0] }
+                )
             }
             .fullScreenCover(item: $playing) { workout in
                 PlayerView(workout: workout)
@@ -85,7 +89,7 @@ struct WorkoutListView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
-                    .background(Color.swissRed)
+                    .inkButton(.black)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
@@ -101,8 +105,13 @@ private struct WorkoutCard: View {
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 12) {
-                Text(workout.title)
-                    .font(.swiss(20, .bold))
+                HStack(spacing: 10) {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(workout.color)
+                        .frame(width: 14, height: 14)
+                    Text(workout.title)
+                        .font(.swiss(20, .bold))
+                }
                 if !workout.details.isEmpty {
                     Text(workout.details)
                         .font(.swiss(15))
@@ -124,7 +133,7 @@ private struct WorkoutCard: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
                         .frame(width: 52, height: 52)
-                        .background(Color.swissRed)
+                        .inkButton(workout.color)
                 }
                 .buttonStyle(.plain)
             }

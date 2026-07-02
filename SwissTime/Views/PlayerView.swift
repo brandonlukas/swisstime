@@ -35,7 +35,7 @@ struct PlayerView: View {
                     let now = timeline.date
                     ZStack(alignment: .bottom) {
                         Rectangle()
-                            .fill(Color.swissRed)
+                            .fill(engine.workout.color)
                             .frame(height: fullHeight * engine.fraction(at: now))
                         GrainOverlay()
                         VStack(spacing: 0) {
@@ -177,7 +177,7 @@ struct PlayerView: View {
             }
         }
         .frame(width: side, height: side)
-        .glassCard()
+        .glassCard(24)
     }
 
     private func controls(now: Date) -> some View {
@@ -206,6 +206,7 @@ struct PlayerView: View {
                     .fill(Color.black)
                     .frame(width: geo.size.width * engine.overallFraction(at: now), height: 3)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
     }
 

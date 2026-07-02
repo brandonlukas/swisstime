@@ -39,13 +39,17 @@ struct WorkoutDetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(workout.color)
+                    .frame(width: 16, height: 16)
+                    .padding(.bottom, 10)
                 Text(workout.title)
                     .font(.swiss(32, .bold))
                     .padding(.bottom, 14)
                 SwissRule()
             }
             .padding(.horizontal, 20)
-            .padding(.top, 20)
+            .padding(.top, 12)
             if editing {
                 editList
             } else {
@@ -63,7 +67,7 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .background(Color.swissRed)
+                        .inkButton(workout.color)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 20)
@@ -179,7 +183,7 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
-                    .background(Color.swissRed)
+                    .inkButton(.black)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)

@@ -41,7 +41,7 @@ struct SheetScaffold<Content: View>: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .background(buttonEnabled ? Color.swissRed : Color.swissRed.opacity(0.25))
+                    .inkButton(buttonEnabled ? Color.black : Color.black.opacity(0.25))
             }
             .buttonStyle(.plain)
             .disabled(!buttonEnabled)
@@ -67,7 +67,7 @@ struct LabeledField: View {
                 .padding(.horizontal, 14)
                 .frame(height: 52)
                 .overlay(
-                    Rectangle()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(focused ? Color.black : Color.fieldBorder, lineWidth: 1)
                 )
         }
@@ -103,9 +103,40 @@ struct PickerField<Value: Hashable>: View {
                 .padding(.horizontal, 14)
                 .frame(height: 52)
                 .overlay(
-                    Rectangle()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(Color.fieldBorder, lineWidth: 1)
                 )
+            }
+        }
+    }
+}
+
+/// Tappable row of the curated Swiss swatches.
+struct ColorPickerRow: View {
+    @Binding var selection: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Color")
+                .font(.swiss(17, .medium))
+            HStack(spacing: 12) {
+                ForEach(Color.swissPalette.indices, id: \.self) { index in
+                    Button {
+                        selection = index
+                    } label: {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(Color.swissPalette[index])
+                            .frame(width: 44, height: 44)
+                            .overlay {
+                                if selection == index {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
@@ -139,12 +170,15 @@ struct WorkoutFormView: View {
 
     @State private var title: String
     @State private var details: String
+    @State private var colorIndex: Int
 
-    init(existing: Workout? = nil, onCreated: ((UUID) -> Void)? = nil) {
+    init(existing: Workout? = nil, defaultColorIndex: Int = 0,
+         onCreated: ((UUID) -> Void)? = nil) {
         self.existing = existing
         self.onCreated = onCreated
         _title = State(initialValue: existing?.title ?? "")
         _details = State(initialValue: existing?.details ?? "")
+        _colorIndex = State(initialValue: existing?.colorIndex ?? defaultColorIndex)
     }
 
     var body: some View {
@@ -155,6 +189,7 @@ struct WorkoutFormView: View {
         ) {
             LabeledField(label: "Title", placeholder: "Title", text: $title)
             LabeledField(label: "Description", placeholder: "Optional description", text: $details)
+            ColorPickerRow(selection: $colorIndex)
         }
     }
 
@@ -162,9 +197,11 @@ struct WorkoutFormView: View {
         if let existing, var updated = store.workout(existing.id) {
             updated.title = title.trimmed
             updated.details = details.trimmed
+            updated.colorIndex = colorIndex
             store.update(updated)
         } else {
-            let workout = Workout(title: title.trimmed, details: details.trimmed)
+            var workout = Workout(title: title.trimmed, details: details.trimmed)
+            workout.colorIndex = colorIndex
             store.workouts.append(workout)
             onCreated?(workout.id)
         }

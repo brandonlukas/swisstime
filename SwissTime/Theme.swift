@@ -2,12 +2,27 @@ import SwiftUI
 import UIKit
 
 extension Color {
-    /// The single accent — the classic Swiss poster red.
-    static let swissRed = Color(red: 0.89, green: 0.024, blue: 0.075)
+    /// Curated Swiss-poster swatches. Each workout owns one; the app chrome
+    /// itself stays ink-black on glass. Every color here must survive as a
+    /// full-screen player fill with black text on frosted glass over it.
+    static let swissPalette: [Color] = [
+        Color(red: 0.20, green: 0.49, blue: 0.47),  // petrol
+        Color(red: 0.17, green: 0.33, blue: 0.65),  // cobalt
+        Color(red: 0.85, green: 0.33, blue: 0.17),  // vermilion
+        Color(red: 0.75, green: 0.54, blue: 0.18),  // ochre
+        Color(red: 0.42, green: 0.50, blue: 0.23),  // moss
+        Color(red: 0.56, green: 0.27, blue: 0.52),  // plum
+    ]
     /// Flat light-gray fill, still used inside plain sheets.
     static let card = Color(white: 0.965)
     static let fieldBorder = Color(white: 0.85)
     static let hairline = Color.black.opacity(0.08)
+}
+
+extension Workout {
+    var color: Color {
+        Color.swissPalette[(colorIndex ?? 0) % Color.swissPalette.count]
+    }
 }
 
 extension Font {
@@ -92,10 +107,15 @@ enum Grain {
 }
 
 extension View {
-    /// Sharp-cornered pane of the system's Liquid Glass — real refraction,
-    /// kept Swiss by the square shape.
-    func glassCard() -> some View {
-        self.glassEffect(.regular, in: Rectangle())
+    /// A pane of the system's Liquid Glass. Continuous rounded corners —
+    /// the refraction pinches on hard 90° edges.
+    func glassCard(_ radius: CGFloat = 18) -> some View {
+        self.glassEffect(.regular, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+    }
+
+    /// Solid ink button surface, matching the glass panes' curvature.
+    func inkButton(_ fill: Color, radius: CGFloat = 14) -> some View {
+        self.background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
 }
 

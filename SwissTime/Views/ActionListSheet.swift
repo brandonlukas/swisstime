@@ -40,7 +40,7 @@ struct ActionListSheet: View {
                     .font(.swiss(17))
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .background(Color.card)
+                    .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
             .padding(.top, 12)
