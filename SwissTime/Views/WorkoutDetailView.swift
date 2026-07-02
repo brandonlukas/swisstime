@@ -193,7 +193,7 @@ struct WorkoutDetailView: View {
             Section {
                 ForEach(workout.items) { item in
                     editRow(item)
-                        .listRowBackground(Rectangle().fill(.thinMaterial))
+                        .listRowBackground(Color.clear.glassEffect(.regular, in: Rectangle()))
                         .listRowSeparatorTint(Color.hairline)
                 }
                 .onMove { from, to in
@@ -217,7 +217,7 @@ struct WorkoutDetailView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .listRowBackground(Rectangle().fill(.thinMaterial))
+                .listRowBackground(Color.clear.glassEffect(.regular, in: Rectangle()))
             }
             Section {
                 Button {

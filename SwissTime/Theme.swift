@@ -92,21 +92,10 @@ enum Grain {
 }
 
 extension View {
-    /// Sharp-cornered glass surface: square, frosted, a specular edge, lifted
-    /// off the backdrop just enough to read as a pane rather than a fill.
+    /// Sharp-cornered pane of the system's Liquid Glass — real refraction,
+    /// kept Swiss by the square shape.
     func glassCard() -> some View {
-        self
-            .background(.thinMaterial)
-            .overlay(
-                Rectangle().strokeBorder(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.9), Color.white.opacity(0.1)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-            )
-            .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 8)
+        self.glassEffect(.regular, in: Rectangle())
     }
 }
 
