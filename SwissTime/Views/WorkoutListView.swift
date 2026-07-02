@@ -50,7 +50,7 @@ struct WorkoutListView: View {
                 // Creating a workout drops you straight into it to add exercises;
                 // the default swatch rotates through the palette.
                 WorkoutFormView(
-                    defaultColorIndex: store.workouts.count % Color.swissPalette.count,
+                    defaultColorIndex: store.workouts.count % Palette.all.count,
                     onCreated: { path = [$0] }
                 )
             }
@@ -107,7 +107,7 @@ private struct WorkoutCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(workout.color)
+                        .fill(workout.palette.fill)
                         .frame(width: 14, height: 14)
                     Text(workout.title)
                         .font(.app(20, .bold))
@@ -131,9 +131,9 @@ private struct WorkoutCard: View {
                 Button(action: onPlay) {
                     Image(systemName: "play.fill")
                         .font(.system(size: 18))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(workout.palette.onFill)
                         .frame(width: 52, height: 52)
-                        .inkButton(workout.color)
+                        .inkButton(workout.palette.fill)
                 }
                 .buttonStyle(.plain)
             }

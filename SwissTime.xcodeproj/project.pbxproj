@@ -135,8 +135,8 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				F10000000000000000000012 /* SwissTimeWidget */,
 				F10000000000000000000011 /* Shared */,
+				F10000000000000000000012 /* SwissTimeWidget */,
 			);
 			name = SwissTimeWidget;
 			packageProductDependencies = (

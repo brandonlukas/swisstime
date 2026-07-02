@@ -2,26 +2,40 @@ import SwiftUI
 import UIKit
 
 extension Color {
-    /// Curated Swiss-poster swatches. Each workout owns one; the app chrome
-    /// itself stays ink-black on glass. Every color here must survive as a
-    /// full-screen player fill with black text on frosted glass over it.
-    static let swissPalette: [Color] = [
-        Color(red: 0.20, green: 0.49, blue: 0.47),  // petrol
-        Color(red: 0.17, green: 0.33, blue: 0.65),  // cobalt
-        Color(red: 0.85, green: 0.33, blue: 0.17),  // vermilion
-        Color(red: 0.75, green: 0.54, blue: 0.18),  // ochre
-        Color(red: 0.42, green: 0.50, blue: 0.23),  // moss
-        Color(red: 0.56, green: 0.27, blue: 0.52),  // plum
-    ]
     /// Flat light-gray fill, still used inside plain sheets.
     static let card = Color(white: 0.965)
     static let fieldBorder = Color(white: 0.85)
     static let hairline = Color.black.opacity(0.08)
 }
 
+struct PaletteColor {
+    let fill: Color
+    /// Legible ink on top of `fill` — the light fills need black.
+    let onFill: Color
+}
+
+/// Vibrant, playful swatches. Each workout owns one; the loudness works
+/// because it sits on calm structure — neutral backdrop, glass, black type,
+/// one color per screen. Every fill must survive full-screen in the player
+/// with black text on frosted glass over it.
+enum Palette {
+    static let all: [PaletteColor] = [
+        PaletteColor(fill: Color(red: 0.35, green: 0.79, blue: 0.15), onFill: .white),  // grass
+        PaletteColor(fill: Color(red: 0.12, green: 0.66, blue: 0.94), onFill: .white),  // sky
+        PaletteColor(fill: Color(red: 1.00, green: 0.77, blue: 0.00), onFill: .black),  // sunflower
+        PaletteColor(fill: Color(red: 1.00, green: 0.56, blue: 0.12), onFill: .white),  // tangerine
+        PaletteColor(fill: Color(red: 1.00, green: 0.42, blue: 0.71), onFill: .white),  // flamingo
+        PaletteColor(fill: Color(red: 0.64, green: 0.41, blue: 0.94), onFill: .white),  // grape
+    ]
+
+    static func color(_ index: Int?) -> PaletteColor {
+        all[(index ?? 0) % all.count]
+    }
+}
+
 extension Workout {
-    var color: Color {
-        Color.swissPalette[(colorIndex ?? 0) % Color.swissPalette.count]
+    var palette: PaletteColor {
+        Palette.color(colorIndex)
     }
 }
 

@@ -35,7 +35,7 @@ struct PlayerView: View {
                     let now = timeline.date
                     ZStack(alignment: .bottom) {
                         Rectangle()
-                            .fill(engine.workout.color)
+                            .fill(engine.workout.palette.fill)
                             .frame(height: fullHeight * engine.fraction(at: now))
                         GrainOverlay()
                         VStack(spacing: 0) {
@@ -56,6 +56,23 @@ struct PlayerView: View {
             }
         }
         .background(SwissGlassBackground())
+        // Swipe left/right to skip between exercises, down to close.
+        .gesture(
+            DragGesture(minimumDistance: 40)
+                .onEnded { value in
+                    let dx = value.translation.width
+                    let dy = value.translation.height
+                    if abs(dx) > abs(dy) {
+                        if dx < -60 {
+                            engine.next()
+                        } else if dx > 60 {
+                            engine.previous()
+                        }
+                    } else if dy > 80 {
+                        closeTapped()
+                    }
+                }
+        )
         .onAppear {
             engine.start()
             store.markPlayed(engine.workout.id)

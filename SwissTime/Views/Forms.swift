@@ -120,18 +120,18 @@ struct ColorPickerRow: View {
             Text("Color")
                 .font(.app(17, .medium))
             HStack(spacing: 12) {
-                ForEach(Color.swissPalette.indices, id: \.self) { index in
+                ForEach(Palette.all.indices, id: \.self) { index in
                     Button {
                         selection = index
                     } label: {
                         RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(Color.swissPalette[index])
+                            .fill(Palette.all[index].fill)
                             .frame(width: 44, height: 44)
                             .overlay {
                                 if selection == index {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 15, weight: .bold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(Palette.all[index].onFill)
                                 }
                             }
                     }

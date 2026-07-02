@@ -40,7 +40,7 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(workout.color)
+                    .fill(workout.palette.fill)
                     .frame(width: 16, height: 16)
                     .padding(.bottom, 10)
                 Text(workout.title)
@@ -64,10 +64,10 @@ struct WorkoutDetailView: View {
                 } label: {
                     Text("Play workout")
                         .font(.app(17, .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(workout.palette.onFill)
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .inkButton(workout.color)
+                        .inkButton(workout.palette.fill)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 20)
