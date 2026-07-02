@@ -51,7 +51,7 @@ struct CircuitEditorView: View {
                                 display: { "\($0)" }, selection: $loops)
                 }
                 .listRowSeparator(.hidden)
-                .listRowBackground(Color.white)
+                .listRowBackground(Color.paper)
                 .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
                 Section {
                     ForEach(circuit?.exercises ?? []) { exercise in
@@ -96,12 +96,13 @@ struct CircuitEditorView: View {
                 } header: {
                     Text("Exercises")
                         .font(.app(17, .medium))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(Color.ink)
                         .textCase(nil)
                         .padding(.leading, 4)
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .environment(\.editMode, .constant(.active))
             Divider()
             Button {
@@ -117,12 +118,13 @@ struct CircuitEditorView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
                     .inkButton(name.trimmed.isEmpty
-                               ? Color.black.opacity(0.25) : Color.black)
+                               ? Color.ink.opacity(0.25) : Color.ink)
             }
             .buttonStyle(.plain)
             .disabled(name.trimmed.isEmpty)
             .padding(20)
         }
+        .background(Color.paper.ignoresSafeArea())
         .preferredColorScheme(.light)
         .sheet(isPresented: $addingExercise) {
             ItemFormView(workoutID: workoutID, circuitID: circuitID)

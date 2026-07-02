@@ -3,9 +3,11 @@ import UIKit
 
 struct PlayerView: View {
     @EnvironmentObject private var store: WorkoutStore
+    @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
     @StateObject private var engine: PlayerEngine
     @State private var confirmEnd = false
+    @State private var recordedCompletion = false
 
     init(workout: Workout, startID: UUID? = nil) {
         _engine = StateObject(wrappedValue: PlayerEngine(workout: workout, startID: startID))
@@ -34,8 +36,8 @@ struct PlayerView: View {
                                         paused: engine.phase == .paused || engine.phase == .finished)) { timeline in
                     let now = timeline.date
                     ZStack(alignment: .bottom) {
-                        Rectangle()
-                            .fill(engine.workout.palette.fill)
+                        WaterFill(color: engine.workout.palette.fill,
+                                  time: now.timeIntervalSinceReferenceDate)
                             .frame(height: fullHeight * engine.fraction(at: now))
                         GrainOverlay()
                         VStack(spacing: 0) {
@@ -55,7 +57,7 @@ struct PlayerView: View {
                 .ignoresSafeArea(edges: .bottom)
             }
         }
-        .background(SwissGlassBackground())
+        .background(PaperBackground())
         // Swipe left/right to skip between exercises, down to close.
         .gesture(
             DragGesture(minimumDistance: 40)
@@ -81,6 +83,12 @@ struct PlayerView: View {
         .onDisappear {
             engine.stopAndTearDown()
             UIApplication.shared.isIdleTimerDisabled = false
+        }
+        // Finishing (not just starting) earns a creature in this month's pond.
+        .onChange(of: engine.phase) { _, phase in
+            guard phase == .finished, !recordedCompletion else { return }
+            recordedCompletion = true
+            pond.record(workout: engine.workout)
         }
         .sheet(isPresented: $confirmEnd) {
             ActionListSheet(actions: [
@@ -112,7 +120,7 @@ struct PlayerView: View {
                 .font(.app(16))
                 .frame(maxWidth: .infinity)
                 .frame(height: 76)
-                .glassCard()
+                .paperCard(opacity: 0.92)
         } else if let step = engine.currentStep {
             VStack(spacing: 0) {
                 if let circuitName = step.circuitName {
@@ -129,7 +137,7 @@ struct PlayerView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
-                    .background(Color.white.opacity(0.4))
+                    .background(Color.ink.opacity(0.04))
                 }
                 HStack(spacing: 12) {
                     Text(step.label)
@@ -141,7 +149,7 @@ struct PlayerView: View {
                         if !step.exercise.instructions.isEmpty {
                             Text(step.exercise.instructions)
                                 .font(.app(15))
-                                .foregroundStyle(Color.black.opacity(0.5))
+                                .foregroundStyle(Color.ink.opacity(0.55))
                         }
                     }
                     Spacer(minLength: 8)
@@ -152,7 +160,7 @@ struct PlayerView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
             }
-            .glassCard()
+            .paperCard(opacity: 0.92)
         }
     }
 
@@ -172,29 +180,34 @@ struct PlayerView: View {
                     .monospacedDigit()
             }
             if engine.phase == .finished {
-                Text("COMPLETE")
-                    .font(.app(13, .medium))
-                    .kerning(2.5)
-                    .foregroundStyle(Color.black.opacity(0.5))
+                VStack(spacing: 8) {
+                    Text("Complete")
+                        .font(.serifApp(20, .semibold))
+                        .foregroundStyle(Color.ink)
+                    EarnedCreatureView(colorIndex: engine.workout.colorIndex)
+                    Text("Added to your \(MonthKey.current.monthName) pond")
+                        .font(.app(13))
+                        .foregroundStyle(Color.ink.opacity(0.55))
+                }
             } else {
                 VStack(spacing: 10) {
                     if engine.steps.count > 1 {
                         Text("\(Format.mmss(engine.totalRemaining(at: now))) left")
                             .font(.app(14))
                             .monospacedDigit()
-                            .foregroundStyle(Color.black.opacity(0.5))
+                            .foregroundStyle(Color.ink.opacity(0.55))
                     }
                     if engine.phase == .paused {
                         Text("PAUSED")
                             .font(.app(13, .medium))
                             .kerning(2.5)
-                            .foregroundStyle(Color.black.opacity(0.5))
+                            .foregroundStyle(Color.ink.opacity(0.55))
                     }
                 }
             }
         }
         .frame(width: side, height: side)
-        .glassCard(24)
+        .paperCard(24, opacity: 0.92)
     }
 
     private func controls(now: Date) -> some View {
@@ -216,11 +229,11 @@ struct PlayerView: View {
         }
         .padding(.horizontal, 32)
         .frame(height: 64)
-        .glassCard()
+        .paperCard(opacity: 0.92)
         .overlay(alignment: .topLeading) {
             GeometryReader { geo in
                 Rectangle()
-                    .fill(Color.black)
+                    .fill(Color.ink)
                     .frame(width: geo.size.width * engine.overallFraction(at: now), height: 3)
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -236,5 +249,61 @@ struct PlayerView: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+    }
+}
+
+/// The earned creature paddles across a little puddle on the finished card
+/// and settles with a ripple. Runs its own clock — the player's TimelineView
+/// is paused once the workout ends.
+private struct EarnedCreatureView: View {
+    let colorIndex: Int?
+    @State private var appearedAt = Date()
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
+            Canvas { context, size in
+                let t = timeline.date.timeIntervalSince(appearedAt)
+                let kind = Palette.creature(for: colorIndex)
+
+                // A soft puddle to arrive in.
+                context.drawLayer { layer in
+                    layer.addFilter(.blur(radius: 5))
+                    layer.fill(
+                        Path(ellipseIn: CGRect(x: 8, y: size.height / 2 - 17,
+                                               width: size.width - 16, height: 34)),
+                        with: .color(.pondWater.opacity(0.85)))
+                }
+
+                let k = min(1, t / 2.5)
+                let ease = 1 - pow(1 - k, 3)
+                let x = -20 + (size.width / 2 + 20) * ease
+                let y = size.height / 2 + sin(t * 1.8) * 1.5
+                let pos = CGPoint(x: x, y: y)
+
+                if t > 2.4 {
+                    let age = (t - 2.4).truncatingRemainder(dividingBy: 6)
+                    if age < 2.2 {
+                        let fraction = age / 2.2
+                        let radius = 5 + 13 * fraction
+                        context.stroke(
+                            Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius,
+                                                   width: radius * 2, height: radius * 2)),
+                            with: .color(.white.opacity(0.3 * (1 - fraction))),
+                            lineWidth: 1)
+                    }
+                }
+
+                if let style = PondCreatureArt.birdStyle(for: kind) {
+                    PondCreatureArt.drawBird(
+                        in: context, style: style, at: pos, heading: .zero,
+                        wiggle: t * 2.4, wakeOpacity: 0.3 * (1 - k), scale: 0.9)
+                } else {
+                    PondCreatureArt.drawFish(
+                        in: context, kind: kind, at: pos, heading: .zero,
+                        tailWiggle: t * 3.2, opacity: 0.75, scale: 0.9)
+                }
+            }
+        }
+        .frame(width: 150, height: 56)
     }
 }

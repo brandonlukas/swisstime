@@ -6,14 +6,25 @@ private extension Font {
     static func app(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight)
     }
+
+    static func serifApp(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .serif)
+    }
+}
+
+// Mirrors the app's paper/ink palette; the widget target keeps its styling
+// local rather than importing app code.
+private extension Color {
+    static let stPaper = Color(red: 0.949, green: 0.937, blue: 0.906)
+    static let stInk = Color(red: 0.16, green: 0.19, blue: 0.23)
 }
 
 struct WorkoutLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             LockScreenView(context: context)
-                .activityBackgroundTint(.white)
-                .activitySystemActionForegroundColor(.black)
+                .activityBackgroundTint(.stPaper)
+                .activitySystemActionForegroundColor(.stInk)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -109,8 +120,8 @@ private struct LockScreenView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(stepTitle(context))
-                    .font(.app(16, .medium))
-                    .foregroundStyle(.black)
+                    .font(.serifApp(16, .semibold))
+                    .foregroundStyle(Color.stInk)
                     .lineLimit(1)
                 Text(context.attributes.workoutTitle)
                     .font(.app(13))
@@ -121,22 +132,24 @@ private struct LockScreenView: View {
             TimerText(state: context.state)
                 .font(.app(30, .medium))
                 .monospacedDigit()
-                .foregroundStyle(.black)
+                .foregroundStyle(Color.stInk)
             if !context.state.finished {
                 Button(intent: TogglePauseIntent()) {
                     Image(systemName: context.state.paused ? "play" : "pause")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(Color.stInk)
                         .frame(width: 42, height: 42)
-                        .background(Color(white: 0.95))
+                        .background(Color.stInk.opacity(0.08),
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 Button(intent: SkipStepIntent()) {
                     Image(systemName: "forward.end")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(Color.stInk)
                         .frame(width: 42, height: 42)
-                        .background(Color(white: 0.95))
+                        .background(Color.stInk.opacity(0.08),
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }

@@ -41,12 +41,13 @@ struct SheetScaffold<Content: View>: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .inkButton(buttonEnabled ? Color.black : Color.black.opacity(0.25))
+                    .inkButton(buttonEnabled ? Color.ink : Color.ink.opacity(0.25))
             }
             .buttonStyle(.plain)
             .disabled(!buttonEnabled)
             .padding(20)
         }
+        .background(Color.paper.ignoresSafeArea())
         .preferredColorScheme(.light)
     }
 }
@@ -68,7 +69,7 @@ struct LabeledField: View {
                 .frame(height: 52)
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(focused ? Color.black : Color.fieldBorder, lineWidth: 1)
+                        .stroke(focused ? Color.ink : Color.fieldBorder, lineWidth: 1)
                 )
         }
     }
@@ -111,7 +112,7 @@ struct PickerField<Value: Hashable>: View {
     }
 }
 
-/// Tappable row of the curated Swiss swatches.
+/// Tappable row of the curated pond swatches.
 struct ColorPickerRow: View {
     @Binding var selection: Int
 
@@ -124,7 +125,7 @@ struct ColorPickerRow: View {
                     Button {
                         selection = index
                     } label: {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        Circle()
                             .fill(Palette.all[index].fill)
                             .frame(width: 44, height: 44)
                             .overlay {

@@ -2,18 +2,27 @@ import SwiftUI
 
 struct WorkoutListView: View {
     @EnvironmentObject private var store: WorkoutStore
+    @EnvironmentObject private var pond: PondStore
     @State private var path: [UUID] = []
     @State private var showingCreate = false
+    @State private var showingPond = false
     @State private var playing: Workout?
 
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    Button {
+                        showingPond = true
+                    } label: {
+                        PondHeroCard(entries: pond.entries(in: .current))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 24)
                     Text("Workouts")
-                        .font(.app(32, .bold))
+                        .font(.serifApp(32, .bold))
                         .padding(.bottom, 14)
-                    SwissRule()
+                    InkRule()
                         .padding(.bottom, 24)
                     if store.workouts.isEmpty {
                         emptyState
@@ -33,7 +42,7 @@ struct WorkoutListView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
             }
-            .background(SwissGlassBackground())
+            .background(PaperBackground())
             .navigationDestination(for: UUID.self) { id in
                 WorkoutDetailView(workoutID: id)
             }
@@ -57,12 +66,18 @@ struct WorkoutListView: View {
             .fullScreenCover(item: $playing) { workout in
                 PlayerView(workout: workout)
             }
+            .fullScreenCover(isPresented: $showingPond) {
+                PondView()
+            }
             .onAppear {
                 // Debug hooks for command-line UI verification; each fires once.
                 let arguments = ProcessInfo.processInfo.arguments
                 if arguments.contains("-autoPlayFirstWorkout"), !DebugLaunch.didAutoPlay {
                     DebugLaunch.didAutoPlay = true
                     playing = store.sortedWorkouts.first
+                } else if arguments.contains("-autoOpenPond"), !DebugLaunch.didAutoOpenPond {
+                    DebugLaunch.didAutoOpenPond = true
+                    showingPond = true
                 } else if arguments.contains("-autoOpenFirstWorkout")
                             || arguments.contains("-autoEditFirstWorkout"),
                           !DebugLaunch.didAutoOpen,
@@ -89,12 +104,41 @@ struct WorkoutListView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
-                    .inkButton(.black)
+                    .inkButton(.ink)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
         }
         .padding(.top, 8)
+    }
+}
+
+/// The live pond strip: this month's flock at a glance, tap for the full pond.
+private struct PondHeroCard: View {
+    let entries: [PondEntry]
+
+    var body: some View {
+        PondSceneView(monthKey: .current, entries: entries, mode: .hero)
+            .frame(height: 150)
+            .frame(maxWidth: .infinity)
+            .overlay(alignment: .bottomLeading) {
+                Text(MonthKey.current.monthName)
+                    .font(.serifApp(16, .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 24)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if !entries.isEmpty {
+                    Text("\(entries.count) afloat")
+                        .font(.app(12, .medium))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(.horizontal, 28)
+                        .padding(.bottom, 25)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .paperCard(24)
     }
 }
 
@@ -106,11 +150,11 @@ private struct WorkoutCard: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    Circle()
                         .fill(workout.palette.fill)
                         .frame(width: 14, height: 14)
                     Text(workout.title)
-                        .font(.app(20, .bold))
+                        .font(.serifApp(20, .semibold))
                 }
                 if !workout.details.isEmpty {
                     Text(workout.details)
@@ -140,6 +184,6 @@ private struct WorkoutCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .glassCard()
+        .paperCard()
     }
 }

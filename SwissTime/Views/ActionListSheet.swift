@@ -27,7 +27,7 @@ struct ActionListSheet: View {
                         Text(item.title)
                             .font(.app(17))
                     }
-                    .foregroundStyle(item.destructive ? Color.red : Color.primary)
+                    .foregroundStyle(item.destructive ? Color.brick : Color.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 64)
                 }
@@ -46,6 +46,7 @@ struct ActionListSheet: View {
             .padding(.top, 12)
         }
         .padding(20)
+        .presentationBackground(Color.paper)
         .presentationDetents([.height(CGFloat(actions.count) * 64 + 150)])
         .presentationDragIndicator(.visible)
     }

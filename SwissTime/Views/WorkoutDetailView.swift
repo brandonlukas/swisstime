@@ -39,14 +39,14 @@ struct WorkoutDetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                Circle()
                     .fill(workout.palette.fill)
                     .frame(width: 16, height: 16)
                     .padding(.bottom, 10)
                 Text(workout.title)
-                    .font(.app(32, .bold))
+                    .font(.serifApp(32, .bold))
                     .padding(.bottom, 14)
-                SwissRule()
+                InkRule()
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -56,7 +56,7 @@ struct WorkoutDetailView: View {
                 readView
             }
         }
-        .background(SwissGlassBackground())
+        .background(PaperBackground())
         .safeAreaInset(edge: .bottom) {
             if !editing && !workout.items.isEmpty {
                 Button {
@@ -72,7 +72,8 @@ struct WorkoutDetailView: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
-                .background(.ultraThinMaterial)
+                .background(Color.paper.opacity(0.94))
+                .overlay(alignment: .top) { Color.hairline.frame(height: 1) }
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -163,7 +164,7 @@ struct WorkoutDetailView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 16)
             .padding(.vertical, 18)
-            .glassCard()
+            .paperCard()
         }
         .buttonStyle(.plain)
     }
@@ -183,7 +184,7 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
-                    .inkButton(.black)
+                    .inkButton(.ink)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
@@ -197,7 +198,7 @@ struct WorkoutDetailView: View {
             Section {
                 ForEach(workout.items) { item in
                     editRow(item)
-                        .listRowBackground(Color.clear.glassEffect(.regular, in: Rectangle()))
+                        .listRowBackground(Color.paperCardFill.opacity(0.7))
                         .listRowSeparatorTint(Color.hairline)
                 }
                 .onMove { from, to in
@@ -221,7 +222,7 @@ struct WorkoutDetailView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .listRowBackground(Color.clear.glassEffect(.regular, in: Rectangle()))
+                .listRowBackground(Color.paperCardFill.opacity(0.7))
             }
             Section {
                 Button {
@@ -320,7 +321,7 @@ private struct ItemCard: View {
                 }
             }
         }
-        .glassCard()
+        .paperCard()
     }
 }
 

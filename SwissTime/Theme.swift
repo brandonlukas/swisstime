@@ -2,34 +2,72 @@ import SwiftUI
 import UIKit
 
 extension Color {
-    /// Flat light-gray fill, still used inside plain sheets.
-    static let card = Color(white: 0.965)
-    static let fieldBorder = Color(white: 0.85)
-    static let hairline = Color.black.opacity(0.08)
+    /// Warm cream ground behind every screen.
+    static let paper = Color(red: 0.949, green: 0.937, blue: 0.906)
+    /// Slightly brighter warm white for matte cards.
+    static let paperCardFill = Color(red: 0.984, green: 0.973, blue: 0.949)
+    /// Warm indigo-charcoal — the app's "black" for text, buttons, rules.
+    static let ink = Color(red: 0.16, green: 0.19, blue: 0.23)
+    /// Muted brick for destructive actions.
+    static let brick = Color(red: 0.70, green: 0.30, blue: 0.24)
+
+    /// Pond scene colors.
+    static let pondWater = Color(red: 0.227, green: 0.333, blue: 0.439)
+    static let pondWaterDeep = Color(red: 0.165, green: 0.251, blue: 0.345)
+    static let reedGreen = Color(red: 0.42, green: 0.47, blue: 0.31)
+    static let cattail = Color(red: 0.42, green: 0.29, blue: 0.19)
+    static let beakOchre = Color(red: 0.85, green: 0.60, blue: 0.24)
+
+    /// Warm fill for plain sheet rows.
+    static let card = Color(red: 0.93, green: 0.915, blue: 0.88)
+    static let fieldBorder = Color.ink.opacity(0.22)
+    static let hairline = Color.ink.opacity(0.10)
+}
+
+/// What swims in for a finished workout of this color.
+enum CreatureKind {
+    case drake, hen, duckling, goose, koi, shadowFish
 }
 
 struct PaletteColor {
+    let name: String
     let fill: Color
     /// Legible ink on top of `fill` — the light fills need black.
     let onFill: Color
+    let creature: CreatureKind
 }
 
-/// Vibrant, playful swatches. Each workout owns one; the loudness works
-/// because it sits on calm structure — neutral backdrop, glass, black type,
-/// one color per screen. Every fill must survive full-screen in the player
-/// with black text on frosted glass over it.
+/// Muted natural swatches, each tied to a pond creature. Indices are stable —
+/// pre-pond files decode and simply adopt the quieter colors. Every fill must
+/// survive full-screen in the player with legible text on matte cards over it.
 enum Palette {
     static let all: [PaletteColor] = [
-        PaletteColor(fill: Color(red: 0.35, green: 0.79, blue: 0.15), onFill: .white),  // grass
-        PaletteColor(fill: Color(red: 0.12, green: 0.66, blue: 0.94), onFill: .white),  // sky
-        PaletteColor(fill: Color(red: 1.00, green: 0.77, blue: 0.00), onFill: .black),  // sunflower
-        PaletteColor(fill: Color(red: 1.00, green: 0.56, blue: 0.12), onFill: .white),  // tangerine
-        PaletteColor(fill: Color(red: 1.00, green: 0.42, blue: 0.71), onFill: .white),  // flamingo
-        PaletteColor(fill: Color(red: 0.64, green: 0.41, blue: 0.94), onFill: .white),  // grape
+        PaletteColor(name: "Reed",
+                     fill: Color(red: 0.47, green: 0.51, blue: 0.33), onFill: .white,
+                     creature: .drake),
+        PaletteColor(name: "Pond",
+                     fill: Color(red: 0.227, green: 0.333, blue: 0.439), onFill: .white,
+                     creature: .shadowFish),
+        PaletteColor(name: "Ochre",
+                     fill: Color(red: 0.78, green: 0.59, blue: 0.28), onFill: .black,
+                     creature: .duckling),
+        PaletteColor(name: "Clay",
+                     fill: Color(red: 0.66, green: 0.39, blue: 0.26), onFill: .white,
+                     creature: .koi),
+        PaletteColor(name: "Mist",
+                     fill: Color(red: 0.55, green: 0.63, blue: 0.68), onFill: .black,
+                     creature: .goose),
+        PaletteColor(name: "Cattail",
+                     fill: Color(red: 0.48, green: 0.36, blue: 0.26), onFill: .white,
+                     creature: .hen),
     ]
 
     static func color(_ index: Int?) -> PaletteColor {
         all[(index ?? 0) % all.count]
+    }
+
+    static func creature(for index: Int?) -> CreatureKind {
+        color(index).creature
     }
 }
 
@@ -40,48 +78,38 @@ extension Workout {
 }
 
 extension Font {
-    /// SF Pro — the system grotesque, with automatic optical sizing.
+    /// SF Pro — body, controls, and timer numerals.
     static func app(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight)
     }
+
+    /// New York — titles, month labels, headlines. The storybook voice.
+    static func serifApp(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .serif)
+    }
 }
 
-/// The black rule under page titles.
-struct SwissRule: View {
+/// The soft rule under page titles.
+struct InkRule: View {
     var body: some View {
         Rectangle()
-            .fill(Color.black)
+            .fill(Color.ink.opacity(0.3))
             .frame(height: 1)
     }
 }
 
-// MARK: - Swiss glass
+// MARK: - Paper surfaces
 
-/// Ambient backdrop: a slowly drifting near-white mesh gradient — warm sand
-/// and cool gray, no nameable hue, so every workout color reads as intentional
-/// against it — textured with static grain.
-struct SwissGlassBackground: View {
+/// Ambient backdrop: warm cream paper with a barely-there pool of light,
+/// textured with static grain.
+struct PaperBackground: View {
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            MeshGradient(
-                width: 3, height: 3,
-                points: [
-                    .init(0, 0), .init(0.5, 0), .init(1, 0),
-                    .init(0, Float(0.5 + 0.10 * sin(t / 9))),
-                    .init(Float(0.5 + 0.12 * sin(t / 11)), Float(0.5 + 0.10 * cos(t / 8))),
-                    .init(1, Float(0.5 + 0.08 * cos(t / 7))),
-                    .init(0, 1), .init(0.5, 1), .init(1, 1),
-                ],
-                colors: [
-                    .white, Color(red: 0.97, green: 0.95, blue: 0.92), .white,
-                    Color(red: 0.95, green: 0.90, blue: 0.83),
-                    Color(red: 0.99, green: 0.98, blue: 0.97),
-                    Color(red: 0.86, green: 0.89, blue: 0.94),
-                    Color(red: 0.92, green: 0.91, blue: 0.89),
-                    Color(red: 0.96, green: 0.92, blue: 0.86),
-                    Color(red: 0.89, green: 0.91, blue: 0.95),
-                ]
+        ZStack {
+            Color.paper
+            RadialGradient(
+                colors: [Color.white.opacity(0.35), .clear],
+                center: UnitPoint(x: 0.5, y: 0.3),
+                startRadius: 0, endRadius: 460
             )
         }
         .overlay(GrainOverlay())
@@ -121,16 +149,63 @@ enum Grain {
     }()
 }
 
+/// The player's rising fill, treated as pond water: the workout's swatch with
+/// slow drifting cloud-shadows and a soft waterline instead of a hard edge.
+struct WaterFill: View {
+    let color: Color
+    let time: TimeInterval
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                color
+                Ellipse()
+                    .fill(Color.black.opacity(0.12))
+                    .frame(width: geo.size.width * 1.1,
+                           height: max(80, geo.size.height * 0.5))
+                    .blur(radius: 36)
+                    .offset(x: sin(time / 19) * 46,
+                            y: geo.size.height * 0.28 + cos(time / 23) * 30)
+                Ellipse()
+                    .fill(Color.white.opacity(0.07))
+                    .frame(width: geo.size.width * 0.8,
+                           height: max(60, geo.size.height * 0.4))
+                    .blur(radius: 32)
+                    .offset(x: cos(time / 17) * 52,
+                            y: -geo.size.height * 0.12 + sin(time / 13) * 24)
+            }
+        }
+        .clipped()
+        .mask(
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: 24)
+                Color.black
+            }
+        )
+    }
+}
+
 extension View {
-    /// A pane of the system's Liquid Glass. Continuous rounded corners —
-    /// the refraction pinches on hard 90° edges.
-    func glassCard(_ radius: CGFloat = 18) -> some View {
-        self.glassEffect(.regular, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+    /// A matte paper card: warm white, faint edge, soft feathered shadow.
+    /// Slightly translucent variants let the player's rising water read through.
+    func paperCard(_ radius: CGFloat = 18, opacity: Double = 1) -> some View {
+        self
+            .background(Color.paperCardFill.opacity(opacity),
+                        in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .stroke(Color.ink.opacity(0.06), lineWidth: 0.5)
+            )
+            .shadow(color: Color.ink.opacity(0.08), radius: 10, y: 4)
     }
 
-    /// Solid ink button surface, matching the glass panes' curvature.
+    /// Solid ink button surface, matching the paper cards' curvature.
     func inkButton(_ fill: Color, radius: CGFloat = 14) -> some View {
-        self.background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+        self
+            .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .shadow(color: Color.ink.opacity(0.10), radius: 6, y: 2)
     }
 }
 
@@ -140,6 +215,7 @@ enum DebugLaunch {
     static var didAutoPlay = false
     static var didAutoOpen = false
     static var didAutoEdit = false
+    static var didAutoOpenPond = false
 }
 
 extension String {
