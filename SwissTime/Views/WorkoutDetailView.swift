@@ -140,6 +140,11 @@ struct WorkoutDetailView: View {
                 DebugLaunch.didAutoAddItem = true
                 sheet = .addItem(circuitID: nil)
             }
+            if ProcessInfo.processInfo.arguments.contains("-autoEditWorkout"),
+               !DebugLaunch.didAutoEditWorkout {
+                DebugLaunch.didAutoEditWorkout = true
+                sheet = .editWorkout
+            }
             if ProcessInfo.processInfo.arguments.contains("-autoEditFirstExercise"),
                !DebugLaunch.didAutoAddItem {
                 DebugLaunch.didAutoAddItem = true

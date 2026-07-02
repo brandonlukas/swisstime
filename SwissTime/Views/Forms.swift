@@ -136,7 +136,8 @@ struct PickerField<Value: Hashable>: View {
     }
 }
 
-/// Tappable row of the curated pond swatches.
+/// Tappable row of the curated pond swatches, with a living portrait of
+/// the creature that color earns.
 struct ColorPickerRow: View {
     @Binding var selection: Int
 
@@ -163,6 +164,22 @@ struct ColorPickerRow: View {
                     .buttonStyle(.plain)
                 }
             }
+            HStack(spacing: 14) {
+                CreaturePortrait(kind: Palette.color(selection).creature)
+                    .frame(width: 76, height: 52)
+                    .id(Palette.color(selection).creature)
+                    .transition(.opacity)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Palette.color(selection).name)
+                        .font(.app(16, .medium))
+                    Text(Palette.color(selection).creature.pickerLine)
+                        .font(.app(15))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 2)
+            .animation(.easeInOut(duration: 0.22), value: selection)
         }
     }
 }

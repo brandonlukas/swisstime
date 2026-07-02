@@ -214,6 +214,7 @@ enum DebugLaunch {
     static var didAutoEdit = false
     static var didAutoOpenPond = false
     static var didAutoAddItem = false
+    static var didAutoEditWorkout = false
 }
 
 extension String {
