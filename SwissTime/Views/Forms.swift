@@ -1,4 +1,13 @@
 import SwiftUI
+import UIKit
+
+/// SwiftUI has no first-class "dismiss keyboard"; resigning first responder
+/// through the responder chain drops focus from whichever field holds it.
+@MainActor
+func hideKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                    to: nil, from: nil, for: nil)
+}
 
 // MARK: - Building blocks
 
@@ -14,6 +23,7 @@ struct SheetScaffold<Content: View>: View {
         VStack(spacing: 0) {
             HStack {
                 Button {
+                    hideKeyboard()
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
@@ -30,9 +40,19 @@ struct SheetScaffold<Content: View>: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
+                // A tap catcher BEHIND the fields: blank-paper taps drop the
+                // keyboard, and being a sibling layer (not a wrapping
+                // gesture) it can't slow the controls' own touch handling.
+                .background(
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { hideKeyboard() }
+                )
             }
+            .scrollDismissesKeyboard(.immediately)
             Divider()
             Button {
+                hideKeyboard()
                 onSubmit()
                 dismiss()
             } label: {
@@ -64,6 +84,7 @@ struct LabeledField: View {
                 .font(.app(17, .medium))
             TextField(placeholder, text: $text)
                 .font(.app(17))
+                .submitLabel(.done)
                 .focused($focused)
                 .padding(.horizontal, 14)
                 .frame(height: 52)
@@ -108,6 +129,9 @@ struct PickerField<Value: Hashable>: View {
                         .stroke(Color.fieldBorder, lineWidth: 1)
                 )
             }
+            // Opening a picker over the keyboard reads as a mistake — drop it.
+            // Simultaneous, so the menu itself opens untouched.
+            .simultaneousGesture(TapGesture().onEnded { hideKeyboard() })
         }
     }
 }
@@ -158,6 +182,7 @@ struct SegmentRow<Value: Hashable>: View {
                 ForEach(options, id: \.self) { option in
                     Button {
                         selection = option
+                        hideKeyboard()
                     } label: {
                         Text(display(option))
                             .font(.app(16, selection == option ? .medium : .regular))
@@ -171,6 +196,10 @@ struct SegmentRow<Value: Hashable>: View {
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                                     .stroke(selection == option ? Color.ink : Color.fieldBorder,
                                             lineWidth: 1))
+                            // The unselected option's fill is clear, and
+                            // transparent pixels don't hit-test — the whole
+                            // pill must catch the tap, not just the text.
+                            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
@@ -179,22 +208,34 @@ struct SegmentRow<Value: Hashable>: View {
     }
 }
 
+/// Flips on touch-DOWN, not finger-up — a checkbox should feel like a
+/// physical switch, and waiting out a full tap in a scroll view reads as
+/// lag. A zero-distance drag is the touch-down hook SwiftUI doesn't offer.
 struct CheckboxRow: View {
     let title: String
     @Binding var isOn: Bool
+    @State private var touchDown = false
 
     var body: some View {
-        Button {
-            isOn.toggle()
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: isOn ? "checkmark.square" : "square")
-                    .font(.system(size: 22, weight: .light))
-                Text(title)
-                    .font(.app(17))
-            }
+        HStack(spacing: 14) {
+            Image(systemName: isOn ? "checkmark.square" : "square")
+                .font(.system(size: 22, weight: .light))
+            Text(title)
+                .font(.app(17))
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard !touchDown else { return }
+                    touchDown = true
+                    isOn.toggle()
+                    UISelectionFeedbackGenerator().selectionChanged()
+                    hideKeyboard()
+                }
+                .onEnded { _ in touchDown = false }
+        )
     }
 }
 
@@ -370,16 +411,20 @@ struct ItemFormView: View {
                         CheckboxRow(title: "5s left", isOn: $fiveSeconds)
                     }
                 case .sets:
-                    PickerField(label: "Sets", options: Array(1...12),
-                                display: { "\($0)" }, selection: $sets)
-                    PickerField(label: "Reps per set", options: [0] + Array(1...50),
-                                display: { $0 == 0 ? "Not set" : "\($0)" }, selection: $reps)
-                    PickerField(label: "Rest between sets", options: restOptions,
-                                display: { Format.mmss($0) }, selection: $rest)
+                    HStack(alignment: .top, spacing: 12) {
+                        PickerField(label: "Sets", options: Array(1...12),
+                                    display: { "\($0)" }, selection: $sets)
+                        PickerField(label: "Reps per set", options: [0] + Array(1...50),
+                                    display: { $0 == 0 ? "Not set" : "\($0)" }, selection: $reps)
+                    }
                     VStack(alignment: .leading, spacing: 10) {
-                        SegmentRow(label: "Rest timer", options: [false, true],
-                                   display: { $0 ? "Counts down" : "Counts up" },
-                                   selection: $restCountsDown)
+                        HStack(alignment: .top, spacing: 12) {
+                            PickerField(label: "Rest between sets", options: restOptions,
+                                        display: { Format.mmss($0) }, selection: $rest)
+                            PickerField(label: "Rest timer", options: [false, true],
+                                        display: { $0 ? "Counts down" : "Counts up" },
+                                        selection: $restCountsDown)
+                        }
                         Text(restExplanation)
                             .font(.app(14))
                             .foregroundStyle(.secondary)

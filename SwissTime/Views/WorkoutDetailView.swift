@@ -135,6 +135,21 @@ struct WorkoutDetailView: View {
                 DebugLaunch.didAutoEdit = true
                 editing = true
             }
+            if ProcessInfo.processInfo.arguments.contains("-autoAddItem"),
+               !DebugLaunch.didAutoAddItem {
+                DebugLaunch.didAutoAddItem = true
+                sheet = .addItem(circuitID: nil)
+            }
+            if ProcessInfo.processInfo.arguments.contains("-autoEditFirstExercise"),
+               !DebugLaunch.didAutoAddItem {
+                DebugLaunch.didAutoAddItem = true
+                for item in workout.items {
+                    if case .exercise(let exercise) = item {
+                        sheet = .editExercise(exercise)
+                        break
+                    }
+                }
+            }
         }
     }
 
@@ -306,6 +321,7 @@ struct WorkoutDetailView: View {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 15))
                         .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } else {
@@ -317,6 +333,7 @@ struct WorkoutDetailView: View {
                     Image(systemName: "square.on.square")
                         .font(.system(size: 15))
                         .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

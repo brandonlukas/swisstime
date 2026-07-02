@@ -30,6 +30,8 @@ struct ActionListSheet: View {
                     .foregroundStyle(item.destructive ? Color.brick : Color.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 64)
+                    // The empty trail of the row must catch taps too.
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

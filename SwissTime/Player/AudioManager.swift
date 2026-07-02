@@ -1,4 +1,5 @@
 import AVFoundation
+import UIKit
 
 /// Owns the audio session, speech synthesis, and alert sounds.
 ///
@@ -9,6 +10,9 @@ import AVFoundation
 final class AudioManager: NSObject {
     private let synthesizer = AVSpeechSynthesizer()
     private let session = AVAudioSession.sharedInstance()
+    /// Session activation/category changes block on IPC to the media server —
+    /// tens of ms — so they all run here, never on the main thread.
+    private let sessionQueue = DispatchQueue(label: "SwissTime.AudioSession", qos: .userInitiated)
     private var beepPlayer: AVAudioPlayer?
     private var donePlayer: AVAudioPlayer?
     private var silencePlayer: AVAudioPlayer?
@@ -16,6 +20,7 @@ final class AudioManager: NSObject {
     private var activeSounds = 0
     private var running = false
     private var keepAliveWanted = true
+    private var inBackground = false
 
     override init() {
         super.init()
@@ -25,47 +30,99 @@ final class AudioManager: NSObject {
         silencePlayer = makePlayer("silence")
         silencePlayer?.numberOfLoops = -1
         silencePlayer?.volume = 0
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(didEnterBackground),
+                           name: UIApplication.didEnterBackgroundNotification, object: nil)
+        center.addObserver(self, selector: #selector(willEnterForeground),
+                           name: UIApplication.willEnterForegroundNotification, object: nil)
+    }
+
+    /// While backgrounded the session must never go inactive: a session
+    /// deactivated out of view may not be handed back by the system, which
+    /// silences every cue and lets the app be suspended (the Live Activity
+    /// keeps counting on its endDate, so it *looks* like only audio broke).
+    @objc private func didEnterBackground() {
+        inBackground = true
+        guard running, keepAliveWanted else { return }
+        sessionQueue.async { [self] in
+            try? session.setActive(true)
+            silencePlayer?.play()
+        }
+    }
+
+    /// Back in view — now it's safe to cycle the session and lift any
+    /// ducking left over from cues played in the background.
+    @objc private func willEnterForeground() {
+        inBackground = false
+        guard running, activeSounds == 0 else { return }
+        releaseDuck(keepAlive: keepAliveWanted)
+    }
+
+    /// Ducking only ends when the session deactivates, so cycle it.
+    /// Foreground only — see didEnterBackground.
+    private func releaseDuck(keepAlive: Bool) {
+        sessionQueue.async { [self] in
+            silencePlayer?.pause()
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+            applyCategory(ducking: false)
+            try? session.setActive(true)
+            if keepAlive { silencePlayer?.play() }
+        }
     }
 
     func start() {
         running = true
         keepAliveWanted = true
-        applyCategory(ducking: false)
-        try? session.setActive(true)
-        silencePlayer?.play()
+        sessionQueue.async { [self] in
+            applyCategory(ducking: false)
+            try? session.setActive(true)
+            silencePlayer?.play()
+        }
     }
 
     func stop() {
         running = false
-        synthesizer.stopSpeaking(at: .immediate)
-        beepPlayer?.stop()
-        donePlayer?.stop()
-        silencePlayer?.stop()
         activeSounds = 0
-        try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        sessionQueue.async { [self] in
+            synthesizer.stopSpeaking(at: .immediate)
+            beepPlayer?.stop()
+            donePlayer?.stop()
+            silencePlayer?.stop()
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 
     /// The silent loop only needs to run while the timer is actually counting.
     func setKeepAlive(_ wanted: Bool) {
         keepAliveWanted = wanted
         guard running else { return }
-        if wanted {
-            silencePlayer?.play()
-        } else if activeSounds == 0 {
-            silencePlayer?.pause()
+        let idle = activeSounds == 0
+        sessionQueue.async { [self] in
+            if wanted {
+                silencePlayer?.play()
+            } else if idle {
+                silencePlayer?.pause()
+            }
         }
     }
 
+    /// Duck bookkeeping happens here on the caller's (main) thread, but the
+    /// synthesizer runs on the session queue: preparing an utterance and
+    /// voice can block for long enough to drop frames mid-transition.
     func speak(_ text: String, interrupting: Bool = false) {
         guard running, !text.isEmpty else { return }
-        if interrupting, synthesizer.isSpeaking {
-            // didCancel fires per dropped utterance, keeping the duck count balanced.
-            synthesizer.stopSpeaking(at: .immediate)
-        }
         beginSound()
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        synthesizer.speak(utterance)
+        sessionQueue.async { [self] in
+            if interrupting, synthesizer.isSpeaking {
+                // didCancel fires per dropped utterance, keeping the duck
+                // count balanced. The new utterance is already counted, so
+                // the duck never flaps between the two.
+                synthesizer.stopSpeaking(at: .immediate)
+            }
+            let utterance = AVSpeechUtterance(string: text)
+            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+            synthesizer.speak(utterance)
+        }
     }
 
     func playBeep() { play(beepPlayer) }
@@ -76,12 +133,14 @@ final class AudioManager: NSObject {
         if player.isPlaying {
             // Restarting a playing sound yields only one didFinish;
             // don't count it twice or the duck would never lift.
-            player.currentTime = 0
+            sessionQueue.async { player.currentTime = 0 }
             return
         }
         beginSound()
-        player.currentTime = 0
-        player.play()
+        sessionQueue.async {
+            player.currentTime = 0
+            player.play()
+        }
     }
 
     private func makePlayer(_ name: String) -> AVAudioPlayer? {
@@ -102,8 +161,10 @@ final class AudioManager: NSObject {
     private func beginSound() {
         activeSounds += 1
         guard activeSounds == 1 else { return }
-        applyCategory(ducking: true)
-        try? session.setActive(true)
+        sessionQueue.async { [self] in
+            applyCategory(ducking: true)
+            try? session.setActive(true)
+        }
     }
 
     private func endSound() {
@@ -111,14 +172,17 @@ final class AudioManager: NSObject {
         guard activeSounds == 0 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self, self.running, self.activeSounds == 0 else { return }
-            // Ducking only ends when the session deactivates, so cycle it.
-            self.silencePlayer?.pause()
-            try? self.session.setActive(false, options: .notifyOthersOnDeactivation)
-            self.applyCategory(ducking: false)
-            try? self.session.setActive(true)
-            if self.keepAliveWanted {
-                self.silencePlayer?.play()
+            if self.inBackground {
+                // Best-effort duck release without dropping the session;
+                // the full cycle waits for willEnterForeground.
+                let keepAlive = self.keepAliveWanted
+                self.sessionQueue.async {
+                    self.applyCategory(ducking: false)
+                    if keepAlive { self.silencePlayer?.play() }
+                }
+                return
             }
+            self.releaseDuck(keepAlive: self.keepAliveWanted)
         }
     }
 }

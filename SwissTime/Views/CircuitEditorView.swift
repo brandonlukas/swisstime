@@ -76,6 +76,7 @@ struct CircuitEditorView: View {
                                 Image(systemName: "ellipsis")
                                     .font(.system(size: 15))
                                     .frame(width: 30, height: 30)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
@@ -112,9 +113,11 @@ struct CircuitEditorView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.immediately)
             .environment(\.editMode, .constant(.active))
             Divider()
             Button {
+                hideKeyboard()
                 mutateCircuit {
                     $0.name = name.trimmed
                     $0.loops = loops

@@ -1,6 +1,57 @@
 import SwiftUI
 import UIKit
 
+/// Drives a level (waterline, progress bar) with two regimes: while the
+/// target creeps with ordinary passage of time it is tracked EXACTLY —
+/// linear and truthful — but a discontinuity (new step, skip, finish)
+/// engages a spring so the level moves like something with mass instead
+/// of snapping. A plain reference — advanced once per timeline frame,
+/// its mutations must not invalidate views.
+private final class LevelSpring {
+    private var value: Double = 0
+    private var velocity: Double = 0
+    private var lastTime: Date?
+    private var springing = false
+
+    func advance(toward target: Double, at now: Date) -> Double {
+        // First frame adopts the target outright — the player opens with
+        // the level already where it belongs, no entrance animation.
+        guard let last = lastTime else {
+            lastTime = now
+            value = target
+            return value
+        }
+        // Clamped dt keeps the integration stable across dropped frames
+        // and prevents a lurch when the timeline resumes after a pause.
+        let dt = min(0.1, max(0, now.timeIntervalSince(last)))
+        lastTime = now
+        // Continuous motion moves well under this between frames; a gap
+        // this large in one frame means the target jumped.
+        if abs(target - value) > 0.02 { springing = true }
+        guard springing else {
+            value = target
+            return value
+        }
+        // Slightly underdamped — the water settles with a small swell.
+        // Fixed substeps keep the trajectory true when frames drop: one
+        // big Euler step through a hitch would leap straight to the target
+        // and read as a snap instead of a fill.
+        var remaining = dt
+        while remaining > 0 {
+            let h = min(remaining, 1.0 / 120.0)
+            remaining -= h
+            velocity += (-90 * (value - target) - 14 * velocity) * h
+            value += velocity * h
+        }
+        if abs(value - target) < 0.0005, abs(velocity) < 0.005 {
+            value = target
+            velocity = 0
+            springing = false
+        }
+        return value
+    }
+}
+
 struct PlayerView: View {
     @EnvironmentObject private var store: WorkoutStore
     @EnvironmentObject private var pond: PondStore
@@ -8,6 +59,8 @@ struct PlayerView: View {
     @StateObject private var engine: PlayerEngine
     @State private var confirmEnd = false
     @State private var recordedCompletion = false
+    @State private var waterSpring = LevelSpring()
+    @State private var barSpring = LevelSpring()
 
     init(workout: Workout, startID: UUID? = nil) {
         _engine = StateObject(wrappedValue: PlayerEngine(workout: workout, startID: startID))
@@ -32,28 +85,24 @@ struct PlayerView: View {
             GeometryReader { geo in
                 let bottomInset = geo.safeAreaInsets.bottom
                 let fullHeight = geo.size.height + bottomInset
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0,
-                                        paused: engine.phase == .paused || engine.phase == .finished)) { timeline in
-                    let now = timeline.date
-                    ZStack(alignment: .bottom) {
-                        WaterFill(color: engine.workout.palette.fill,
-                                  time: now.timeIntervalSinceReferenceDate)
-                            .frame(height: fullHeight * engine.fraction(at: now))
-                        GrainOverlay()
-                        VStack(spacing: 0) {
-                            breadcrumb
-                                .padding(20)
-                            Spacer(minLength: 0)
-                            timerCard(now: now, side: min(geo.size.width - 84, 340))
-                            Spacer(minLength: 0)
-                            controls(now: now)
-                                .padding(20)
-                                .padding(.bottom, bottomInset)
-                        }
-                        .frame(maxHeight: .infinity)
+                // Each moving piece runs its own clock, so the static chrome
+                // (cards, shadows, grain) isn't re-rendered 30 times a second.
+                ZStack(alignment: .bottom) {
+                    waterLayer(fullHeight: fullHeight)
+                    GrainOverlay()
+                    VStack(spacing: 0) {
+                        breadcrumb
+                            .padding(20)
+                        Spacer(minLength: 0)
+                        timerCard(side: max(1, min(geo.size.width - 84, 340)))
+                        Spacer(minLength: 0)
+                        controls
+                            .padding(20)
+                            .padding(.bottom, bottomInset)
                     }
-                    .frame(width: geo.size.width, height: fullHeight)
+                    .frame(maxHeight: .infinity)
                 }
+                .frame(width: geo.size.width, height: fullHeight)
                 .ignoresSafeArea(edges: .bottom)
             }
         }
@@ -180,7 +229,62 @@ struct PlayerView: View {
         }
     }
 
-    private func timerCard(now: Date, side: CGFloat) -> some View {
+    private var timelinesPaused: Bool {
+        engine.phase == .paused || engine.phase == .finished
+    }
+
+    /// One 30fps clock drives the waterline mask every frame; the texture's
+    /// drift time is quantized to 4Hz and the view marked equatable, so the
+    /// expensive blurred layer still re-renders only a few times a second.
+    /// (A TimelineView nested inside .mask doesn't reliably drive updates —
+    /// the waterline was moving at the slow texture rate, which read as a
+    /// delay-then-jump on step transitions.) Not paused on finish so the
+    /// water drains out.
+    private func waterLayer(fullHeight: CGFloat) -> some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+                                paused: engine.phase == .paused)) { timeline in
+            let now = timeline.date
+            let target = engine.fraction(at: now)
+            let level = fullHeight * waterSpring.advance(toward: target, at: now)
+            WaterFill(color: engine.workout.palette.fill,
+                      time: (now.timeIntervalSinceReferenceDate * 4).rounded() / 4)
+                .equatable()
+                .mask(alignment: .bottom) {
+                    ZStack(alignment: .bottom) {
+                        Color.clear
+                        VStack(spacing: 0) {
+                            LinearGradient(colors: [.clear, .black],
+                                           startPoint: .top, endPoint: .bottom)
+                                .frame(height: 24)
+                            Color.black
+                        }
+                        .frame(height: max(0, level), alignment: .bottom)
+                        .clipped()
+                    }
+                }
+        }
+    }
+
+    /// Card chrome stays outside the timeline: the shadowed paper renders
+    /// once, only the numerals and captions inside tick at 30fps.
+    private func timerCard(side: CGFloat) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color.paperCardFill.opacity(0.92))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.ink.opacity(0.06), lineWidth: 0.5)
+                )
+                .shadow(color: Color.ink.opacity(0.08), radius: 10, y: 4)
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+                                    paused: timelinesPaused)) { timeline in
+                timerContent(now: timeline.date)
+            }
+        }
+        .frame(width: side, height: side)
+    }
+
+    private func timerContent(now: Date) -> some View {
         let display = engine.displayTime(at: now)
         let centiseconds = Int(display * 100)
         let minutes = centiseconds / 6000
@@ -232,8 +336,6 @@ struct PlayerView: View {
                 }
             }
         }
-        .frame(width: side, height: side)
-        .paperCard(24, opacity: 0.92)
     }
 
     /// "Exercise 3 of 7", plus the rest target while the water rises toward it.
@@ -267,7 +369,7 @@ struct PlayerView: View {
         .buttonStyle(.plain)
     }
 
-    private func controls(now: Date) -> some View {
+    private var controls: some View {
         HStack {
             controlButton("backward.end", enabled: true) {
                 engine.previous()
@@ -288,10 +390,17 @@ struct PlayerView: View {
         .frame(height: 64)
         .paperCard(opacity: 0.92)
         .overlay(alignment: .topLeading) {
+            // Springs toward the overall fraction, so skips and step changes
+            // glide instead of jumping. Not paused on finish so it can land.
             GeometryReader { geo in
-                Rectangle()
-                    .fill(Color.ink)
-                    .frame(width: geo.size.width * engine.overallFraction(at: now), height: 3)
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+                                        paused: engine.phase == .paused)) { timeline in
+                    Rectangle()
+                        .fill(Color.ink)
+                        .frame(width: max(0, geo.size.width * barSpring.advance(
+                            toward: engine.overallFraction(at: timeline.date),
+                            at: timeline.date)), height: 3)
+                }
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
@@ -303,6 +412,7 @@ struct PlayerView: View {
                 .font(.system(size: 21, weight: .medium))
                 .foregroundStyle(Color.primary.opacity(enabled ? 1 : 0.3))
                 .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!enabled)

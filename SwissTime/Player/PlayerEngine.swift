@@ -89,6 +89,9 @@ final class PlayerEngine: ObservableObject {
         } else {
             startIndex = 0
         }
+        // The water renders before onAppear calls start(); give the countdown
+        // a truthful endDate so the pond opens full instead of empty.
+        endDate = Date().addingTimeInterval(countdownDuration)
     }
 
     var currentStep: Step? {
@@ -125,8 +128,9 @@ final class PlayerEngine: ObservableObject {
         currentCountsUp ? elapsed(at: date) : remaining(at: date)
     }
 
-    /// Drives the water: countdown steps drain; count-up rest fills toward its
-    /// target and holds full; untimed work is still water.
+    /// Drives the water: countdown steps (including the pre-workout
+    /// countdown) drain as the share of time remaining; count-up rest fills
+    /// toward its target and holds full; untimed work is still water.
     func fraction(at date: Date) -> Double {
         guard phase != .finished else { return 0 }
         if let duration = currentCountdownDuration, duration > 0 {
@@ -183,8 +187,10 @@ final class PlayerEngine: ObservableObject {
         liveActivity.start(workoutTitle: workout.title, state: activityState(
             name: "Starting soon", label: ""))
         subscribeToIntents()
+        // The timer fires on the main run loop; assumeIsolated calls tick()
+        // directly instead of hopping through a Task every 50ms.
         ticker = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tick() }
+            MainActor.assumeIsolated { self?.tick() }
         }
         RunLoop.main.add(ticker!, forMode: .common)
     }

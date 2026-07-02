@@ -149,9 +149,11 @@ enum Grain {
     }()
 }
 
-/// The player's rising fill, treated as pond water: the workout's swatch with
-/// slow drifting cloud-shadows and a soft waterline instead of a hard edge.
-struct WaterFill: View {
+/// The player's pond water: the workout's swatch with slow drifting
+/// cloud-shadows. Rendered full-size at fixed geometry on a slow clock;
+/// PlayerView reveals it up to the waterline with a soft-edged moving mask,
+/// so the expensive blurs stay off the per-frame path.
+struct WaterFill: View, Equatable {
     let color: Color
     let time: TimeInterval
 
@@ -174,16 +176,11 @@ struct WaterFill: View {
                     .offset(x: cos(time / 17) * 52,
                             y: -geo.size.height * 0.12 + sin(time / 13) * 24)
             }
+            // Flatten the big blurs into one Metal pass; with fixed geometry
+            // and a slow clock the texture re-renders only a few times a second.
+            .drawingGroup()
         }
         .clipped()
-        .mask(
-            VStack(spacing: 0) {
-                LinearGradient(colors: [.clear, .black],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 24)
-                Color.black
-            }
-        )
     }
 }
 
@@ -216,6 +213,7 @@ enum DebugLaunch {
     static var didAutoOpen = false
     static var didAutoEdit = false
     static var didAutoOpenPond = false
+    static var didAutoAddItem = false
 }
 
 extension String {
@@ -227,7 +225,7 @@ extension String {
 enum Format {
     /// "15:00", "1:00", "0:05"
     static func mmss(_ interval: TimeInterval) -> String {
-        let total = Int(interval.rounded())
+        let total = Int(interval.rounded(.down))
         return "\(total / 60):" + String(format: "%02d", total % 60)
     }
 
