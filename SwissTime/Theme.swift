@@ -1,12 +1,13 @@
 import SwiftUI
+import UIKit
 
 extension Color {
-    /// The single accent — a Swiss "Klein" blue.
-    static let swissBlue = Color(red: 0.22, green: 0.23, blue: 0.94)
-    /// Flat light-gray card fill.
+    /// The single accent — the classic Swiss poster red.
+    static let swissRed = Color(red: 0.89, green: 0.024, blue: 0.075)
+    /// Flat light-gray fill, still used inside plain sheets.
     static let card = Color(white: 0.965)
     static let fieldBorder = Color(white: 0.85)
-    static let hairline = Color(white: 0.88)
+    static let hairline = Color.black.opacity(0.08)
 }
 
 extension Font {
@@ -22,6 +23,78 @@ struct SwissRule: View {
         Rectangle()
             .fill(Color.black)
             .frame(height: 1)
+    }
+}
+
+// MARK: - Swiss glass
+
+/// Ambient backdrop: a slowly drifting near-white mesh gradient with whispers
+/// of red and cool gray in the corners, textured with static grain.
+struct SwissGlassBackground: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            MeshGradient(
+                width: 3, height: 3,
+                points: [
+                    .init(0, 0), .init(0.5, 0), .init(1, 0),
+                    .init(0, Float(0.5 + 0.10 * sin(t / 9))),
+                    .init(Float(0.5 + 0.12 * sin(t / 11)), Float(0.5 + 0.10 * cos(t / 8))),
+                    .init(1, Float(0.5 + 0.08 * cos(t / 7))),
+                    .init(0, 1), .init(0.5, 1), .init(1, 1),
+                ],
+                colors: [
+                    .white, Color(red: 0.99, green: 0.98, blue: 0.97), .white,
+                    Color(red: 1.0, green: 0.93, blue: 0.92), .white,
+                    Color(red: 0.93, green: 0.95, blue: 0.98),
+                    Color(red: 0.96, green: 0.95, blue: 0.93),
+                    Color(red: 1.0, green: 0.95, blue: 0.94), .white,
+                ]
+            )
+        }
+        .overlay(GrainOverlay())
+        .ignoresSafeArea()
+    }
+}
+
+/// Static tiled noise — kills gradient banding and reads as paper texture.
+struct GrainOverlay: View {
+    var body: some View {
+        Image(uiImage: Grain.image)
+            .resizable(resizingMode: .tile)
+            .opacity(0.04)
+            .blendMode(.overlay)
+            .allowsHitTesting(false)
+            .ignoresSafeArea()
+    }
+}
+
+enum Grain {
+    static let image: UIImage = {
+        let size = 128
+        var pixels = [UInt8](repeating: 0, count: size * size)
+        for index in pixels.indices {
+            pixels[index] = UInt8.random(in: 0...255)
+        }
+        let cgImage = pixels.withUnsafeMutableBytes { buffer -> CGImage? in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: size, height: size,
+                bitsPerComponent: 8, bytesPerRow: size,
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ) else { return nil }
+            return context.makeImage()
+        }
+        return cgImage.map { UIImage(cgImage: $0) } ?? UIImage()
+    }()
+}
+
+extension View {
+    /// Sharp-cornered glass surface: square, frosted, with a faint light edge.
+    func glassCard() -> some View {
+        self
+            .background(.regularMaterial)
+            .overlay(Rectangle().strokeBorder(Color.white.opacity(0.4), lineWidth: 1))
     }
 }
 

@@ -33,6 +33,7 @@ struct WorkoutListView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
             }
+            .background(SwissGlassBackground())
             .navigationDestination(for: UUID.self) { id in
                 WorkoutDetailView(workoutID: id)
             }
@@ -81,7 +82,7 @@ struct WorkoutListView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
-                    .background(Color.swissBlue)
+                    .background(Color.swissRed)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
@@ -120,13 +121,13 @@ private struct WorkoutCard: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
                         .frame(width: 52, height: 52)
-                        .background(Color.swissBlue)
+                        .background(Color.swissRed)
                 }
                 .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(Color.card)
+        .glassCard()
     }
 }

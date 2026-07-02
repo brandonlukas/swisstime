@@ -11,8 +11,6 @@ struct PlayerView: View {
         _engine = StateObject(wrappedValue: PlayerEngine(workout: workout, startID: startID))
     }
 
-    /// Translucent white: reads light gray over white, lavender over the blue fill.
-    private let cardFill = Color(white: 0.96).opacity(0.8)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,8 +35,9 @@ struct PlayerView: View {
                     let now = timeline.date
                     ZStack(alignment: .bottom) {
                         Rectangle()
-                            .fill(Color.swissBlue)
+                            .fill(Color.swissRed)
                             .frame(height: fullHeight * engine.fraction(at: now))
+                        GrainOverlay()
                         VStack(spacing: 0) {
                             breadcrumb
                                 .padding(20)
@@ -55,9 +54,8 @@ struct PlayerView: View {
                 }
                 .ignoresSafeArea(edges: .bottom)
             }
-            .background(Color.white)
         }
-        .background(Color.white)
+        .background(SwissGlassBackground())
         .onAppear {
             engine.start()
             store.markPlayed(engine.workout.id)
@@ -97,7 +95,7 @@ struct PlayerView: View {
                 .font(.swiss(16))
                 .frame(maxWidth: .infinity)
                 .frame(height: 76)
-                .background(cardFill)
+                .background(.regularMaterial)
         } else if let step = engine.currentStep {
             VStack(spacing: 0) {
                 if let circuitName = step.circuitName {
@@ -126,7 +124,7 @@ struct PlayerView: View {
                         if !step.exercise.instructions.isEmpty {
                             Text(step.exercise.instructions)
                                 .font(.swiss(15))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.black.opacity(0.5))
                         }
                     }
                     Spacer(minLength: 8)
@@ -137,7 +135,7 @@ struct PlayerView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
             }
-            .background(cardFill)
+            .background(.regularMaterial)
         }
     }
 
@@ -160,26 +158,26 @@ struct PlayerView: View {
                 Text("COMPLETE")
                     .font(.swiss(13, .medium))
                     .kerning(2.5)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.black.opacity(0.5))
             } else {
                 VStack(spacing: 10) {
                     if engine.steps.count > 1 {
                         Text("\(Format.mmss(engine.totalRemaining(at: now))) left")
                             .font(.swiss(14))
                             .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.black.opacity(0.5))
                     }
                     if engine.phase == .paused {
                         Text("PAUSED")
                             .font(.swiss(13, .medium))
                             .kerning(2.5)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.black.opacity(0.5))
                     }
                 }
             }
         }
         .frame(width: side, height: side)
-        .background(cardFill)
+        .background(.regularMaterial)
     }
 
     private func controls(now: Date) -> some View {
@@ -201,7 +199,7 @@ struct PlayerView: View {
         }
         .padding(.horizontal, 32)
         .frame(height: 64)
-        .background(cardFill)
+        .background(.regularMaterial)
         .overlay(alignment: .topLeading) {
             GeometryReader { geo in
                 Rectangle()

@@ -41,7 +41,7 @@ struct SheetScaffold<Content: View>: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .background(buttonEnabled ? Color.swissBlue : Color.swissBlue.opacity(0.25))
+                    .background(buttonEnabled ? Color.swissRed : Color.swissRed.opacity(0.25))
             }
             .buttonStyle(.plain)
             .disabled(!buttonEnabled)

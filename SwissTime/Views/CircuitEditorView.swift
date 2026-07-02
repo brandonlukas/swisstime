@@ -117,7 +117,7 @@ struct CircuitEditorView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
                     .background(name.trimmed.isEmpty
-                                ? Color.swissBlue.opacity(0.25) : Color.swissBlue)
+                                ? Color.swissRed.opacity(0.25) : Color.swissRed)
             }
             .buttonStyle(.plain)
             .disabled(name.trimmed.isEmpty)

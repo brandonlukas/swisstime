@@ -52,6 +52,7 @@ struct WorkoutDetailView: View {
                 readView
             }
         }
+        .background(SwissGlassBackground())
         .safeAreaInset(edge: .bottom) {
             if !editing && !workout.items.isEmpty {
                 Button {
@@ -62,12 +63,12 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .background(Color.swissBlue)
+                        .background(Color.swissRed)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
-                .background(Color.white)
+                .background(.ultraThinMaterial)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -156,7 +157,7 @@ struct WorkoutDetailView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 16)
             .padding(.vertical, 18)
-            .background(Color.card)
+            .glassCard()
         }
         .buttonStyle(.plain)
     }
@@ -176,7 +177,7 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
-                    .background(Color.swissBlue)
+                    .background(Color.swissRed)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
@@ -190,7 +191,7 @@ struct WorkoutDetailView: View {
             Section {
                 ForEach(workout.items) { item in
                     editRow(item)
-                        .listRowBackground(Color.card)
+                        .listRowBackground(Rectangle().fill(.regularMaterial))
                         .listRowSeparatorTint(Color.hairline)
                 }
                 .onMove { from, to in
@@ -214,7 +215,7 @@ struct WorkoutDetailView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .listRowBackground(Color.card)
+                .listRowBackground(Rectangle().fill(.regularMaterial))
             }
             Section {
                 Button {
@@ -231,10 +232,11 @@ struct WorkoutDetailView: View {
                         .font(.swiss(16))
                 }
             }
-            .listRowBackground(Color.white)
+            .listRowBackground(Color.clear)
             .listRowSeparatorTint(Color.hairline)
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .environment(\.editMode, .constant(.active))
     }
 
@@ -312,7 +314,7 @@ private struct ItemCard: View {
                 }
             }
         }
-        .background(Color.card)
+        .glassCard()
     }
 }
 
