@@ -79,6 +79,13 @@ struct PlayerView: View {
             engine.start()
             store.markPlayed(engine.workout.id)
             UIApplication.shared.isIdleTimerDisabled = true
+            // Debug: end the first set a few seconds in, so command-line
+            // verification can screenshot the rest step without touch input.
+            if ProcessInfo.processInfo.arguments.contains("-autoAdvanceOnce") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+                    engine.next()
+                }
+            }
         }
         .onDisappear {
             engine.stopAndTearDown()
@@ -153,9 +160,18 @@ struct PlayerView: View {
                         }
                     }
                     Spacer(minLength: 8)
-                    Text(Format.mmss(step.exercise.duration))
-                        .font(.app(16))
-                        .monospacedDigit()
+                    Group {
+                        switch step.kind {
+                        case .rest:
+                            Text("Rest")
+                        case .work where step.exercise.mode == .sets:
+                            Text("Set \(step.set)/\(step.setCount)")
+                        case .work:
+                            Text(Format.mmss(step.exercise.duration))
+                        }
+                    }
+                    .font(.app(16))
+                    .monospacedDigit()
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
@@ -165,12 +181,12 @@ struct PlayerView: View {
     }
 
     private func timerCard(now: Date, side: CGFloat) -> some View {
-        let remaining = engine.remaining(at: now)
-        let centiseconds = Int(remaining * 100)
+        let display = engine.displayTime(at: now)
+        let centiseconds = Int(display * 100)
         let minutes = centiseconds / 6000
         let seconds = (centiseconds / 100) % 60
         let fraction = centiseconds % 100
-        return VStack(spacing: 12) {
+        return VStack(spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(String(format: "%d:%02d", minutes, seconds))
                     .font(.app(64, .medium))
@@ -189,25 +205,66 @@ struct PlayerView: View {
                         .font(.app(13))
                         .foregroundStyle(Color.ink.opacity(0.55))
                 }
+            } else if let step = engine.currentStep, step.exercise.mode == .sets {
+                VStack(spacing: 12) {
+                    SetDots(step: step)
+                    Text(setsCaption(step))
+                        .font(.app(13))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.ink.opacity(0.55))
+                    if engine.phase == .paused {
+                        pausedLabel
+                    } else {
+                        setActionButton(step)
+                    }
+                }
             } else {
                 VStack(spacing: 10) {
-                    if engine.steps.count > 1 {
+                    if engine.steps.count > 1, !engine.hasUntimedSteps {
                         Text("\(Format.mmss(engine.totalRemaining(at: now))) left")
                             .font(.app(14))
                             .monospacedDigit()
                             .foregroundStyle(Color.ink.opacity(0.55))
                     }
                     if engine.phase == .paused {
-                        Text("PAUSED")
-                            .font(.app(13, .medium))
-                            .kerning(2.5)
-                            .foregroundStyle(Color.ink.opacity(0.55))
+                        pausedLabel
                     }
                 }
             }
         }
         .frame(width: side, height: side)
         .paperCard(24, opacity: 0.92)
+    }
+
+    /// "Exercise 3 of 7", plus the rest target while the water rises toward it.
+    private func setsCaption(_ step: PlayerEngine.Step) -> String {
+        var caption = "Exercise \(step.exerciseOrdinal) of \(engine.exerciseCount)"
+        if step.kind == .rest, !step.exercise.restCountsDown {
+            caption = "Target \(Format.mmss(step.exercise.restDuration)) · " + caption
+        }
+        return caption
+    }
+
+    private var pausedLabel: some View {
+        Text("PAUSED")
+            .font(.app(13, .medium))
+            .kerning(2.5)
+            .foregroundStyle(Color.ink.opacity(0.55))
+    }
+
+    /// The big tap between sets: end the untimed set, or cut rest short.
+    private func setActionButton(_ step: PlayerEngine.Step) -> some View {
+        Button {
+            engine.next()
+        } label: {
+            Text(step.kind == .work ? "End set \(step.set)" : "Start set \(step.set + 1)")
+                .font(.app(16, .medium))
+                .foregroundStyle(engine.workout.palette.onFill)
+                .padding(.horizontal, 28)
+                .frame(height: 46)
+                .inkButton(engine.workout.palette.fill)
+        }
+        .buttonStyle(.plain)
     }
 
     private func controls(now: Date) -> some View {
@@ -249,6 +306,29 @@ struct PlayerView: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+    }
+}
+
+/// One dot per set: filled when done, ringed while underway, faint ahead.
+/// During rest the just-finished set reads as done.
+private struct SetDots: View {
+    let step: PlayerEngine.Step
+
+    var body: some View {
+        HStack(spacing: 9) {
+            ForEach(1...step.setCount, id: \.self) { set in
+                let done = set < step.set || (set == step.set && step.kind == .rest)
+                let current = set == step.set && step.kind == .work
+                Circle()
+                    .fill(done ? Color.ink : Color.ink.opacity(current ? 0 : 0.15))
+                    .overlay {
+                        if current {
+                            Circle().stroke(Color.ink, lineWidth: 1.5)
+                        }
+                    }
+                    .frame(width: 10, height: 10)
+            }
+        }
     }
 }
 

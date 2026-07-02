@@ -34,8 +34,18 @@ final class PondStore: ObservableObject {
         ))
     }
 
+    /// Strikes a finished workout from the record — its creature leaves the pond.
+    func remove(_ id: UUID) {
+        entries.removeAll { $0.id == id }
+    }
+
     func entries(in month: MonthKey) -> [PondEntry] {
         entries.filter { MonthKey($0.completedAt) == month }
+    }
+
+    /// Every month with entries, newest first — the logbook's sections.
+    var allMonths: [MonthKey] {
+        Set(entries.map { MonthKey($0.completedAt) }).sorted(by: >)
     }
 
     /// Past months that have something to show, newest first.

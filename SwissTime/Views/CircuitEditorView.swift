@@ -12,6 +12,7 @@ struct CircuitEditorView: View {
     @State private var loops: Int
     @State private var addingExercise = false
     @State private var editingExercise: Exercise?
+    @State private var actionExercise: Exercise?
 
     init(workoutID: UUID, circuit: Circuit) {
         self.workoutID = workoutID
@@ -66,9 +67,17 @@ struct CircuitEditorView: View {
                                 }
                             }
                             Spacer(minLength: 8)
-                            Text(Format.mmss(exercise.duration))
+                            Text(exercise.trailingSummary)
                                 .font(.app(15))
                                 .monospacedDigit()
+                            Button {
+                                actionExercise = exercise
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 15))
+                                    .frame(width: 30, height: 30)
+                            }
+                            .buttonStyle(.plain)
                         }
                         .contentShape(Rectangle())
                         .onTapGesture { editingExercise = exercise }
@@ -131,6 +140,20 @@ struct CircuitEditorView: View {
         }
         .sheet(item: $editingExercise) { exercise in
             ItemFormView(workoutID: workoutID, editingExercise: exercise)
+        }
+        .sheet(item: $actionExercise) { exercise in
+            ActionListSheet(actions: [
+                ActionItem(title: "Duplicate", icon: "square.on.square") {
+                    guard var workout = store.workout(workoutID) else { return }
+                    workout.duplicateItem(exercise.id)
+                    store.update(workout)
+                },
+                ActionItem(title: "Move out of circuit", icon: "arrow.uturn.up") {
+                    guard var workout = store.workout(workoutID) else { return }
+                    workout.moveExerciseOutOfCircuit(exercise.id)
+                    store.update(workout)
+                },
+            ])
         }
     }
 

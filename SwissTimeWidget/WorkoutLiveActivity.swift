@@ -106,6 +106,9 @@ private struct TimerText: View {
             Text("0:00")
         } else if state.paused {
             Text(shortTime(state.pausedRemaining))
+        } else if state.countsUp {
+            Text(timerInterval: state.startDate...state.startDate.addingTimeInterval(6 * 3600),
+                 countsDown: false, showsHours: false)
         } else {
             Text(timerInterval: Date()...max(Date(), state.endDate),
                  countsDown: true, showsHours: false)

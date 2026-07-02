@@ -7,10 +7,14 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         var stepLabel: String
         var endDate: Date
         var paused: Bool
+        /// While paused: remaining for countdown steps, elapsed for count-up.
         var pausedRemaining: TimeInterval
         var stepIndex: Int
         var stepCount: Int
         var finished: Bool
+        /// Untimed sets and count-up rests show a stopwatch, not a countdown.
+        var countsUp: Bool = false
+        var startDate: Date = Date()
     }
 
     var workoutTitle: String

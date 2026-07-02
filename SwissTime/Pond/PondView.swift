@@ -6,6 +6,7 @@ struct PondView: View {
     @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
     @State private var page: MonthKey = .current
+    @State private var showingLog = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,6 +20,14 @@ struct PondView: View {
                 }
                 .buttonStyle(.plain)
                 Spacer()
+                Button {
+                    showingLog = true
+                } label: {
+                    Image(systemName: "list.bullet")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
             }
             .padding(20)
             TabView(selection: $page) {
@@ -33,11 +42,17 @@ struct PondView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .background(PaperBackground())
+        .sheet(isPresented: $showingLog) {
+            PondLogView()
+        }
         .onAppear {
-            // Debug hook: jump straight to the newest postcard.
+            // Debug hooks: jump straight to the newest postcard / the logbook.
             if ProcessInfo.processInfo.arguments.contains("-pondShowPast"),
                let past = pond.monthsWithEntries.first {
                 page = past
+            }
+            if ProcessInfo.processInfo.arguments.contains("-pondOpenLog") {
+                showingLog = true
             }
         }
     }

@@ -143,6 +143,42 @@ struct ColorPickerRow: View {
     }
 }
 
+/// Side-by-side choices, all visible — for the forks that reshape the form.
+struct SegmentRow<Value: Hashable>: View {
+    let label: String
+    let options: [Value]
+    let display: (Value) -> String
+    @Binding var selection: Value
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(label)
+                .font(.app(17, .medium))
+            HStack(spacing: 10) {
+                ForEach(options, id: \.self) { option in
+                    Button {
+                        selection = option
+                    } label: {
+                        Text(display(option))
+                            .font(.app(16, selection == option ? .medium : .regular))
+                            .foregroundStyle(selection == option ? .white : Color.ink)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(
+                                selection == option ? Color.ink : .clear,
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(selection == option ? Color.ink : Color.fieldBorder,
+                                            lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
 struct CheckboxRow: View {
     let title: String
     @Binding var isOn: Bool
@@ -223,9 +259,15 @@ struct ItemFormView: View {
 
     @State private var name: String
     @State private var instructions: String
+    @State private var mode: ExerciseMode
     @State private var duration: TimeInterval
     @State private var halfway: Bool
     @State private var fiveSeconds: Bool
+    @State private var sets: Int
+    /// 0 means "not set" — reps are display-only.
+    @State private var reps: Int
+    @State private var rest: TimeInterval
+    @State private var restCountsDown: Bool
 
     @State private var circuitName: String
     @State private var loops: Int
@@ -237,9 +279,14 @@ struct ItemFormView: View {
         _tab = State(initialValue: .exercise)
         _name = State(initialValue: editingExercise?.name ?? "")
         _instructions = State(initialValue: editingExercise?.instructions ?? "")
+        _mode = State(initialValue: editingExercise?.mode ?? .interval)
         _duration = State(initialValue: editingExercise?.duration ?? 60)
         _halfway = State(initialValue: editingExercise?.halfwayAlert ?? false)
         _fiveSeconds = State(initialValue: editingExercise?.fiveSecondsAlert ?? true)
+        _sets = State(initialValue: editingExercise?.sets ?? 4)
+        _reps = State(initialValue: editingExercise?.reps ?? 0)
+        _rest = State(initialValue: editingExercise?.restDuration ?? 60)
+        _restCountsDown = State(initialValue: editingExercise?.restCountsDown ?? false)
         _circuitName = State(initialValue: "")
         _loops = State(initialValue: 3)
     }
@@ -277,6 +324,21 @@ struct ItemFormView: View {
         return options
     }
 
+    private var restOptions: [TimeInterval] {
+        var options: [TimeInterval] = [15, 20, 30, 45, 60, 75, 90, 120, 150, 180, 240, 300]
+        if !options.contains(rest) {
+            options.append(rest)
+            options.sort()
+        }
+        return options
+    }
+
+    private var restExplanation: String {
+        restCountsDown
+            ? "Counts down from \(Format.mmss(rest)) and starts the next set automatically."
+            : "Counts up past your \(Format.mmss(rest)) target — a chime marks it, and you start the next set when ready."
+    }
+
     var body: some View {
         SheetScaffold(
             buttonTitle: buttonTitle,
@@ -294,13 +356,34 @@ struct ItemFormView: View {
             case .exercise:
                 LabeledField(label: "Name", placeholder: "Exercise name", text: $name)
                 LabeledField(label: "Instructions", placeholder: "Optional instructions", text: $instructions)
-                PickerField(label: "Duration", options: durationOptions,
-                            display: { Format.mmss($0) }, selection: $duration)
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Alerts")
-                        .font(.app(17, .medium))
-                    CheckboxRow(title: "Halfway done", isOn: $halfway)
-                    CheckboxRow(title: "5s left", isOn: $fiveSeconds)
+                SegmentRow(label: "Type", options: [ExerciseMode.interval, .sets],
+                           display: { $0 == .interval ? "Timed" : "Sets" },
+                           selection: $mode)
+                switch mode {
+                case .interval:
+                    PickerField(label: "Duration", options: durationOptions,
+                                display: { Format.mmss($0) }, selection: $duration)
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Alerts")
+                            .font(.app(17, .medium))
+                        CheckboxRow(title: "Halfway done", isOn: $halfway)
+                        CheckboxRow(title: "5s left", isOn: $fiveSeconds)
+                    }
+                case .sets:
+                    PickerField(label: "Sets", options: Array(1...12),
+                                display: { "\($0)" }, selection: $sets)
+                    PickerField(label: "Reps per set", options: [0] + Array(1...50),
+                                display: { $0 == 0 ? "Not set" : "\($0)" }, selection: $reps)
+                    PickerField(label: "Rest between sets", options: restOptions,
+                                display: { Format.mmss($0) }, selection: $rest)
+                    VStack(alignment: .leading, spacing: 10) {
+                        SegmentRow(label: "Rest timer", options: [false, true],
+                                   display: { $0 ? "Counts down" : "Counts up" },
+                                   selection: $restCountsDown)
+                        Text(restExplanation)
+                            .font(.app(14))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             case .circuit:
                 LabeledField(label: "Name", placeholder: "Circuit name", text: $circuitName)
@@ -332,20 +415,28 @@ struct ItemFormView: View {
     private func submit() {
         guard var workout = store.workout(workoutID) else { return }
         if var exercise = editingExercise {
-            exercise.name = name.trimmed
-            exercise.instructions = instructions.trimmed
-            exercise.duration = duration
-            exercise.halfwayAlert = halfway
-            exercise.fiveSecondsAlert = fiveSeconds
+            apply(to: &exercise)
             workout.update(exercise: exercise)
         } else if tab == .exercise {
-            let exercise = Exercise(name: name.trimmed, instructions: instructions.trimmed,
-                                    duration: duration, halfwayAlert: halfway,
-                                    fiveSecondsAlert: fiveSeconds)
+            var exercise = Exercise(name: name.trimmed)
+            apply(to: &exercise)
             workout.add(exercise, toCircuit: circuitID)
         } else {
             workout.items.append(.circuit(Circuit(name: circuitName.trimmed, loops: loops)))
         }
         store.update(workout)
+    }
+
+    private func apply(to exercise: inout Exercise) {
+        exercise.name = name.trimmed
+        exercise.instructions = instructions.trimmed
+        exercise.mode = mode
+        exercise.duration = duration
+        exercise.halfwayAlert = halfway
+        exercise.fiveSecondsAlert = fiveSeconds
+        exercise.sets = sets
+        exercise.reps = reps == 0 ? nil : reps
+        exercise.restDuration = rest
+        exercise.restCountsDown = restCountsDown
     }
 }

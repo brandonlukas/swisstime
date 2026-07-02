@@ -5,6 +5,8 @@ enum DetailSheet: Identifiable {
     case editExercise(Exercise)
     case editCircuit(Circuit)
     case editWorkout
+    case itemActions(WorkoutItem)
+    case confirmDelete
 
     var id: String {
         switch self {
@@ -12,6 +14,8 @@ enum DetailSheet: Identifiable {
         case .editExercise(let exercise): return "exercise-\(exercise.id)"
         case .editCircuit(let circuit): return "circuit-\(circuit.id)"
         case .editWorkout: return "workout"
+        case .itemActions(let item): return "actions-\(item.id)"
+        case .confirmDelete: return "confirm-delete"
         }
     }
 }
@@ -26,6 +30,9 @@ struct WorkoutDetailView: View {
     @State private var editing = false
     @State private var sheet: DetailSheet?
     @State private var playTarget: PlayTarget?
+    /// Set by the delete confirmation; acted on once its sheet is gone,
+    /// so the pop-back never races the dismissing sheet.
+    @State private var pendingDelete = false
 
     struct PlayTarget: Identifiable {
         let id = UUID()
@@ -92,7 +99,13 @@ struct WorkoutDetailView: View {
                 }
             }
         }
-        .sheet(item: $sheet) { sheet in
+        .sheet(item: $sheet, onDismiss: {
+            if pendingDelete {
+                pendingDelete = false
+                store.delete(workoutID)
+                dismiss()
+            }
+        }) { sheet in
             switch sheet {
             case .addItem(let circuitID):
                 ItemFormView(workoutID: workoutID, circuitID: circuitID)
@@ -102,6 +115,15 @@ struct WorkoutDetailView: View {
                 CircuitEditorView(workoutID: workoutID, circuit: circuit)
             case .editWorkout:
                 WorkoutFormView(existing: workout)
+            case .itemActions(let item):
+                ActionListSheet(actions: itemActions(item))
+            case .confirmDelete:
+                ActionListSheet(actions: [
+                    ActionItem(title: "Delete \"\(workout.title)\" forever",
+                               icon: "trash", destructive: true) {
+                        pendingDelete = true
+                    },
+                ])
             }
         }
         .fullScreenCover(item: $playTarget) { target in
@@ -135,9 +157,13 @@ struct WorkoutDetailView: View {
                 } else {
                     VStack(spacing: 16) {
                         ForEach(Array(workout.items.enumerated()), id: \.element.id) { index, item in
-                            ItemCard(item: item, number: index + 1) { startID in
-                                playTarget = PlayTarget(startID: startID)
-                            }
+                            ItemCard(item: item, number: index + 1,
+                                     onPlayFrom: { startID in
+                                         playTarget = PlayTarget(startID: startID)
+                                     },
+                                     onAddToCircuit: { circuitID in
+                                         sheet = .addItem(circuitID: circuitID)
+                                     })
                         }
                         addRow
                     }
@@ -232,8 +258,7 @@ struct WorkoutDetailView: View {
                         .font(.app(16))
                 }
                 Button(role: .destructive) {
-                    store.delete(workoutID)
-                    dismiss()
+                    sheet = .confirmDelete
                 } label: {
                     Text("Delete workout")
                         .font(.app(16))
@@ -269,20 +294,32 @@ struct WorkoutDetailView: View {
             }
             Spacer(minLength: 8)
             if case .exercise(let exercise) = item {
-                Text(Format.mmss(exercise.duration))
+                Text(exercise.trailingSummary)
                     .font(.app(15))
                     .monospacedDigit()
             }
-            Button {
-                var updated = workout
-                updated.duplicateItem(item.id)
-                store.update(updated)
-            } label: {
-                Image(systemName: "square.on.square")
-                    .font(.system(size: 15))
-                    .frame(width: 30, height: 30)
+            // Exercises grow a menu once there's a circuit to move them into.
+            if case .exercise = item, !circuits.isEmpty {
+                Button {
+                    sheet = .itemActions(item)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 15))
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button {
+                    var updated = workout
+                    updated.duplicateItem(item.id)
+                    store.update(updated)
+                } label: {
+                    Image(systemName: "square.on.square")
+                        .font(.system(size: 15))
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -291,6 +328,34 @@ struct WorkoutDetailView: View {
             case .circuit(let circuit): sheet = .editCircuit(circuit)
             }
         }
+    }
+
+    private var circuits: [Circuit] {
+        workout.items.compactMap {
+            if case .circuit(let circuit) = $0 { return circuit }
+            return nil
+        }
+    }
+
+    private func itemActions(_ item: WorkoutItem) -> [ActionItem] {
+        var actions = [
+            ActionItem(title: "Duplicate", icon: "square.on.square") {
+                var updated = workout
+                updated.duplicateItem(item.id)
+                store.update(updated)
+            },
+        ]
+        if case .exercise = item {
+            for circuit in circuits {
+                actions.append(ActionItem(title: "Move into \(circuit.name)",
+                                          icon: "arrow.turn.down.right") {
+                    var updated = workout
+                    updated.moveExercise(item.id, intoCircuit: circuit.id)
+                    store.update(updated)
+                })
+            }
+        }
+        return actions
     }
 }
 
@@ -301,6 +366,7 @@ private struct ItemCard: View {
     let number: Int
     /// Called with the id to start playing from.
     let onPlayFrom: (UUID) -> Void
+    let onAddToCircuit: (UUID) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -319,6 +385,27 @@ private struct ItemCard: View {
                     ExerciseRow(number: "\(number).\(sub + 1).", exercise: exercise,
                                 onTap: { onPlayFrom(exercise.id) })
                 }
+                Rectangle()
+                    .fill(Color.hairline)
+                    .frame(height: 1)
+                    .padding(.leading, 58)
+                Button {
+                    onAddToCircuit(circuit.id)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13))
+                            .frame(minWidth: 30, alignment: .leading)
+                        Text("Add exercise")
+                            .font(.app(15))
+                        Spacer()
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 13)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
         .paperCard()
@@ -345,7 +432,7 @@ struct ExerciseRow: View {
                 }
             }
             Spacer(minLength: 8)
-            Text(Format.mmss(exercise.duration))
+            Text(exercise.trailingSummary)
                 .font(.app(16))
                 .monospacedDigit()
         }
