@@ -365,8 +365,9 @@ final class PlayerEngine: ObservableObject {
                 }
             }
         }
-        // Interrupt any queued speech so rapid skipping never stacks announcements.
-        audio.speak(parts.joined(separator: " "), interrupting: true)
+        // Interrupt any queued speech so rapid skipping never stacks
+        // announcements; the delay clears the 0.15s step beep.
+        audio.speak(parts.joined(separator: " "), interrupting: true, delay: 0.4)
     }
 
     private func finish() {
@@ -375,7 +376,8 @@ final class PlayerEngine: ObservableObject {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         audio.setKeepAlive(false)
         audio.playDone()
-        audio.speak("Workout complete.", interrupting: true)
+        // The finish chime runs 0.74s; speak after it rings out.
+        audio.speak("Workout complete.", interrupting: true, delay: 0.9)
         liveActivity.update(activityState())
     }
 
@@ -391,7 +393,7 @@ final class PlayerEngine: ObservableObject {
                     restTargetFired = true
                     stepFeedback.impactOccurred()
                     audio.playBeep()
-                    audio.speak("\(Int(target)) seconds.")
+                    audio.speak("\(Int(target)) seconds.", delay: 0.4)
                 }
             }
             return

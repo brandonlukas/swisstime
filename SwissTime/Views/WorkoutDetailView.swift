@@ -178,6 +178,11 @@ struct WorkoutDetailView: View {
                                      },
                                      onAddToCircuit: { circuitID in
                                          sheet = .addItem(circuitID: circuitID)
+                                     },
+                                     onEdit: { edit in
+                                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                         withAnimation { editing = true }
+                                         sheet = edit
                                      })
                         }
                         addRow
@@ -384,23 +389,28 @@ private struct ItemCard: View {
     /// Called with the id to start playing from.
     let onPlayFrom: (UUID) -> Void
     let onAddToCircuit: (UUID) -> Void
+    /// Long press: jump into edit mode with this item's editor open.
+    let onEdit: (DetailSheet) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             switch item {
             case .exercise(let exercise):
                 ExerciseRow(number: "\(number).", exercise: exercise,
-                            onTap: { onPlayFrom(exercise.id) })
+                            onTap: { onPlayFrom(exercise.id) },
+                            onLongPress: { onEdit(.editExercise(exercise)) })
             case .circuit(let circuit):
                 CircuitHeaderRow(number: "\(number).", circuit: circuit,
-                                 onTap: { onPlayFrom(circuit.id) })
+                                 onTap: { onPlayFrom(circuit.id) },
+                                 onLongPress: { onEdit(.editCircuit(circuit)) })
                 ForEach(Array(circuit.exercises.enumerated()), id: \.element.id) { sub, exercise in
                     Rectangle()
                         .fill(Color.hairline)
                         .frame(height: 1)
                         .padding(.leading, 58)
                     ExerciseRow(number: "\(number).\(sub + 1).", exercise: exercise,
-                                onTap: { onPlayFrom(exercise.id) })
+                                onTap: { onPlayFrom(exercise.id) },
+                                onLongPress: { onEdit(.editExercise(exercise)) })
                 }
                 Rectangle()
                     .fill(Color.hairline)
@@ -433,6 +443,7 @@ struct ExerciseRow: View {
     let number: String
     let exercise: Exercise
     var onTap: (() -> Void)?
+    var onLongPress: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -457,6 +468,7 @@ struct ExerciseRow: View {
         .padding(.vertical, 18)
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }
+        .onLongPressGesture { onLongPress?() }
     }
 }
 
@@ -464,6 +476,7 @@ private struct CircuitHeaderRow: View {
     let number: String
     let circuit: Circuit
     let onTap: () -> Void
+    var onLongPress: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -480,5 +493,6 @@ private struct CircuitHeaderRow: View {
         .padding(.vertical, 18)
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
+        .onLongPressGesture { onLongPress?() }
     }
 }

@@ -10,6 +10,8 @@ import UIKit
 final class AudioManager: NSObject {
     private let synthesizer = AVSpeechSynthesizer()
     private let session = AVAudioSession.sharedInstance()
+    /// Resolved once, on the session queue (enumerating voices can be slow).
+    private lazy var voice = Self.naturalVoice()
     /// Session activation/category changes block on IPC to the media server —
     /// tens of ms — so they all run here, never on the main thread.
     private let sessionQueue = DispatchQueue(label: "SwissTime.AudioSession", qos: .userInitiated)
@@ -109,7 +111,10 @@ final class AudioManager: NSObject {
     /// Duck bookkeeping happens here on the caller's (main) thread, but the
     /// synthesizer runs on the session queue: preparing an utterance and
     /// voice can block for long enough to drop frames mid-transition.
-    func speak(_ text: String, interrupting: Bool = false) {
+    ///
+    /// `delay` holds the voice until an alert sound fired alongside it has
+    /// finished, so the two cues never talk over each other.
+    func speak(_ text: String, interrupting: Bool = false, delay: TimeInterval = 0) {
         guard running, !text.isEmpty else { return }
         beginSound()
         sessionQueue.async { [self] in
@@ -120,13 +125,30 @@ final class AudioManager: NSObject {
                 synthesizer.stopSpeaking(at: .immediate)
             }
             let utterance = AVSpeechUtterance(string: text)
-            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+            utterance.voice = voice
+            utterance.preUtteranceDelay = delay
             synthesizer.speak(utterance)
         }
     }
 
     func playBeep() { play(beepPlayer) }
     func playDone() { play(donePlayer) }
+
+    /// Asking for a bare `en-US` voice yields the old compact robot; use the
+    /// most natural English voice on the device instead. Novelty voices would
+    /// be absurd mid-workout and personal voices need separate authorization.
+    private static func naturalVoice() -> AVSpeechSynthesisVoice? {
+        let candidates = AVSpeechSynthesisVoice.speechVoices().filter {
+            $0.language.hasPrefix("en")
+                && !$0.voiceTraits.contains(.isNoveltyVoice)
+                && !$0.voiceTraits.contains(.isPersonalVoice)
+        }
+        let best = candidates.max { a, b in
+            if a.quality != b.quality { return a.quality.rawValue < b.quality.rawValue }
+            return (a.language == "en-US" ? 1 : 0) < (b.language == "en-US" ? 1 : 0)
+        }
+        return best ?? AVSpeechSynthesisVoice(language: "en-US")
+    }
 
     private func play(_ player: AVAudioPlayer?) {
         guard running, let player else { return }

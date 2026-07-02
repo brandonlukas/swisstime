@@ -61,6 +61,7 @@ struct PlayerView: View {
     @State private var recordedCompletion = false
     @State private var waterSpring = LevelSpring()
     @State private var barSpring = LevelSpring()
+    @State private var dragOffset: CGFloat = 0
 
     init(workout: Workout, startID: UUID? = nil) {
         _engine = StateObject(wrappedValue: PlayerEngine(workout: workout, startID: startID))
@@ -104,13 +105,48 @@ struct PlayerView: View {
                 }
                 .frame(width: geo.size.width, height: fullHeight)
                 .ignoresSafeArea(edges: .bottom)
+                // Double-tap a side to step, mirroring the transport bar:
+                // right skips (until finished), left always goes back.
+                // Buttons inside keep priority, so single taps are untouched.
+                .onTapGesture(count: 2) { location in
+                    if location.x > geo.size.width / 2 {
+                        if engine.phase != .finished { engine.next() }
+                    } else {
+                        engine.previous()
+                    }
+                }
             }
         }
-        .background(PaperBackground())
+        // Once finished the page lifts with the pull and the screen behind
+        // shows through (the cover backdrop is clear), like the pond. The
+        // shadow hangs on the flattened opaque paper only — shadowing the
+        // whole hierarchy would make every sublayer cast one, darkening
+        // the entire screen.
+        .background(
+            PaperBackground()
+                .compositingGroup()
+                .shadow(color: .black.opacity(dragOffset > 0 ? 0.18 : 0), radius: 24, y: -8)
+        )
+        .offset(y: dragOffset)
         // Swipe left/right to skip between exercises, down to close.
         .gesture(
             DragGesture(minimumDistance: 40)
+                .onChanged { value in
+                    guard engine.phase == .finished,
+                          value.translation.height > abs(value.translation.width) else { return }
+                    dragOffset = max(0, value.translation.height)
+                }
                 .onEnded { value in
+                    if dragOffset > 0 {
+                        if dragOffset > 120 || value.predictedEndTranslation.height > 300 {
+                            dismiss()
+                        } else {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                dragOffset = 0
+                            }
+                        }
+                        return
+                    }
                     let dx = value.translation.width
                     let dy = value.translation.height
                     if abs(dx) > abs(dy) {
@@ -124,6 +160,7 @@ struct PlayerView: View {
                     }
                 }
         )
+        .presentationBackground(.clear)
         .onAppear {
             engine.start()
             store.markPlayed(engine.workout.id)
@@ -134,6 +171,9 @@ struct PlayerView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
                     engine.next()
                 }
+            }
+            if ProcessInfo.processInfo.arguments.contains("-playerPulled") {
+                dragOffset = 480
             }
         }
         .onDisappear {

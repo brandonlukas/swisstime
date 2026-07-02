@@ -7,6 +7,7 @@ struct PondView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var page: MonthKey = .current
     @State private var showingLog = false
+    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,7 +42,19 @@ struct PondView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
         }
-        .background(PaperBackground())
+        // The paper moves with the pull, so the pond lifts like a sheet and
+        // the home screen shows through (the cover backdrop is clear). The
+        // shadow hangs on the flattened opaque paper only — shadowing the
+        // whole hierarchy would make every sublayer cast one, darkening
+        // the entire screen.
+        .background(
+            PaperBackground()
+                .compositingGroup()
+                .shadow(color: .black.opacity(dragOffset > 0 ? 0.18 : 0), radius: 24, y: -8)
+        )
+        .offset(y: dragOffset)
+        .simultaneousGesture(dismissDrag)
+        .presentationBackground(.clear)
         .sheet(isPresented: $showingLog) {
             PondLogView()
         }
@@ -54,11 +67,33 @@ struct PondView: View {
             if ProcessInfo.processInfo.arguments.contains("-pondOpenLog") {
                 showingLog = true
             }
+            if ProcessInfo.processInfo.arguments.contains("-pondPulled") {
+                dragOffset = 480
+            }
         }
     }
 
     private var pages: [MonthKey] {
         [MonthKey.current] + pond.monthsWithEntries
+    }
+
+    /// Pull the page down to leave; horizontal drags stay with the
+    /// month-paging TabView underneath.
+    private var dismissDrag: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onChanged { value in
+                guard value.translation.height > abs(value.translation.width) else { return }
+                dragOffset = max(0, value.translation.height)
+            }
+            .onEnded { value in
+                if dragOffset > 0, dragOffset > 120 || value.predictedEndTranslation.height > 300 {
+                    dismiss()
+                } else {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        dragOffset = 0
+                    }
+                }
+            }
     }
 }
 
