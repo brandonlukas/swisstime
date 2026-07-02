@@ -58,16 +58,16 @@ struct CircuitEditorView: View {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(exercise.name)
-                                    .font(.swiss(16, .medium))
+                                    .font(.app(16, .medium))
                                 if !exercise.instructions.isEmpty {
                                     Text(exercise.instructions)
-                                        .font(.swiss(14))
+                                        .font(.app(14))
                                         .foregroundStyle(.secondary)
                                 }
                             }
                             Spacer(minLength: 8)
                             Text(Format.mmss(exercise.duration))
-                                .font(.swiss(15))
+                                .font(.app(15))
                                 .monospacedDigit()
                         }
                         .contentShape(Rectangle())
@@ -88,14 +88,14 @@ struct CircuitEditorView: View {
                             Image(systemName: "plus")
                                 .font(.system(size: 15))
                             Text("Add exercise")
-                                .font(.swiss(16))
+                                .font(.app(16))
                         }
                         .foregroundStyle(.secondary)
                     }
                     .listRowBackground(Color.card)
                 } header: {
                     Text("Exercises")
-                        .font(.swiss(17, .medium))
+                        .font(.app(17, .medium))
                         .foregroundStyle(.black)
                         .textCase(nil)
                         .padding(.leading, 4)
@@ -112,7 +112,7 @@ struct CircuitEditorView: View {
                 dismiss()
             } label: {
                 Text("Save circuit")
-                    .font(.swiss(17, .medium))
+                    .font(.app(17, .medium))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)

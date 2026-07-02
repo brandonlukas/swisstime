@@ -37,7 +37,7 @@ struct SheetScaffold<Content: View>: View {
                 dismiss()
             } label: {
                 Text(buttonTitle)
-                    .font(.swiss(17, .medium))
+                    .font(.app(17, .medium))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
@@ -60,9 +60,9 @@ struct LabeledField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(label)
-                .font(.swiss(17, .medium))
+                .font(.app(17, .medium))
             TextField(placeholder, text: $text)
-                .font(.swiss(17))
+                .font(.app(17))
                 .focused($focused)
                 .padding(.horizontal, 14)
                 .frame(height: 52)
@@ -83,7 +83,7 @@ struct PickerField<Value: Hashable>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(label)
-                .font(.swiss(17, .medium))
+                .font(.app(17, .medium))
             Menu {
                 Picker(label, selection: $selection) {
                     ForEach(options, id: \.self) { option in
@@ -93,7 +93,7 @@ struct PickerField<Value: Hashable>: View {
             } label: {
                 HStack {
                     Text(display(selection))
-                        .font(.swiss(17))
+                        .font(.app(17))
                         .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -118,7 +118,7 @@ struct ColorPickerRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Color")
-                .font(.swiss(17, .medium))
+                .font(.app(17, .medium))
             HStack(spacing: 12) {
                 ForEach(Color.swissPalette.indices, id: \.self) { index in
                     Button {
@@ -154,7 +154,7 @@ struct CheckboxRow: View {
                 Image(systemName: isOn ? "checkmark.square" : "square")
                     .font(.system(size: 22, weight: .light))
                 Text(title)
-                    .font(.swiss(17))
+                    .font(.app(17))
             }
         }
         .buttonStyle(.plain)
@@ -297,7 +297,7 @@ struct ItemFormView: View {
                             display: { Format.mmss($0) }, selection: $duration)
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Alerts")
-                        .font(.swiss(17, .medium))
+                        .font(.app(17, .medium))
                     CheckboxRow(title: "Halfway done", isOn: $halfway)
                     CheckboxRow(title: "5s left", isOn: $fiveSeconds)
                 }
@@ -314,7 +314,7 @@ struct ItemFormView: View {
             tab = value
         } label: {
             Text(title)
-                .font(.swiss(19, tab == value ? .bold : .regular))
+                .font(.app(19, tab == value ? .bold : .regular))
                 .foregroundStyle(.primary)
                 .padding(.bottom, 6)
                 .overlay(alignment: .bottom) {

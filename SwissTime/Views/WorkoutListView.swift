@@ -11,7 +11,7 @@ struct WorkoutListView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Workouts")
-                        .font(.swiss(32, .bold))
+                        .font(.app(32, .bold))
                         .padding(.bottom, 14)
                     SwissRule()
                         .padding(.bottom, 24)
@@ -77,15 +77,15 @@ struct WorkoutListView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("No workouts yet.")
-                .font(.swiss(17, .medium))
+                .font(.app(17, .medium))
             Text("Create a workout, then fill it with timed exercises and circuits.")
-                .font(.swiss(15))
+                .font(.app(15))
                 .foregroundStyle(.secondary)
             Button {
                 showingCreate = true
             } label: {
                 Text("Create workout")
-                    .font(.swiss(16, .medium))
+                    .font(.app(16, .medium))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
@@ -110,19 +110,19 @@ private struct WorkoutCard: View {
                         .fill(workout.color)
                         .frame(width: 14, height: 14)
                     Text(workout.title)
-                        .font(.swiss(20, .bold))
+                        .font(.app(20, .bold))
                 }
                 if !workout.details.isEmpty {
                     Text(workout.details)
-                        .font(.swiss(15))
+                        .font(.app(15))
                         .foregroundStyle(.secondary)
                 }
                 Text(Format.summary(count: workout.items.count, duration: workout.totalDuration))
-                    .font(.swiss(15))
+                    .font(.app(15))
                     .padding(.top, 2)
                 if let line = Format.withLine(workout.exerciseNames) {
                     Text(line)
-                        .font(.swiss(15))
+                        .font(.app(15))
                         .foregroundStyle(.secondary)
                 }
             }

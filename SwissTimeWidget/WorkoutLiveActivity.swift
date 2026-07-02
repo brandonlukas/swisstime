@@ -3,8 +3,8 @@ import SwiftUI
 import WidgetKit
 
 private extension Font {
-    static func swiss(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom("HelveticaNeue", size: size).weight(weight)
+    static func app(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight)
     }
 }
 
@@ -19,11 +19,11 @@ struct WorkoutLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stepTitle(context))
-                            .font(.swiss(16, .medium))
+                            .font(.app(16, .medium))
                             .foregroundStyle(.white)
                             .lineLimit(1)
                         Text(context.attributes.workoutTitle)
-                            .font(.swiss(13))
+                            .font(.app(13))
                             .foregroundStyle(.gray)
                             .lineLimit(1)
                     }
@@ -31,7 +31,7 @@ struct WorkoutLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     TimerText(state: context.state)
-                        .font(.swiss(26, .medium))
+                        .font(.app(26, .medium))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                         .frame(width: 88, alignment: .trailing)
@@ -39,7 +39,7 @@ struct WorkoutLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 16) {
                         Text("\(context.state.stepIndex + 1)/\(context.state.stepCount)")
-                            .font(.swiss(14))
+                            .font(.app(14))
                             .foregroundStyle(.gray)
                             .monospacedDigit()
                         Spacer()
@@ -67,7 +67,7 @@ struct WorkoutLiveActivity: Widget {
                     .foregroundStyle(.white)
             } compactTrailing: {
                 TimerText(state: context.state)
-                    .font(.swiss(14, .medium))
+                    .font(.app(14, .medium))
                     .monospacedDigit()
                     .foregroundStyle(.white)
                     .frame(maxWidth: 52)
@@ -109,17 +109,17 @@ private struct LockScreenView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(stepTitle(context))
-                    .font(.swiss(16, .medium))
+                    .font(.app(16, .medium))
                     .foregroundStyle(.black)
                     .lineLimit(1)
                 Text(context.attributes.workoutTitle)
-                    .font(.swiss(13))
+                    .font(.app(13))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
             TimerText(state: context.state)
-                .font(.swiss(30, .medium))
+                .font(.app(30, .medium))
                 .monospacedDigit()
                 .foregroundStyle(.black)
             if !context.state.finished {

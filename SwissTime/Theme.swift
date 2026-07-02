@@ -26,9 +26,9 @@ extension Workout {
 }
 
 extension Font {
-    /// Helvetica — the Swiss typeface.
-    static func swiss(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom("HelveticaNeue", size: size).weight(weight)
+    /// SF Pro — the system grotesque, with automatic optical sizing.
+    static func app(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight)
     }
 }
 
@@ -43,8 +43,9 @@ struct SwissRule: View {
 
 // MARK: - Swiss glass
 
-/// Ambient backdrop: a slowly drifting near-white mesh gradient with whispers
-/// of red and cool gray in the corners, textured with static grain.
+/// Ambient backdrop: a slowly drifting near-white mesh gradient — warm sand
+/// and cool gray, no nameable hue, so every workout color reads as intentional
+/// against it — textured with static grain.
 struct SwissGlassBackground: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
@@ -59,13 +60,13 @@ struct SwissGlassBackground: View {
                     .init(0, 1), .init(0.5, 1), .init(1, 1),
                 ],
                 colors: [
-                    .white, Color(red: 0.98, green: 0.96, blue: 0.94), .white,
-                    Color(red: 1.0, green: 0.84, blue: 0.82),
-                    Color(red: 0.99, green: 0.97, blue: 0.96),
-                    Color(red: 0.84, green: 0.90, blue: 0.99),
-                    Color(red: 0.93, green: 0.89, blue: 0.85),
-                    Color(red: 1.0, green: 0.87, blue: 0.85),
-                    Color(red: 0.89, green: 0.93, blue: 0.99),
+                    .white, Color(red: 0.97, green: 0.95, blue: 0.92), .white,
+                    Color(red: 0.95, green: 0.90, blue: 0.83),
+                    Color(red: 0.99, green: 0.98, blue: 0.97),
+                    Color(red: 0.86, green: 0.89, blue: 0.94),
+                    Color(red: 0.92, green: 0.91, blue: 0.89),
+                    Color(red: 0.96, green: 0.92, blue: 0.86),
+                    Color(red: 0.89, green: 0.91, blue: 0.95),
                 ]
             )
         }

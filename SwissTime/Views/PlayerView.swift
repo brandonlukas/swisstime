@@ -92,7 +92,7 @@ struct PlayerView: View {
     private var breadcrumb: some View {
         if engine.index < 0 {
             Text("Workout starting soon...")
-                .font(.swiss(16))
+                .font(.app(16))
                 .frame(maxWidth: .infinity)
                 .frame(height: 76)
                 .glassCard()
@@ -101,13 +101,13 @@ struct PlayerView: View {
                 if let circuitName = step.circuitName {
                     HStack(spacing: 12) {
                         Text("\(step.topNumber).")
-                            .font(.swiss(15))
+                            .font(.app(15))
                             .frame(minWidth: 30, alignment: .leading)
                         Text(circuitName)
-                            .font(.swiss(16, .medium))
+                            .font(.app(16, .medium))
                         Spacer(minLength: 8)
                         Text("\(step.loop)/\(step.loopCount)")
-                            .font(.swiss(16))
+                            .font(.app(16))
                             .monospacedDigit()
                     }
                     .padding(.horizontal, 16)
@@ -116,20 +116,20 @@ struct PlayerView: View {
                 }
                 HStack(spacing: 12) {
                     Text(step.label)
-                        .font(.swiss(15))
+                        .font(.app(15))
                         .frame(minWidth: 30, alignment: .leading)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(step.exercise.name)
-                            .font(.swiss(16, .medium))
+                            .font(.app(16, .medium))
                         if !step.exercise.instructions.isEmpty {
                             Text(step.exercise.instructions)
-                                .font(.swiss(15))
+                                .font(.app(15))
                                 .foregroundStyle(Color.black.opacity(0.5))
                         }
                     }
                     Spacer(minLength: 8)
                     Text(Format.mmss(step.exercise.duration))
-                        .font(.swiss(16))
+                        .font(.app(16))
                         .monospacedDigit()
                 }
                 .padding(.horizontal, 16)
@@ -148,28 +148,28 @@ struct PlayerView: View {
         return VStack(spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(String(format: "%d:%02d", minutes, seconds))
-                    .font(.swiss(64, .medium))
+                    .font(.app(64, .medium))
                     .monospacedDigit()
                 Text(String(format: ".%02d", fraction))
-                    .font(.swiss(24, .medium))
+                    .font(.app(24, .medium))
                     .monospacedDigit()
             }
             if engine.phase == .finished {
                 Text("COMPLETE")
-                    .font(.swiss(13, .medium))
+                    .font(.app(13, .medium))
                     .kerning(2.5)
                     .foregroundStyle(Color.black.opacity(0.5))
             } else {
                 VStack(spacing: 10) {
                     if engine.steps.count > 1 {
                         Text("\(Format.mmss(engine.totalRemaining(at: now))) left")
-                            .font(.swiss(14))
+                            .font(.app(14))
                             .monospacedDigit()
                             .foregroundStyle(Color.black.opacity(0.5))
                     }
                     if engine.phase == .paused {
                         Text("PAUSED")
-                            .font(.swiss(13, .medium))
+                            .font(.app(13, .medium))
                             .kerning(2.5)
                             .foregroundStyle(Color.black.opacity(0.5))
                     }

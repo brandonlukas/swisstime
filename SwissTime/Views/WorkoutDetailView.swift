@@ -44,7 +44,7 @@ struct WorkoutDetailView: View {
                     .frame(width: 16, height: 16)
                     .padding(.bottom, 10)
                 Text(workout.title)
-                    .font(.swiss(32, .bold))
+                    .font(.app(32, .bold))
                     .padding(.bottom, 14)
                 SwissRule()
             }
@@ -63,7 +63,7 @@ struct WorkoutDetailView: View {
                     playTarget = PlayTarget()
                 } label: {
                     Text("Play workout")
-                        .font(.swiss(17, .medium))
+                        .font(.app(17, .medium))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
@@ -87,7 +87,7 @@ struct WorkoutDetailView: View {
                     withAnimation { editing.toggle() }
                 } label: {
                     Text(editing ? "Done" : "Edit")
-                        .font(.swiss(17, editing ? .medium : .regular))
+                        .font(.app(17, editing ? .medium : .regular))
                 }
             }
         }
@@ -122,12 +122,12 @@ struct WorkoutDetailView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if !workout.details.isEmpty {
                     Text(workout.details)
-                        .font(.swiss(15))
+                        .font(.app(15))
                         .foregroundStyle(.secondary)
                         .padding(.bottom, 10)
                 }
                 Text(Format.summary(count: workout.items.count, duration: workout.totalDuration))
-                    .font(.swiss(15))
+                    .font(.app(15))
                 if workout.items.isEmpty {
                     emptyState
                         .padding(.top, 24)
@@ -157,7 +157,7 @@ struct WorkoutDetailView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 15))
                 Text("Add exercise or circuit")
-                    .font(.swiss(16))
+                    .font(.app(16))
                 Spacer()
             }
             .foregroundStyle(.secondary)
@@ -171,15 +171,15 @@ struct WorkoutDetailView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("No exercises yet.")
-                .font(.swiss(17, .medium))
+                .font(.app(17, .medium))
             Text("Add timed exercises, or group them into circuits that repeat.")
-                .font(.swiss(15))
+                .font(.app(15))
                 .foregroundStyle(.secondary)
             Button {
                 sheet = .addItem(circuitID: nil)
             } label: {
                 Text("Add exercise")
-                    .font(.swiss(16, .medium))
+                    .font(.app(16, .medium))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
@@ -217,7 +217,7 @@ struct WorkoutDetailView: View {
                         Image(systemName: "plus")
                             .font(.system(size: 15))
                         Text("Add exercise or circuit")
-                            .font(.swiss(16))
+                            .font(.app(16))
                     }
                     .foregroundStyle(.secondary)
                 }
@@ -228,14 +228,14 @@ struct WorkoutDetailView: View {
                     sheet = .editWorkout
                 } label: {
                     Text("Edit title & description")
-                        .font(.swiss(16))
+                        .font(.app(16))
                 }
                 Button(role: .destructive) {
                     store.delete(workoutID)
                     dismiss()
                 } label: {
                     Text("Delete workout")
-                        .font(.swiss(16))
+                        .font(.app(16))
                 }
             }
             .listRowBackground(Color.clear)
@@ -252,24 +252,24 @@ struct WorkoutDetailView: View {
                 switch item {
                 case .exercise(let exercise):
                     Text(exercise.name)
-                        .font(.swiss(16, .medium))
+                        .font(.app(16, .medium))
                     if !exercise.instructions.isEmpty {
                         Text(exercise.instructions)
-                            .font(.swiss(14))
+                            .font(.app(14))
                             .foregroundStyle(.secondary)
                     }
                 case .circuit(let circuit):
                     Text(circuit.name)
-                        .font(.swiss(16, .medium))
+                        .font(.app(16, .medium))
                     Text("\(circuit.loops) loop\(circuit.loops == 1 ? "" : "s") · \(circuit.exercises.count) exercise\(circuit.exercises.count == 1 ? "" : "s")")
-                        .font(.swiss(14))
+                        .font(.app(14))
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
             if case .exercise(let exercise) = item {
                 Text(Format.mmss(exercise.duration))
-                    .font(.swiss(15))
+                    .font(.app(15))
                     .monospacedDigit()
             }
             Button {
@@ -332,20 +332,20 @@ struct ExerciseRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Text(number)
-                .font(.swiss(15))
+                .font(.app(15))
                 .frame(minWidth: 30, alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
                 Text(exercise.name)
-                    .font(.swiss(16, .medium))
+                    .font(.app(16, .medium))
                 if !exercise.instructions.isEmpty {
                     Text(exercise.instructions)
-                        .font(.swiss(15))
+                        .font(.app(15))
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
             Text(Format.mmss(exercise.duration))
-                .font(.swiss(16))
+                .font(.app(16))
                 .monospacedDigit()
         }
         .padding(.horizontal, 16)
@@ -363,13 +363,13 @@ private struct CircuitHeaderRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Text(number)
-                .font(.swiss(15))
+                .font(.app(15))
                 .frame(minWidth: 30, alignment: .leading)
             Text(circuit.name)
-                .font(.swiss(16, .medium))
+                .font(.app(16, .medium))
             Spacer(minLength: 8)
             Text("\(circuit.loops) loop\(circuit.loops == 1 ? "" : "s")")
-                .font(.swiss(16))
+                .font(.app(16))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 18)

@@ -25,7 +25,7 @@ struct ActionListSheet: View {
                         Image(systemName: item.icon)
                             .font(.system(size: 18))
                         Text(item.title)
-                            .font(.swiss(17))
+                            .font(.app(17))
                     }
                     .foregroundStyle(item.destructive ? Color.red : Color.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,7 +37,7 @@ struct ActionListSheet: View {
                 dismiss()
             } label: {
                 Text("Cancel")
-                    .font(.swiss(17))
+                    .font(.app(17))
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
                     .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
