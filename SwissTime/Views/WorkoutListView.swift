@@ -54,13 +54,16 @@ struct WorkoutListView: View {
                 PlayerView(workout: workout)
             }
             .onAppear {
-                // Debug hooks for command-line UI verification.
+                // Debug hooks for command-line UI verification; each fires once.
                 let arguments = ProcessInfo.processInfo.arguments
-                if arguments.contains("-autoPlayFirstWorkout") {
+                if arguments.contains("-autoPlayFirstWorkout"), !DebugLaunch.didAutoPlay {
+                    DebugLaunch.didAutoPlay = true
                     playing = store.sortedWorkouts.first
                 } else if arguments.contains("-autoOpenFirstWorkout")
                             || arguments.contains("-autoEditFirstWorkout"),
+                          !DebugLaunch.didAutoOpen,
                           let first = store.sortedWorkouts.first {
+                    DebugLaunch.didAutoOpen = true
                     path = [first.id]
                 }
             }

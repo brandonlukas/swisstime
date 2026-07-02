@@ -103,7 +103,9 @@ struct WorkoutDetailView: View {
             PlayerView(workout: workout, startID: target.startID)
         }
         .onAppear {
-            if ProcessInfo.processInfo.arguments.contains("-autoEditFirstWorkout") {
+            if ProcessInfo.processInfo.arguments.contains("-autoEditFirstWorkout"),
+               !DebugLaunch.didAutoEdit {
+                DebugLaunch.didAutoEdit = true
                 editing = true
             }
         }
@@ -191,7 +193,7 @@ struct WorkoutDetailView: View {
             Section {
                 ForEach(workout.items) { item in
                     editRow(item)
-                        .listRowBackground(Rectangle().fill(.regularMaterial))
+                        .listRowBackground(Rectangle().fill(.thinMaterial))
                         .listRowSeparatorTint(Color.hairline)
                 }
                 .onMove { from, to in
@@ -215,7 +217,7 @@ struct WorkoutDetailView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .listRowBackground(Rectangle().fill(.regularMaterial))
+                .listRowBackground(Rectangle().fill(.thinMaterial))
             }
             Section {
                 Button {

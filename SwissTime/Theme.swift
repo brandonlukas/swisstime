@@ -44,11 +44,13 @@ struct SwissGlassBackground: View {
                     .init(0, 1), .init(0.5, 1), .init(1, 1),
                 ],
                 colors: [
-                    .white, Color(red: 0.99, green: 0.98, blue: 0.97), .white,
-                    Color(red: 1.0, green: 0.93, blue: 0.92), .white,
-                    Color(red: 0.93, green: 0.95, blue: 0.98),
-                    Color(red: 0.96, green: 0.95, blue: 0.93),
-                    Color(red: 1.0, green: 0.95, blue: 0.94), .white,
+                    .white, Color(red: 0.98, green: 0.96, blue: 0.94), .white,
+                    Color(red: 1.0, green: 0.84, blue: 0.82),
+                    Color(red: 0.99, green: 0.97, blue: 0.96),
+                    Color(red: 0.84, green: 0.90, blue: 0.99),
+                    Color(red: 0.93, green: 0.89, blue: 0.85),
+                    Color(red: 1.0, green: 0.87, blue: 0.85),
+                    Color(red: 0.89, green: 0.93, blue: 0.99),
                 ]
             )
         }
@@ -90,12 +92,30 @@ enum Grain {
 }
 
 extension View {
-    /// Sharp-cornered glass surface: square, frosted, with a faint light edge.
+    /// Sharp-cornered glass surface: square, frosted, a specular edge, lifted
+    /// off the backdrop just enough to read as a pane rather than a fill.
     func glassCard() -> some View {
         self
-            .background(.regularMaterial)
-            .overlay(Rectangle().strokeBorder(Color.white.opacity(0.4), lineWidth: 1))
+            .background(.thinMaterial)
+            .overlay(
+                Rectangle().strokeBorder(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.9), Color.white.opacity(0.1)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+            )
+            .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 8)
     }
+}
+
+/// One-shot latches for command-line UI verification hooks, so a debug launch
+/// argument fires once instead of on every reappearance of the view.
+enum DebugLaunch {
+    static var didAutoPlay = false
+    static var didAutoOpen = false
+    static var didAutoEdit = false
 }
 
 extension String {

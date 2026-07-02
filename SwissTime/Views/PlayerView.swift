@@ -95,7 +95,7 @@ struct PlayerView: View {
                 .font(.swiss(16))
                 .frame(maxWidth: .infinity)
                 .frame(height: 76)
-                .background(.regularMaterial)
+                .glassCard()
         } else if let step = engine.currentStep {
             VStack(spacing: 0) {
                 if let circuitName = step.circuitName {
@@ -135,7 +135,7 @@ struct PlayerView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
             }
-            .background(.regularMaterial)
+            .glassCard()
         }
     }
 
@@ -177,7 +177,7 @@ struct PlayerView: View {
             }
         }
         .frame(width: side, height: side)
-        .background(.regularMaterial)
+        .glassCard()
     }
 
     private func controls(now: Date) -> some View {
@@ -199,7 +199,7 @@ struct PlayerView: View {
         }
         .padding(.horizontal, 32)
         .frame(height: 64)
-        .background(.regularMaterial)
+        .glassCard()
         .overlay(alignment: .topLeading) {
             GeometryReader { geo in
                 Rectangle()
