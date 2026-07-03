@@ -54,9 +54,25 @@ struct PlayerView: View {
                         breadcrumb
                             .padding(20)
                         Spacer(minLength: 0)
-                        controls
-                            .padding(20)
-                            .padding(.bottom, bottomInset)
+                        Group {
+                            if engine.phase == .finished {
+                                // The transport is dead once the workout
+                                // ends; its slot becomes the obvious way
+                                // out. Undershooting is still covered —
+                                // the left edge's double-tap steps back.
+                                PrimaryButton(title: "Done",
+                                              fill: engine.workout.palette.fill,
+                                              textColor: engine.workout.palette.onFill) {
+                                    dismiss()
+                                }
+                            } else {
+                                controls
+                            }
+                        }
+                        .padding(20)
+                        .padding(.bottom, bottomInset)
+                        .animation(.easeInOut(duration: 0.25),
+                                   value: engine.phase == .finished)
                     }
                 }
                 .frame(width: geo.size.width, height: fullHeight)
