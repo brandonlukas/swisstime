@@ -1,9 +1,9 @@
-// Renders the Lido app icon (concept 01, "The Pool") natively at 2048²,
-// then downsamples to 1024: the hero card as a mark — tiled water, one
-// rubber duck, hard afternoon sun shadow. Geometry ports PoolToyArt's
-// top-down duck at icon scale.
+// Renders the LIDO app icon (concept W5) natively at 2048², then
+// downsamples to 1024: crisp extra-expanded type floating on tiled pool
+// water with a hard afternoon sun shadow — the same shadow the toys cast.
 // Run:  swift lido_icon.swift <output-dir>
 import AppKit
+import CoreText
 
 let S = 2048
 let scale = CGFloat(S) / 1024.0   // design coordinates are the 1024 mockup's
@@ -24,11 +24,8 @@ let pool = rgb(0.169, 0.451, 0.788)          // #2B73C9
 let groutDark = rgb(0.055, 0.243, 0.494, 0.34)
 let groutLight = rgb(1, 1, 1, 0.26)
 let deepBlob = rgb(0.078, 0.271, 0.561)      // #14458F
-let duckBody = rgb(1.0, 0.796, 0.20)         // #FFCB33
-let duckShade = rgb(0.89, 0.659, 0.11)       // #E3A81C
-let duckBeak = rgb(0.941, 0.455, 0.165)      // #F0742A
-let ink = rgb(0.075, 0.13, 0.28)
-let sunShadow = rgb(0.031, 0.129, 0.29, 0.28)
+let type = rgb(0.957, 0.969, 0.984)          // #F4F7FB
+let sunShadow = rgb(0.039, 0.173, 0.361, 0.28)
 
 let ctx = makeContext(S)
 // Flip to top-left origin so the mockup's coordinates read straight across.
@@ -92,83 +89,48 @@ func blob(cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat,
 blob(cx: 290, cy: 250, rx: 440, ry: 290, color: deepBlob, alpha: 0.5)
 blob(cx: 770, cy: 810, rx: 400, ry: 260, color: rgb(1, 1, 1), alpha: 0.14)
 
-// 4 · A quiet ripple ring around the duck.
-ctx.setStrokeColor(rgb(1, 1, 1, 0.15))
-ctx.setLineWidth(9)
-ctx.strokeEllipse(in: CGRect(x: 565 - 320, y: 470 - 320, width: 640, height: 640))
-
-// 5 · The duck, twice: sun-shadow silhouette first, then the vinyl.
-// Local space: +x forward, ~518 units nose to tail (PoolToyArt × 14).
-func duckSilhouette(into c: CGContext) {
-    let tail = CGMutablePath()
-    tail.move(to: CGPoint(x: -126, y: -50))
-    tail.addLine(to: CGPoint(x: -217, y: 0))
-    tail.addLine(to: CGPoint(x: -126, y: 50))
-    tail.closeSubpath()
-    c.addPath(tail)
-    c.addEllipse(in: CGRect(x: -182, y: -112, width: 322, height: 224))
-    c.addEllipse(in: CGRect(x: 91, y: -77, width: 154, height: 154))
-    let beak = CGMutablePath()
-    beak.move(to: CGPoint(x: 224, y: -36))
-    beak.addLine(to: CGPoint(x: 301, y: 0))
-    beak.addLine(to: CGPoint(x: 224, y: 36))
-    beak.closeSubpath()
-    c.addPath(beak)
+// 4 · The wordmark, twice: sun shadow first, then the vinyl-white type.
+// Black weight is non-negotiable; expanded width is a bonus. Requesting
+// traits can silently reset the face to regular, so verify by name and
+// fall back to plain black rather than ship a thin wordmark.
+var font = NSFont.systemFont(ofSize: 295, weight: .black)
+let widthDescriptor = font.fontDescriptor.addingAttributes([
+    .traits: [
+        NSFontDescriptor.TraitKey.weight: NSFont.Weight.black.rawValue,
+        NSFontDescriptor.TraitKey.width: 0.4,
+    ],
+])
+if let wide = NSFont(descriptor: widthDescriptor, size: 295),
+   wide.fontName.lowercased().contains("black") {
+    font = wide
 }
 
-func placeDuck(dx: CGFloat, dy: CGFloat, body: () -> Void) {
+func drawWord(color: CGColor, dx: CGFloat, dy: CGFloat) {
+    let attributed = NSAttributedString(string: "LIDO", attributes: [
+        .font: font,
+        .kern: 295 * 0.02,
+        .foregroundColor: NSColor(cgColor: color)!,
+    ])
+    let line = CTLineCreateWithAttributedString(attributed)
+    // The text matrix is NOT graphics state: the previous pass's position
+    // survives restoreGState and would poison this measurement.
+    ctx.textMatrix = .identity
+    let bounds = CTLineGetImageBounds(line, ctx)
+    // Stretch the glyphs to the mockup's forced width — the wide O lives here.
+    let targetWidth: CGFloat = 900
+    let stretch = targetWidth / bounds.width
     ctx.saveGState()
-    ctx.translateBy(x: 560 + dx, y: 460 + dy)
-    ctx.rotate(by: -20 * .pi / 180)
-    body()
+    ctx.translateBy(x: 512 - targetWidth / 2 + dx, y: 618 + dy)
+    // Text draws in an upward-y frame; flip locally around the baseline.
+    ctx.scaleBy(x: stretch, y: -1)
+    ctx.textPosition = CGPoint(x: -bounds.minX, y: 0)
+    CTLineDraw(line, ctx)
     ctx.restoreGState()
 }
+drawWord(color: sunShadow, dx: 12, dy: 16)
+drawWord(color: type, dx: 0, dy: 0)
 
-placeDuck(dx: 40, dy: 68) {
-    duckSilhouette(into: ctx)
-    ctx.setFillColor(sunShadow)
-    ctx.fillPath()
-}
-
-placeDuck(dx: 0, dy: 0) {
-    // Tail wedge, hull, molded wing bumps.
-    let tail = CGMutablePath()
-    tail.move(to: CGPoint(x: -126, y: -50))
-    tail.addLine(to: CGPoint(x: -217, y: 0))
-    tail.addLine(to: CGPoint(x: -126, y: 50))
-    tail.closeSubpath()
-    ctx.addPath(tail)
-    ctx.setFillColor(duckShade)
-    ctx.fillPath()
-
-    ctx.setFillColor(duckBody)
-    ctx.fillEllipse(in: CGRect(x: -182, y: -112, width: 322, height: 224))
-
-    ctx.setFillColor(duckShade.copy(alpha: 0.55)!)
-    ctx.fillEllipse(in: CGRect(x: -119, y: -101, width: 168, height: 70))
-    ctx.fillEllipse(in: CGRect(x: -119, y: 31, width: 168, height: 70))
-
-    // Head proud of the body, beak reaching forward.
-    ctx.setFillColor(duckBody)
-    ctx.fillEllipse(in: CGRect(x: 91, y: -77, width: 154, height: 154))
-    let beak = CGMutablePath()
-    beak.move(to: CGPoint(x: 224, y: -36))
-    beak.addLine(to: CGPoint(x: 301, y: 0))
-    beak.addLine(to: CGPoint(x: 224, y: 36))
-    beak.closeSubpath()
-    ctx.addPath(beak)
-    ctx.setFillColor(duckBeak)
-    ctx.fillPath()
-
-    // Painted eyes on both sides, and a vinyl catch-light on the crown.
-    ctx.setFillColor(ink)
-    ctx.fillEllipse(in: CGRect(x: 157, y: -63, width: 30, height: 30))
-    ctx.fillEllipse(in: CGRect(x: 157, y: 33, width: 30, height: 30))
-    ctx.setFillColor(rgb(1, 1, 1, 0.55))
-    ctx.fillEllipse(in: CGRect(x: 102, y: -54, width: 52, height: 32))
-}
-
-// 6 · Downsample and write.
+// 5 · Downsample and write.
 func write(_ image: CGImage, side: Int, to path: String) {
     let out = makeContext(side)
     out.interpolationQuality = .high
@@ -182,4 +144,4 @@ let dir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
 write(full, side: 1024, to: "\(dir)/lido-1024.png")
 write(full, side: 180, to: "\(dir)/lido-180.png")
 write(full, side: 120, to: "\(dir)/lido-120.png")
-print("done")
+print("done — font \(font.fontName)")
