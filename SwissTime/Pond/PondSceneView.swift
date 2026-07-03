@@ -68,11 +68,13 @@ struct PondSceneView: View {
                            night: colorScheme == .dark, glints: false)
             }
         } else {
-            // Low Power Mode calms the water: the pools tick at less than
-            // half speed until the battery situation improves.
+            // The ambient hero idles at 10fps — its drift is slow enough
+            // to read fine, and it's on screen whenever the app is — while
+            // the fullscreen pool gets the smooth clock. Low Power Mode
+            // calms both further.
             let fps: Double = power.lowPower
-                ? (mode == .hero ? 8 : 10)
-                : (mode == .hero ? 20 : 24)
+                ? (mode == .hero ? 6 : 10)
+                : (mode == .hero ? 10 : 24)
             TimelineView(.animation(minimumInterval: 1.0 / fps,
                                     paused: scenePhase != .active || paused)) { timeline in
                 Canvas { context, size in
