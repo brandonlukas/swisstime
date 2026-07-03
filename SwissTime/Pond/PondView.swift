@@ -36,7 +36,8 @@ struct PondView: View {
                     PondPage(month: month,
                              entries: pond.entries(in: month),
                              isCurrent: month == .current,
-                             hasHistory: pages.count > 1)
+                             hasHistory: pages.count > 1,
+                             isVisible: month == page)
                         .tag(month)
                 }
             }
@@ -73,6 +74,7 @@ private struct PondPage: View {
     let entries: [PondEntry]
     let isCurrent: Bool
     let hasHistory: Bool
+    let isVisible: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -83,7 +85,8 @@ private struct PondPage: View {
                 .font(.app(14))
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
-            PondSceneView(monthKey: month, entries: entries, mode: .live)
+            PondSceneView(monthKey: month, entries: entries, mode: .live,
+                          paused: !isVisible)
                 .aspectRatio(0.8, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))

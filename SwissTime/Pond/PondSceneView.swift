@@ -8,14 +8,19 @@ struct PondSceneView: View {
 
     let monthKey: MonthKey
     let mode: Mode
+    /// Offscreen pools (a covered hero, a non-visible month page) pause
+    /// their clocks — the paged TabView keeps neighbors alive, and there's
+    /// no reason to animate water nobody can see.
+    let paused: Bool
     private let scene: PondScene
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(monthKey: MonthKey, entries: [PondEntry], mode: Mode) {
+    init(monthKey: MonthKey, entries: [PondEntry], mode: Mode, paused: Bool = false) {
         self.monthKey = monthKey
         self.mode = mode
+        self.paused = paused
         self.scene = PondScene(monthKey: monthKey, entries: entries)
     }
 
@@ -29,7 +34,7 @@ struct PondSceneView: View {
             }
         } else {
             TimelineView(.animation(minimumInterval: mode == .hero ? 1.0 / 10.0 : 1.0 / 24.0,
-                                    paused: scenePhase != .active)) { timeline in
+                                    paused: scenePhase != .active || paused)) { timeline in
                 Canvas { context, size in
                     scene.draw(in: context, size: size,
                                time: timeline.date.timeIntervalSinceReferenceDate,

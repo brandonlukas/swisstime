@@ -195,7 +195,51 @@ struct PondScene {
                     y: waterRect.minY + unit.y * waterRect.height)
         }
 
-        for floater in floaters {
+        // Resolve drift crossings: a few relaxation passes push overlapping
+        // toys apart, so they bump and slide around each other instead of
+        // stacking. The nudge depends only on this frame's positions, so
+        // motion stays a pure function of time — no simulation state.
+        var positions = floaters.map { point($0.unitPosition(at: time)) }
+        let radii = floaters.map { Self.bumpRadius($0.kind) * toyScale }
+        if !positions.isEmpty {
+            let ladderScale: CGFloat = detail == .hero ? 0.8 : 1.0
+            let ladderPoint = CGPoint(x: waterRect.minX + ladderX * waterRect.width,
+                                      y: waterRect.minY + 14 * ladderScale)
+            let ladderRadius = 16 * ladderScale
+            for _ in 0..<3 {
+                for i in positions.indices {
+                    for j in positions.indices where j > i {
+                        let dx = positions[j].x - positions[i].x
+                        let dy = positions[j].y - positions[i].y
+                        let dist = max(0.001, hypot(dx, dy))
+                        let minDist = radii[i] + radii[j]
+                        guard dist < minDist else { continue }
+                        let push = (minDist - dist) / 2
+                        positions[i].x -= dx / dist * push
+                        positions[i].y -= dy / dist * push
+                        positions[j].x += dx / dist * push
+                        positions[j].y += dy / dist * push
+                    }
+                    // The ladder doesn't give way — toys shy off it whole.
+                    let dx = positions[i].x - ladderPoint.x
+                    let dy = positions[i].y - ladderPoint.y
+                    let dist = max(0.001, hypot(dx, dy))
+                    let minDist = radii[i] + ladderRadius
+                    if dist < minDist {
+                        positions[i].x += dx / dist * (minDist - dist)
+                        positions[i].y += dy / dist * (minDist - dist)
+                    }
+                }
+            }
+            // Pushed toys still stay in the water.
+            let bounds = waterRect.insetBy(dx: 12, dy: 12)
+            for i in positions.indices {
+                positions[i].x = min(max(positions[i].x, bounds.minX), bounds.maxX)
+                positions[i].y = min(max(positions[i].y, bounds.minY), bounds.maxY)
+            }
+        }
+
+        for (index, floater) in floaters.enumerated() {
             // A quiet ripple ring left behind now and then.
             let rippleAge = (time + floater.wigglePhase)
                 .truncatingRemainder(dividingBy: floater.ripplePeriod)
@@ -204,7 +248,6 @@ struct PondScene {
                 drawRipple(in: water, at: origin, age: rippleAge, maxRadius: 22)
             }
 
-            let pos = point(floater.unitPosition(at: time))
             let rotation: Angle
             if PoolToyArt.isDirectional(floater.kind) {
                 let v = floater.unitVelocity(at: time)
@@ -213,12 +256,26 @@ struct PondScene {
             } else {
                 rotation = Angle(radians: floater.spinRate * time + floater.spinPhase)
             }
-            PoolToyArt.draw(floater.kind, in: water, at: pos, rotation: rotation,
+            PoolToyArt.draw(floater.kind, in: water, at: positions[index],
+                            rotation: rotation,
                             wiggle: time * 2.0 + floater.wigglePhase, scale: toyScale)
         }
 
         drawLadder(in: context, water: water, waterRect: waterRect,
                    scale: detail == .hero ? 0.8 : 1.0)
+    }
+
+    /// How close another toy can drift before this one gives way, in points
+    /// at scale 1 — roughly each drawing's reach plus a little water between.
+    private static func bumpRadius(_ kind: ToyKind) -> CGFloat {
+        switch kind {
+        case .duck: return 17
+        case .beachBall: return 15
+        case .ring: return 16
+        case .orca: return 19
+        case .flamingo: return 17
+        case .lilo: return 20
+        }
     }
 
     /// A grout grid over `rect`. With a `time` the lines refract — a slow

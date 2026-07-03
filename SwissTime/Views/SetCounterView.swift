@@ -53,29 +53,30 @@ struct SetCounterView: View {
         }
     }
 
+    /// A fixed page, not a scroll view — four elements the user can't add
+    /// to have nowhere to scroll.
     private var configView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("Count your sets and time your rest — company for workouts you run yourself.")
-                    .font(.app(15))
-                    .foregroundStyle(.secondary)
-                HStack(alignment: .top, spacing: 12) {
-                    PickerField(label: "Sets", options: Array(1...12),
-                                display: { "\($0)" }, selection: $sets)
-                    PickerField(label: "Rest between sets", options: Presets.restDurations,
-                                display: { Format.mmss($0) }, selection: $rest)
-                }
-                Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
-                    .font(.app(14))
-                    .foregroundStyle(.secondary)
-                PrimaryButton(title: "Start") {
-                    start(setCount: sets, restDuration: rest)
-                }
-                .padding(.top, 8)
+        VStack(alignment: .leading, spacing: 24) {
+            Text("Count your sets and time your rest — company for workouts you run yourself.")
+                .font(.app(15))
+                .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 12) {
+                PickerField(label: "Sets", options: Array(1...12),
+                            display: { "\($0)" }, selection: $sets)
+                PickerField(label: "Rest between sets", options: Presets.restDurations,
+                            display: { Format.mmss($0) }, selection: $rest)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
+            Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
+                .font(.app(14))
+                .foregroundStyle(.secondary)
+            PrimaryButton(title: "Start") {
+                start(setCount: sets, restDuration: rest)
+            }
+            .padding(.top, 8)
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
     }
 
     @discardableResult

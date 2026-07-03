@@ -15,7 +15,9 @@ struct WorkoutListView: View {
                     Button {
                         showingPond = true
                     } label: {
-                        PondHeroCard(entries: pond.entries(in: .current))
+                        // The hero rests while a full-screen cover hides it.
+                        PondHeroCard(entries: pond.entries(in: .current),
+                                     paused: showingPond || playing != nil)
                     }
                     .buttonStyle(.plain)
                     .padding(.bottom, 24)
@@ -122,9 +124,11 @@ struct WorkoutListView: View {
 /// The live pool strip: this month's toys at a glance, tap for the full pool.
 private struct PondHeroCard: View {
     let entries: [PondEntry]
+    let paused: Bool
 
     var body: some View {
-        PondSceneView(monthKey: .current, entries: entries, mode: .hero)
+        PondSceneView(monthKey: .current, entries: entries, mode: .hero,
+                      paused: paused)
             .frame(height: 150)
             .frame(maxWidth: .infinity)
             .overlay(alignment: .bottomLeading) {
