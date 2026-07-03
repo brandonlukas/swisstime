@@ -23,7 +23,6 @@ final class SetCounterEngine: ObservableObject {
 
     private let audio = AudioManager()
     private let liveActivity = LiveActivityController()
-    private let feedback = UIImpactFeedbackGenerator(style: .medium)
     private var ticker: Timer?
     private var observers: [NSObjectProtocol] = []
     /// The opening stretch has no rest to ring out.
@@ -49,7 +48,6 @@ final class SetCounterEngine: ObservableObject {
 
     func start() {
         audio.start()
-        feedback.prepare()
         zeroDate = Date()
         liveActivity.start(workoutTitle: "Sets", state: activityState())
         // The island's skip button is the same tap as "End set".
@@ -97,7 +95,7 @@ final class SetCounterEngine: ObservableObject {
         let now = Date()
         guard now.timeIntervalSince(lastEndSet) > 1 else { return }
         lastEndSet = now
-        feedback.impactOccurred()
+        Haptics.impact()
         if currentSet >= setCount {
             finished = true
             return

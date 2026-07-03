@@ -85,7 +85,7 @@ struct SetCounterView: View {
     @discardableResult
     private func start(setCount: Int, restDuration: TimeInterval,
                        fiveSecondsCue: Bool) -> SetCounterEngine {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        Haptics.impact()
         let engine = SetCounterEngine(setCount: setCount, rest: restDuration,
                                       fiveSecondsCue: fiveSecondsCue)
         engine.start()
@@ -126,9 +126,10 @@ private struct SetCounterRunView: View {
                 let fullHeight = geo.size.height + bottomInset
                 let target = engine.fraction(at: now)
                 let level = fullHeight * waterSpring.advance(toward: target, at: now)
+                // Tilt rests in Low Power Mode too — the surface stays level.
                 let surface = waterSurface.advance(
                     targetFraction: target,
-                    gravitySlope: reduceMotion ? 0 : waterMotion.slope,
+                    gravitySlope: (reduceMotion || power.lowPower) ? 0 : waterMotion.slope,
                     at: now)
                 let ripple: CGFloat = reduceMotion ? 0 : 1.6
                 let textureBeat: Double = power.lowPower ? 1 : 4

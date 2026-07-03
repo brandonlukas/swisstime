@@ -11,7 +11,7 @@ final class AudioManager: NSObject {
     private let synthesizer = AVSpeechSynthesizer()
     private let session = AVAudioSession.sharedInstance()
     /// Resolved once, on the session queue (enumerating voices can be slow).
-    private lazy var voice = Self.naturalVoice()
+    private lazy var voice = Self.resolveVoice()
     /// Session activation/category changes block on IPC to the media server —
     /// tens of ms — so they all run here, never on the main thread. Static:
     /// the session is process-shared, and when one engine hands off to
@@ -139,7 +139,9 @@ final class AudioManager: NSObject {
     /// `delay` holds the voice until an alert sound fired alongside it has
     /// finished, so the two cues never talk over each other.
     func speak(_ text: String, interrupting: Bool = false, delay: TimeInterval = 0) {
-        guard running, !text.isEmpty else { return }
+        // The voice can be switched off wholesale — beeps and chimes carry
+        // the moments that matter; speech is the optional narration.
+        guard running, !text.isEmpty, AppSettings.voiceCues else { return }
         beginSound()
         sessionQueue.async { [self] in
             if interrupting, synthesizer.isSpeaking {
@@ -158,10 +160,19 @@ final class AudioManager: NSObject {
     func playBeep() { play(beepPlayer) }
     func playDone() { play(donePlayer) }
 
+    /// The user's chosen voice, or the best the device has.
+    static func resolveVoice() -> AVSpeechSynthesisVoice? {
+        if let id = AppSettings.voiceIdentifier,
+           let chosen = AVSpeechSynthesisVoice(identifier: id) {
+            return chosen
+        }
+        return naturalVoice()
+    }
+
     /// Asking for a bare `en-US` voice yields the old compact robot; use the
     /// most natural English voice on the device instead. Novelty voices would
     /// be absurd mid-workout and personal voices need separate authorization.
-    private static func naturalVoice() -> AVSpeechSynthesisVoice? {
+    static func naturalVoice() -> AVSpeechSynthesisVoice? {
         let candidates = AVSpeechSynthesisVoice.speechVoices().filter {
             $0.language.hasPrefix("en")
                 && !$0.voiceTraits.contains(.isNoveltyVoice)

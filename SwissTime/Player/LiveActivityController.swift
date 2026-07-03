@@ -7,7 +7,10 @@ final class LiveActivityController {
     private var activity: Activity<WorkoutActivityAttributes>?
 
     func start(workoutTitle: String, state: WorkoutActivityAttributes.ContentState) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        // The user can decline the island takeover; updates and end() are
+        // no-ops when nothing started.
+        guard AppSettings.liveActivity,
+              ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         // Any activity alive right now belongs to a dead engine.
         Self.endOrphans()
         let attributes = WorkoutActivityAttributes(workoutTitle: workoutTitle)

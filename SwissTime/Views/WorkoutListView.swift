@@ -6,6 +6,7 @@ struct WorkoutListView: View {
     @State private var path: [UUID] = []
     @State private var showingCreate = false
     @State private var showingPond = false
+    @State private var showingSettings = false
     @State private var playing: Workout?
 
     var body: some View {
@@ -43,7 +44,7 @@ struct WorkoutListView: View {
                                 .overlay(alignment: .trailing) {
                                     if workout.kind == .timed, !workout.exercises.isEmpty {
                                         Button {
-                                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                            Haptics.impact()
                                             playing = workout
                                         } label: {
                                             Image(systemName: "play.fill")
@@ -68,6 +69,13 @@ struct WorkoutListView: View {
                 WorkoutDetailView(workoutID: id)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingCreate = true
@@ -90,6 +98,9 @@ struct WorkoutListView: View {
             .fullScreenCover(isPresented: $showingPond) {
                 PondView()
             }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
             .onAppear {
                 // Debug hooks for command-line UI verification; each fires once.
                 let arguments = ProcessInfo.processInfo.arguments
@@ -99,6 +110,9 @@ struct WorkoutListView: View {
                 } else if arguments.contains("-autoOpenPond"), !DebugLaunch.didAutoOpenPond {
                     DebugLaunch.didAutoOpenPond = true
                     showingPond = true
+                } else if arguments.contains("-autoOpenSettings"), !DebugLaunch.didAutoOpenSettings {
+                    DebugLaunch.didAutoOpenSettings = true
+                    showingSettings = true
                 } else if arguments.contains("-autoOpenFirstWorkout")
                             || arguments.contains("-autoEditFirstWorkout"),
                           !DebugLaunch.didAutoOpen,

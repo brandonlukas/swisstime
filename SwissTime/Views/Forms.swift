@@ -260,7 +260,7 @@ struct CheckboxRow: View {
                     guard !touchDown else { return }
                     touchDown = true
                     isOn.toggle()
-                    UISelectionFeedbackGenerator().selectionChanged()
+                    Haptics.selection()
                     hideKeyboard()
                 }
                 .onEnded { _ in touchDown = false }

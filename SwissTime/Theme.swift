@@ -445,6 +445,7 @@ enum DebugLaunch {
     static var didAutoOpen = false
     static var didAutoEdit = false
     static var didAutoOpenPond = false
+    static var didAutoOpenSettings = false
     static var didAutoAddItem = false
     static var didAutoEditWorkout = false
     static var didAutoMarkDone = false

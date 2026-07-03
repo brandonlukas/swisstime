@@ -9,6 +9,7 @@ struct SwissTimeApp: App {
     @StateObject private var store = WorkoutStore()
     @StateObject private var pond = PondStore()
     @State private var tab: AppTab
+    @AppStorage("settings.theme") private var theme = ThemeChoice.system.rawValue
 
     init() {
         // If the app died mid-workout, its Live Activity is still on the
@@ -37,6 +38,8 @@ struct SwissTimeApp: App {
             .environmentObject(store)
             .environmentObject(pond)
             .tint(Color.ink)
+            // nil follows the system; Day and Night pin it.
+            .preferredColorScheme(ThemeChoice(rawValue: theme)?.colorScheme)
         }
     }
 }

@@ -64,7 +64,7 @@ struct WorkoutDetailView: View {
                               fill: workout.palette.fill,
                               textColor: workout.palette.onFill) {
                     if workout.kind == .timed {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        Haptics.impact()
                         playing = true
                     } else {
                         markDone()
@@ -157,7 +157,7 @@ struct WorkoutDetailView: View {
 
     /// The untimed completion: they said they did it — toy earned.
     private func markDone() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
         store.markPlayed(workoutID)
         ceremony = CompletionCeremony(entryID: pond.record(workout: workout))
     }
