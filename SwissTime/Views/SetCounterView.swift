@@ -108,7 +108,6 @@ struct SetCounterView: View {
 private struct SetCounterRunView: View {
     @ObservedObject var engine: SetCounterEngine
     let onDone: () -> Void
-    @State private var confirmEnd = false
     @State private var waterSpring = LevelSpring()
     @State private var waterSurface = WaterSurfaceModel()
     @State private var waterMotion = WaterMotion()
@@ -184,12 +183,6 @@ private struct SetCounterRunView: View {
         .onChange(of: engine.finished) { _, finished in
             if finished { onDone() }
         }
-        .sheet(isPresented: $confirmEnd) {
-            ActionListSheet(actions: [
-                ActionItem(title: "End sets", icon: "xmark", destructive: true,
-                           action: onDone),
-            ])
-        }
     }
 
     /// Numerals, dots, and the set caption — everything that must flip
@@ -217,10 +210,11 @@ private struct SetCounterRunView: View {
     }
 
     /// Stopwatch corners: End to bail out, Lap to finish a set — Done once
-    /// the final set is underway.
+    /// the final set is underway. End needs no confirm: unlike quitting a
+    /// workout mid-sequence, a counter holds no progress worth protecting.
     private var buttons: some View {
         HStack {
-            circleButton("End", filled: false) { confirmEnd = true }
+            circleButton("End", filled: false, action: onDone)
             Spacer()
             circleButton(engine.currentSet == engine.setCount ? "Done" : "Lap",
                          filled: true) { engine.endSet() }
