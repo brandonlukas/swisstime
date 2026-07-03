@@ -21,6 +21,39 @@ struct PrimaryButton: View {
     }
 }
 
+/// The poster-caps page title over its rule — every screen's masthead.
+struct PageHeader: View {
+    let title: String
+    var size: CGFloat = 26
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .display(size)
+                .padding(.bottom, 14)
+            InkRule()
+        }
+    }
+}
+
+/// The sheet-corner X with a full 44 pt target, anchored so the glyph sits
+/// where a bare icon would — a lone glyph's transparent pixels don't
+/// hit-test, and the glyph alone is far under the minimum tap size.
+struct SheetCloseButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.primary)
+                .frame(width: 44, height: 44, alignment: .topLeading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// "Nothing here yet": headline, hint, and one compact action.
 struct EmptyStateView: View {
     let title: String

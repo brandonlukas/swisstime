@@ -24,20 +24,11 @@ struct CompletionCeremonyView: View {
             Text(workout.title)
                 .font(.app(15))
                 .foregroundStyle(.secondary)
-            EarnedToyView(colorIndex: workout.colorIndex,
-                          shiny: pond.isShiny(entryID))
+            let shiny = pond.isShiny(entryID)
+            EarnedToyView(colorIndex: workout.colorIndex, shiny: shiny)
                 .padding(.vertical, 10)
-            if pond.isShiny(entryID) {
-                Text("A gilded \(workout.palette.toy.displayName) — lucky you.")
-                    .font(.app(13, .medium))
-                    .foregroundStyle(Color.goldDeep)
-                    .padding(.bottom, 22)
-            } else {
-                Text("Afloat in your \(MonthKey.current.monthName) pool")
-                    .font(.app(13))
-                    .foregroundStyle(Color.ink.opacity(0.55))
-                    .padding(.bottom, 22)
-            }
+            EarnedCaption(toy: workout.palette.toy, shiny: shiny)
+                .padding(.bottom, 22)
             NoteField(text: $note)
                 .padding(.horizontal, 20)
             Spacer(minLength: 0)
@@ -52,6 +43,26 @@ struct CompletionCeremonyView: View {
         .presentationDragIndicator(.visible)
         // Saving on the way out covers Done and a swipe-down alike.
         .onDisappear { pond.setNote(note, for: entryID) }
+    }
+}
+
+/// The one-line receipt under the earned toy — shared by the timed player's
+/// finish card and the untimed ceremony so the two never announce the same
+/// toy differently.
+struct EarnedCaption: View {
+    let toy: ToyKind
+    let shiny: Bool
+
+    var body: some View {
+        if shiny {
+            Text("A gilded \(toy.displayName) — lucky you.")
+                .font(.app(13, .medium))
+                .foregroundStyle(Color.goldDeep)
+        } else {
+            Text("Afloat in your \(MonthKey.current.monthName) pool")
+                .font(.app(13))
+                .foregroundStyle(Color.ink.opacity(0.55))
+        }
     }
 }
 

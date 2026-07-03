@@ -16,17 +16,17 @@ struct WorkoutListView: View {
                     Button {
                         showingPond = true
                     } label: {
-                        // The hero rests while a full-screen cover hides it.
+                        // The hero rests while anything hides it: the pool
+                        // cover, the player, or a pushed detail screen
+                        // (whose own Play cover this list can't see).
                         PondHeroCard(entries: pond.entries(in: .current),
-                                     paused: showingPond || playing != nil,
+                                     paused: showingPond || playing != nil
+                                         || !path.isEmpty,
                                      newIDs: pond.newEntryIDs)
                     }
                     .buttonStyle(.plain)
                     .padding(.bottom, 24)
-                    Text("Workouts")
-                        .display(26)
-                        .padding(.bottom, 14)
-                    InkRule()
+                    PageHeader(title: "Workouts")
                         .padding(.bottom, 24)
                     if store.workouts.isEmpty {
                         emptyState

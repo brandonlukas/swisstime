@@ -110,12 +110,9 @@ final class SetCounterEngine: ObservableObject {
     private func tick() {
         guard !finished else { return }
         let remaining = remaining(at: Date())
-        // The heads-up, matching the player's gate: pointless on rests so
-        // short the beep is already imminent. Fired with a small lead —
-        // the synthesizer takes a beat to make sound, and speech starting
-        // while the clock still shows 0:05 reads right; at 0:04 it reads
-        // late.
-        if fiveSecondsCue, !cueFired, !beepFired, remaining <= 5.2, rest > 10 {
+        // The heads-up, on the same shared rule as the player's.
+        if fiveSecondsCue, !cueFired, !beepFired,
+           remaining <= VoiceCueRule.lead, rest > VoiceCueRule.minimumSpan {
             cueFired = true
             audio.speak("5 seconds left.")
         }

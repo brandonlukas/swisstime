@@ -12,14 +12,7 @@ struct PondView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.primary)
-                }
-                .buttonStyle(.plain)
+                SheetCloseButton { dismiss() }
                 Spacer()
                 Button {
                     showingLog = true

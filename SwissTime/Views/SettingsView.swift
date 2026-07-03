@@ -2,20 +2,31 @@ import SwiftUI
 import AVFoundation
 import UIKit
 
+/// One name per key: AppSettings' engine-side getters and the views'
+/// @AppStorage bindings read the same storage, and a raw string typo'd in
+/// either place would split the truth silently.
+enum SettingsKey {
+    static let theme = "settings.theme"
+    static let voiceCues = "settings.voiceCues"
+    static let haptics = "settings.haptics"
+    static let liveActivity = "settings.liveActivity"
+    static let voiceIdentifier = "settings.voiceIdentifier"
+}
+
 /// UserDefaults-backed switches, readable from engine code that has no
 /// SwiftUI environment. Views bind the same keys through @AppStorage.
 enum AppSettings {
     static var voiceCues: Bool {
-        UserDefaults.standard.object(forKey: "settings.voiceCues") as? Bool ?? true
+        UserDefaults.standard.object(forKey: SettingsKey.voiceCues) as? Bool ?? true
     }
     static var haptics: Bool {
-        UserDefaults.standard.object(forKey: "settings.haptics") as? Bool ?? true
+        UserDefaults.standard.object(forKey: SettingsKey.haptics) as? Bool ?? true
     }
     static var liveActivity: Bool {
-        UserDefaults.standard.object(forKey: "settings.liveActivity") as? Bool ?? true
+        UserDefaults.standard.object(forKey: SettingsKey.liveActivity) as? Bool ?? true
     }
     static var voiceIdentifier: String? {
-        let id = UserDefaults.standard.string(forKey: "settings.voiceIdentifier")
+        let id = UserDefaults.standard.string(forKey: SettingsKey.voiceIdentifier)
         return (id?.isEmpty ?? true) ? nil : id
     }
 }
@@ -42,26 +53,36 @@ enum ThemeChoice: String, CaseIterable {
 }
 
 /// Every buzz in the app runs through here: one switch to rule them, and
-/// Low Power Mode rests the motors automatically.
+/// Low Power Mode (via PowerState, the app's single low-power truth) rests
+/// the motors automatically. Generators are held and re-prepared after each
+/// fire so the Taptic Engine is warm when the tap lands — a cold per-call
+/// generator can buzz late or not at all.
 @MainActor
 enum Haptics {
+    private static let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private static let notificationGenerator = UINotificationFeedbackGenerator()
+    private static let selectionGenerator = UISelectionFeedbackGenerator()
+
     static var enabled: Bool {
-        AppSettings.haptics && !ProcessInfo.processInfo.isLowPowerModeEnabled
+        AppSettings.haptics && !PowerState.shared.lowPower
     }
 
-    static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+    static func impact() {
         guard enabled else { return }
-        UIImpactFeedbackGenerator(style: style).impactOccurred()
+        impactGenerator.impactOccurred()
+        impactGenerator.prepare()
     }
 
     static func success() {
         guard enabled else { return }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        notificationGenerator.notificationOccurred(.success)
+        notificationGenerator.prepare()
     }
 
     static func selection() {
         guard enabled else { return }
-        UISelectionFeedbackGenerator().selectionChanged()
+        selectionGenerator.selectionChanged()
+        selectionGenerator.prepare()
     }
 }
 
@@ -108,35 +129,24 @@ struct SchemeReporter: View {
 struct SettingsView: View {
     @ObservedObject private var systemScheme = SystemScheme.shared
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("settings.theme") private var theme = ThemeChoice.system.rawValue
-    @AppStorage("settings.voiceCues") private var voiceCues = true
-    @AppStorage("settings.haptics") private var haptics = true
-    @AppStorage("settings.liveActivity") private var liveActivity = true
-    @AppStorage("settings.voiceIdentifier") private var voiceIdentifier = ""
+    @AppStorage(SettingsKey.theme) private var theme = ThemeChoice.system.rawValue
+    @AppStorage(SettingsKey.voiceCues) private var voiceCues = true
+    @AppStorage(SettingsKey.haptics) private var haptics = true
+    @AppStorage(SettingsKey.liveActivity) private var liveActivity = true
+    @AppStorage(SettingsKey.voiceIdentifier) private var voiceIdentifier = ""
     @State private var voices: [AVSpeechSynthesisVoice] = []
     @State private var preview = VoicePreview()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                }
-                .buttonStyle(.plain)
+                SheetCloseButton { dismiss() }
                 Spacer()
             }
             .padding(20)
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Settings")
-                            .display(26)
-                            .padding(.bottom, 14)
-                        InkRule()
-                    }
+                    PageHeader(title: "Settings")
                     SegmentRow(label: "Theme",
                                options: ThemeChoice.allCases.map(\.rawValue),
                                display: { ThemeChoice(rawValue: $0)?.title ?? $0 },

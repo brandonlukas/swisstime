@@ -22,14 +22,10 @@ struct SheetScaffold<Content: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Button {
+                SheetCloseButton {
                     hideKeyboard()
                     dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
                 }
-                .buttonStyle(.plain)
                 Spacer()
             }
             .padding(20)
@@ -399,7 +395,6 @@ struct ExerciseFormView: View {
     @State private var sets: Int
     /// 0 means "not set" — reps are display-only.
     @State private var reps: Int
-    @State private var rest: TimeInterval
 
     init(workoutID: UUID, kind: WorkoutKind, editingExercise: Exercise? = nil) {
         self.workoutID = workoutID
@@ -414,7 +409,6 @@ struct ExerciseFormView: View {
         // `editingExercise?.reps` can't tell "not editing" from "editing,
         // reps unset" — map keeps an unset 0 from picking up the default.
         _reps = State(initialValue: editingExercise.map { $0.reps ?? 0 } ?? ExerciseDefaults.reps)
-        _rest = State(initialValue: editingExercise?.restDuration ?? 60)
     }
 
     private var isEditing: Bool {
@@ -487,6 +481,7 @@ struct ExerciseFormView: View {
         exercise.fiveSecondsAlert = fiveSeconds
         exercise.sets = sets
         exercise.reps = reps == 0 ? nil : reps
-        exercise.restDuration = rest
+        // restDuration is untouched: the form no longer edits it, and an
+        // existing exercise keeps whatever its file already says.
     }
 }

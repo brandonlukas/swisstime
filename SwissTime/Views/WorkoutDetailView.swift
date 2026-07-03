@@ -44,10 +44,7 @@ struct WorkoutDetailView: View {
                     .fill(workout.palette.fill)
                     .frame(width: 16, height: 16)
                     .padding(.bottom, 10)
-                Text(workout.title)
-                    .display(24)
-                    .padding(.bottom, 14)
-                InkRule()
+                PageHeader(title: workout.title, size: 24)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)

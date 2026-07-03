@@ -128,7 +128,7 @@ struct PondScene {
     // MARK: - Drawing
 
     func draw(in context: GraphicsContext, size: CGSize, time: TimeInterval, detail: Detail,
-              night: Bool = false) {
+              night: Bool = false, glints: Bool = true) {
         let deckInset: CGFloat = detail == .hero ? 12 : 22
         let waterRect = CGRect(origin: .zero, size: size)
             .insetBy(dx: deckInset, dy: deckInset)
@@ -142,9 +142,9 @@ struct PondScene {
 
         // Dry deck: pale tile with straight grout, edge to edge.
         context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.tileDry))
-        drawGrid(in: context, over: CGRect(origin: .zero, size: size),
-                 spacing: tile, time: nil,
-                 color: .tileGrout.opacity(0.75), lineWidth: 1.2)
+        context.stroke(gridPath(over: CGRect(origin: .zero, size: size),
+                                spacing: tile, time: nil),
+                       with: .color(.tileGrout.opacity(0.75)), lineWidth: 1.2)
 
         // The pool cut into it, darker at the rim like depth falling away.
         context.fill(waterPath, with: .color(.poolWater))
@@ -160,12 +160,16 @@ struct PondScene {
 
         // The same grid continues underwater, refracting: grout lines wave
         // slowly, offset dark-under-light so the joints read submerged.
-        drawGrid(in: water, over: waterRect.insetBy(dx: -tile, dy: -tile),
-                 spacing: tile, time: time,
-                 color: .poolWaterDeep.opacity(0.55), lineWidth: 1.6)
-        drawGrid(in: water, over: waterRect.insetBy(dx: -tile, dy: -tile).offsetBy(dx: 1.5, dy: 1.5),
-                 spacing: tile, time: time,
-                 color: .white.opacity(0.14), lineWidth: 1.2)
+        // One sampled path, stroked twice through a nudged context — the
+        // wobble sampling is the scene's hottest loop, no need to run it
+        // twice for a 1.5pt emboss offset.
+        let wetGrout = gridPath(over: waterRect.insetBy(dx: -tile, dy: -tile),
+                                spacing: tile, time: time)
+        water.stroke(wetGrout, with: .color(.poolWaterDeep.opacity(0.55)),
+                     lineWidth: 1.6)
+        var lifted = water
+        lifted.translateBy(x: 1.5, y: 1.5)
+        lifted.stroke(wetGrout, with: .color(.white.opacity(0.14)), lineWidth: 1.2)
 
         // At night the pool is lit from below: two underwater lamps glow
         // through the water, anchored to the pool, steady like fixtures.
@@ -253,21 +257,25 @@ struct PondScene {
                     }
                 }
             }
-            // Pushed toys still stay in the water.
-            let bounds = waterRect.insetBy(dx: 12, dy: 12)
+            // Pushed toys still stay in the water — inset by each toy's own
+            // reach, so a shoved lilo can't hang over the pool wall.
             for i in positions.indices {
-                positions[i].x = min(max(positions[i].x, bounds.minX), bounds.maxX)
-                positions[i].y = min(max(positions[i].y, bounds.minY), bounds.maxY)
+                let inset = max(12, radii[i])
+                positions[i].x = min(max(positions[i].x, waterRect.minX + inset),
+                                     waterRect.maxX - inset)
+                positions[i].y = min(max(positions[i].y, waterRect.minY + inset),
+                                     waterRect.maxY - inset)
             }
         }
 
         for (index, floater) in floaters.enumerated() {
-            // A quiet ripple ring left behind now and then.
+            // A quiet ripple ring now and then — anchored to where the toy
+            // is actually drawn, or a bumped toy's rings bloom in open water.
             let rippleAge = (time + floater.wigglePhase)
                 .truncatingRemainder(dividingBy: floater.ripplePeriod)
             if rippleAge < 2.2 {
-                let origin = point(floater.unitPosition(at: time - rippleAge))
-                drawRipple(in: water, at: origin, age: rippleAge, maxRadius: 22)
+                drawRipple(in: water, at: positions[index], age: rippleAge,
+                           maxRadius: 22)
             }
 
             let rotation: Angle
@@ -282,7 +290,9 @@ struct PondScene {
                             rotation: rotation,
                             wiggle: time * 2.0 + floater.wigglePhase,
                             scale: toyScale, shiny: floater.shiny)
-            if floater.isNew {
+            // No glints on a frozen frame (Reduce Motion's still pose) — a
+            // twinkle caught mid-pulse would stick to the toy for the month.
+            if glints, floater.isNew {
                 // The arrival wave: two twinkles on a quick cycle, until
                 // the pool has been viewed.
                 PoolToyArt.drawGlint(in: water, at: positions[index], time: time,
@@ -292,7 +302,7 @@ struct PondScene {
                                      phase: floater.wigglePhase + 1.3,
                                      scale: toyScale, period: 2.6,
                                      offset: CGPoint(x: -11, y: 9))
-            } else if floater.shiny {
+            } else if glints, floater.shiny {
                 PoolToyArt.drawGlint(in: water, at: positions[index], time: time,
                                      phase: floater.wigglePhase, scale: toyScale)
             }
@@ -317,9 +327,8 @@ struct PondScene {
 
     /// A grout grid over `rect`. With a `time` the lines refract — a slow
     /// travelling wave, like looking through a metre of water.
-    private func drawGrid(in context: GraphicsContext, over rect: CGRect,
-                          spacing: CGFloat, time: TimeInterval?,
-                          color: Color, lineWidth: CGFloat) {
+    private func gridPath(over rect: CGRect, spacing: CGFloat,
+                          time: TimeInterval?) -> Path {
         var path = Path()
         let step: CGFloat = 10
         var x = rect.minX
@@ -352,7 +361,7 @@ struct PondScene {
             }
             y += spacing
         }
-        context.stroke(path, with: .color(color), lineWidth: lineWidth)
+        return path
     }
 
     private func wobble(_ along: CGFloat, _ across: CGFloat, _ time: TimeInterval) -> CGFloat {

@@ -11,20 +11,16 @@ struct SetCounterView: View {
     @AppStorage("setCounter.sets") private var sets = 4
     @AppStorage("setCounter.rest") private var rest: TimeInterval = 90
     @AppStorage("setCounter.fiveSeconds") private var fiveSeconds = true
+    @AppStorage(SettingsKey.voiceCues) private var voiceCues = true
     /// Held in plain @State — the running child observes it; this view only
     /// cares whether one exists.
     @State private var engine: SetCounterEngine?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Sets")
-                    .display(26)
-                    .padding(.bottom, 14)
-                InkRule()
-            }
-            .padding(20)
-            .padding(.top, 12)
+            PageHeader(title: "Sets")
+                .padding(20)
+                .padding(.top, 12)
             if let engine {
                 SetCounterRunView(engine: engine, onDone: stop)
             } else {
@@ -54,32 +50,46 @@ struct SetCounterView: View {
         }
     }
 
-    /// A fixed page, not a scroll view — four elements the user can't add
-    /// to have nowhere to scroll.
+    /// Reads as a fixed page — the content can't grow — but scrolls if it
+    /// must (short devices, accessibility text sizes), so Start is always
+    /// reachable. basedOnSize keeps the fixed feel everywhere it fits.
     private var configView: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Count your sets and time your rest — company for workouts you run yourself.")
-                .font(.app(15))
-                .foregroundStyle(.secondary)
-            HStack(alignment: .top, spacing: 12) {
-                PickerField(label: "Sets", options: Array(1...12),
-                            display: { "\($0)" }, selection: $sets)
-                PickerField(label: "Rest between sets", options: Presets.restDurations,
-                            display: { Format.mmss($0) }, selection: $rest)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Count your sets and time your rest — company for workouts you run yourself.")
+                    .font(.app(15))
+                    .foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: 12) {
+                    PickerField(label: "Sets", options: Array(1...12),
+                                display: { "\($0)" }, selection: $sets)
+                    PickerField(label: "Rest between sets", options: Presets.restDurations,
+                                display: { Format.mmss($0) }, selection: $rest)
+                }
+                Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
+                    .font(.app(14))
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    CheckboxRow(title: "Announce 5s left", isOn: $fiveSeconds)
+                        .allowsHitTesting(voiceCues)
+                        .opacity(voiceCues ? 1 : 0.4)
+                    if !voiceCues {
+                        // The checkbox routes through the master switch —
+                        // a dead control must say who turned it off.
+                        Text("Voice cues are off in Settings.")
+                            .font(.app(13))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                PrimaryButton(title: "Start") {
+                    start(setCount: sets, restDuration: rest,
+                          fiveSecondsCue: fiveSeconds)
+                }
+                .padding(.top, 8)
             }
-            Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
-                .font(.app(14))
-                .foregroundStyle(.secondary)
-            CheckboxRow(title: "Announce 5s left", isOn: $fiveSeconds)
-            PrimaryButton(title: "Start") {
-                start(setCount: sets, restDuration: rest,
-                      fiveSecondsCue: fiveSeconds)
-            }
-            .padding(.top, 8)
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     @discardableResult
@@ -111,7 +121,12 @@ private struct SetCounterRunView: View {
     @State private var waterSurface = WaterSurfaceModel()
     @State private var waterMotion = WaterMotion()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var power = PowerState.shared
+
+    private var waterPolicy: WaterPolicy {
+        WaterPolicy(lowPower: power.lowPower, reduceMotion: reduceMotion)
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -119,20 +134,18 @@ private struct SetCounterRunView: View {
             // the physical bottom of the screen; readout and buttons stay in
             // the visible area above.
             let bottomInset = geo.safeAreaInsets.bottom
-            TimelineView(.animation(minimumInterval: power.lowPower
-                                    ? 1.0 / 15.0 : 1.0 / 30.0)) { timeline in
+            let policy = waterPolicy
+            TimelineView(.animation(minimumInterval: 1.0 / policy.fps)) { timeline in
                 let now = timeline.date
                 let time = now.timeIntervalSinceReferenceDate
                 let fullHeight = geo.size.height + bottomInset
                 let target = engine.fraction(at: now)
                 let level = fullHeight * waterSpring.advance(toward: target, at: now)
-                // Tilt rests in Low Power Mode too — the surface stays level.
                 let surface = waterSurface.advance(
                     targetFraction: target,
-                    gravitySlope: (reduceMotion || power.lowPower) ? 0 : waterMotion.slope,
-                    at: now)
-                let ripple: CGFloat = reduceMotion ? 0 : 1.6
-                let textureBeat: Double = power.lowPower ? 1 : 4
+                    gravitySlope: policy.tiltEnabled ? waterMotion.slope : 0,
+                    at: now, calm: policy.calm)
+                let ripple = policy.rippleAmp
                 ZStack {
                     // The readout is drawn twice — ink on the dry page, a
                     // white copy masked to the same waterline as the water —
@@ -159,7 +172,7 @@ private struct SetCounterRunView: View {
                 .background {
                     ZStack {
                         WaterFill(color: .poolWater,
-                                  time: (time * textureBeat).rounded() / textureBeat)
+                                  time: (time * policy.textureBeat).rounded() / policy.textureBeat)
                             .equatable()
                             .mask {
                                 WaterSurfaceShape(level: level, slope: surface.slope,
@@ -178,15 +191,19 @@ private struct SetCounterRunView: View {
                     .padding(.bottom, 16)
             }
         }
-        .onAppear {
-            if !reduceMotion { waterMotion.start() }
-        }
-        .onDisappear {
-            waterMotion.stop()
-        }
+        .onAppear { updateMotionSensor() }
+        .onDisappear { waterMotion.stop() }
+        // The tilt sensor rests whenever nobody could see it move.
+        .onChange(of: scenePhase) { updateMotionSensor() }
+        .onChange(of: power.lowPower) { updateMotionSensor() }
         .onChange(of: engine.finished) { _, finished in
             if finished { onDone() }
         }
+    }
+
+    private func updateMotionSensor() {
+        let wanted = waterPolicy.tiltEnabled && scenePhase == .active
+        if wanted { waterMotion.start() } else { waterMotion.stop() }
     }
 
     /// Numerals, dots, and the set caption — everything that must flip

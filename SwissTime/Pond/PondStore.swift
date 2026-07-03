@@ -38,7 +38,7 @@ final class PondStore: ObservableObject {
             workoutID: workout.id,
             workoutTitle: workout.title,
             colorIndex: workout.colorIndex ?? 0,
-            shiny: Int.random(in: 0..<Self.shinyOdds) == 0 ? true : nil
+            shiny: Int.random(in: 0..<Self.shinyOdds) == 0
         )
         entries.append(entry)
         return entry.id

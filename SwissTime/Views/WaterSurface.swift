@@ -25,7 +25,28 @@ final class WaterMotion {
     }
 
     func stop() {
+        guard manager.isDeviceMotionActive else { return }
         manager.stopDeviceMotionUpdates()
+    }
+}
+
+/// One answer to "how hard should the water work right now", shared by the
+/// player and the Sets tab so the two screens can never disagree about what
+/// calm means. Reduce Motion flattens the surface entirely; Low Power Mode
+/// halves the clock, slows the texture beat, and rests the tilt sensor.
+struct WaterPolicy {
+    let fps: Double
+    let textureBeat: Double
+    let rippleAmp: CGFloat
+    let tiltEnabled: Bool
+    let calm: Bool
+
+    init(lowPower: Bool, reduceMotion: Bool) {
+        fps = lowPower ? 15 : 30
+        textureBeat = lowPower ? 1 : 4
+        rippleAmp = reduceMotion ? 0 : 1.6
+        tiltEnabled = !reduceMotion && !lowPower
+        calm = reduceMotion
     }
 }
 
@@ -46,7 +67,8 @@ final class WaterSurfaceModel {
         var chop: CGFloat
     }
 
-    func advance(targetFraction: Double, gravitySlope: Double, at now: Date) -> Surface {
+    func advance(targetFraction: Double, gravitySlope: Double, at now: Date,
+                 calm: Bool = false) -> Surface {
         guard let last = lastTime else {
             lastTime = now
             slope = gravitySlope
@@ -58,7 +80,11 @@ final class WaterSurfaceModel {
 
         // A target jump (new step, skip, finish, Lap) throws the water —
         // the same discontinuity test LevelSpring uses for its spring.
-        if let lastTarget, abs(targetFraction - lastTarget) > 0.02 {
+        // Under Reduce Motion (`calm`) nothing may excite chop: the flat
+        // line is a promise, not a default.
+        if calm {
+            chop = 0
+        } else if let lastTarget, abs(targetFraction - lastTarget) > 0.02 {
             chop = min(1.4, chop + abs(targetFraction - lastTarget) * 2.5 + 0.35)
         }
         lastTarget = targetFraction
@@ -72,8 +98,10 @@ final class WaterSurfaceModel {
             slope += slopeVelocity * h
         }
         // Sloshing hard kicks up chop of its own.
-        chop = min(1.4, chop + abs(slopeVelocity) * dt * 1.4)
-        chop *= exp(-dt * 1.5)
+        if !calm {
+            chop = min(1.4, chop + abs(slopeVelocity) * dt * 1.4)
+            chop *= exp(-dt * 1.5)
+        }
         return Surface(slope: slope, chop: chop)
     }
 }

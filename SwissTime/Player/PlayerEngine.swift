@@ -297,7 +297,7 @@ final class PlayerEngine: ObservableObject {
                 // Don't fire alerts whose moment already passed while asleep.
                 let remainingNow = duration - overshoot
                 if remainingNow <= duration / 2 { halfwayFired = true }
-                if remainingNow <= 5 { fiveSecondsFired = true }
+                if remainingNow <= VoiceCueRule.lead { fiveSecondsFired = true }
             }
         }
         if wasFinished {
@@ -366,11 +366,10 @@ final class PlayerEngine: ObservableObject {
                 audio.speak("Halfway done.")
             }
             // Rest always warns — it's the get-ready cue before the next set
-            // auto-starts; timed work keeps its per-exercise setting. The
-            // small lead covers the synthesizer's spin-up, so speech starts
-            // while the clock still shows 0:05.
+            // auto-starts; timed work keeps its per-exercise setting.
             if step.kind == .rest || step.exercise.fiveSecondsAlert,
-               !fiveSecondsFired, remaining <= 5.2, duration > 10 {
+               !fiveSecondsFired, remaining <= VoiceCueRule.lead,
+               duration > VoiceCueRule.minimumSpan {
                 fiveSecondsFired = true
                 audio.speak("5 seconds left.")
             }

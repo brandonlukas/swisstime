@@ -1,6 +1,17 @@
 import AVFoundation
 import UIKit
 
+/// The one policy for the spoken "5 seconds left": fire with a small lead
+/// (the synthesizer takes a beat to make sound — speech starting while the
+/// clock still shows 0:05 reads right), and skip it on spans so short the
+/// zero beep is already imminent. Shared so the player and the Sets tab
+/// can never drift apart on it — including the wake-from-sleep latch,
+/// which must use the same threshold as the fire test.
+enum VoiceCueRule {
+    static let lead: TimeInterval = 5.2
+    static let minimumSpan: TimeInterval = 10
+}
+
 /// Owns the audio session, speech synthesis, and alert sounds.
 ///
 /// While a workout runs, a silent looping player keeps the app alive in the
@@ -10,8 +21,10 @@ import UIKit
 final class AudioManager: NSObject {
     private let synthesizer = AVSpeechSynthesizer()
     private let session = AVAudioSession.sharedInstance()
-    /// Resolved once, on the session queue (enumerating voices can be slow).
-    private lazy var voice = Self.resolveVoice()
+    /// Resolved per utterance, so a voice picked in Settings applies to an
+    /// already-running session too; the expensive enumeration behind the
+    /// automatic pick is cached once per process (warmed at session start).
+    private var voice: AVSpeechSynthesisVoice? { Self.resolveVoice() }
     /// Session activation/category changes block on IPC to the media server —
     /// tens of ms — so they all run here, never on the main thread. Static:
     /// the session is process-shared, and when one engine hands off to
@@ -169,10 +182,18 @@ final class AudioManager: NSObject {
         return naturalVoice()
     }
 
+    /// The slow enumeration runs once; every later call — including the
+    /// settings sheet's main-thread "Automatic" preview — hits the cache.
+    private static let cachedNaturalVoice = computeNaturalVoice()
+
+    static func naturalVoice() -> AVSpeechSynthesisVoice? {
+        cachedNaturalVoice
+    }
+
     /// Asking for a bare `en-US` voice yields the old compact robot; use the
     /// most natural English voice on the device instead. Novelty voices would
     /// be absurd mid-workout and personal voices need separate authorization.
-    static func naturalVoice() -> AVSpeechSynthesisVoice? {
+    private static func computeNaturalVoice() -> AVSpeechSynthesisVoice? {
         let candidates = AVSpeechSynthesisVoice.speechVoices().filter {
             $0.language.hasPrefix("en")
                 && !$0.voiceTraits.contains(.isNoveltyVoice)

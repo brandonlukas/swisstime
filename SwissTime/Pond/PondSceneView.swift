@@ -6,14 +6,39 @@ import SwiftUI
 struct PondSceneView: View {
     enum Mode { case hero, live }
 
+    /// Scene layouts are pure functions of their inputs; the cache keeps
+    /// parent re-renders (every frame of a pull-to-dismiss drag, times N
+    /// month pages) from re-running the seeded placement loops.
+    @MainActor
+    final class SceneCache {
+        private var month: MonthKey?
+        private var entries: [PondEntry] = []
+        private var newIDs: Set<UUID> = []
+        private var built: PondScene?
+
+        func scene(month: MonthKey, entries: [PondEntry],
+                   newIDs: Set<UUID>) -> PondScene {
+            if let built, month == self.month, entries == self.entries,
+               newIDs == self.newIDs {
+                return built
+            }
+            let scene = PondScene(monthKey: month, entries: entries, newIDs: newIDs)
+            (self.month, self.entries, self.newIDs, self.built) =
+                (month, entries, newIDs, scene)
+            return scene
+        }
+    }
+
     let monthKey: MonthKey
+    let entries: [PondEntry]
     let mode: Mode
     /// Offscreen pools (a covered hero, a non-visible month page) pause
     /// their clocks — the paged TabView keeps neighbors alive, and there's
     /// no reason to animate water nobody can see.
     let paused: Bool
-    private let scene: PondScene
+    let newIDs: Set<UUID>
 
+    @State private var cache = SceneCache()
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -22,19 +47,25 @@ struct PondSceneView: View {
     init(monthKey: MonthKey, entries: [PondEntry], mode: Mode, paused: Bool = false,
          newIDs: Set<UUID> = []) {
         self.monthKey = monthKey
+        self.entries = entries
         self.mode = mode
         self.paused = paused
-        self.scene = PondScene(monthKey: monthKey, entries: entries, newIDs: newIDs)
+        self.newIDs = newIDs
+    }
+
+    private var scene: PondScene {
+        cache.scene(month: monthKey, entries: entries, newIDs: newIDs)
     }
 
     var body: some View {
         if reduceMotion {
-            // A single still pose, stable per month.
+            // A single still pose, stable per month; no glints — a twinkle
+            // frozen mid-pulse would stick to its toy.
             Canvas { context, size in
                 scene.draw(in: context, size: size,
                            time: Double(monthKey.seed % 997),
                            detail: mode == .hero ? .hero : .full,
-                           night: colorScheme == .dark)
+                           night: colorScheme == .dark, glints: false)
             }
         } else {
             // Low Power Mode calms the water: the pools tick at less than

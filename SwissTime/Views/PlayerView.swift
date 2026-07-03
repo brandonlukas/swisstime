@@ -16,7 +16,12 @@ struct PlayerView: View {
     @State private var waterMotion = WaterMotion()
     @State private var dragOffset: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var power = PowerState.shared
+
+    private var waterPolicy: WaterPolicy {
+        WaterPolicy(lowPower: power.lowPower, reduceMotion: reduceMotion)
+    }
 
     init(workout: Workout) {
         _engine = StateObject(wrappedValue: PlayerEngine(workout: workout))
@@ -26,14 +31,7 @@ struct PlayerView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Button {
-                    closeTapped()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.primary)
-                }
-                .buttonStyle(.plain)
+                SheetCloseButton { closeTapped() }
                 Spacer()
             }
             .padding(20)
@@ -91,7 +89,7 @@ struct PlayerView: View {
             engine.start()
             store.markPlayed(engine.workout.id)
             ScreenSleep.hold()
-            if !reduceMotion { waterMotion.start() }
+            updateMotionSensor()
             // Debug: end the first set a few seconds in, so command-line
             // verification can screenshot the rest step without touch input.
             // Latched — it must not fire on workouts played by hand later
@@ -112,6 +110,12 @@ struct PlayerView: View {
             ScreenSleep.release()
             waterMotion.stop()
         }
+        // The tilt sensor runs only while someone could see it: not
+        // backgrounded/locked (30 Hz motion for a 45-minute locked-screen
+        // workout is pure battery), not in Low Power Mode, not finished.
+        .onChange(of: scenePhase) { updateMotionSensor() }
+        .onChange(of: power.lowPower) { updateMotionSensor() }
+        .onChange(of: engine.phase) { updateMotionSensor() }
         // Finishing (not just starting) earns a toy in this month's pool.
         .onChange(of: engine.phase) { _, phase in
             guard phase == .finished, !recordedCompletion else { return }
@@ -130,6 +134,12 @@ struct PlayerView: View {
                 }),
             ])
         }
+    }
+
+    private func updateMotionSensor() {
+        let wanted = waterPolicy.tiltEnabled && scenePhase == .active
+            && engine.phase != .finished
+        if wanted { waterMotion.start() } else { waterMotion.stop() }
     }
 
     /// Closing mid-workout pauses and asks; a finished workout just closes.
@@ -223,24 +233,24 @@ struct PlayerView: View {
     /// spring, slope from gravity, chop from jumps — a crest stroke over
     /// the mask makes the line read as water, not a clip edge.
     private func waterLayer(fullHeight: CGFloat) -> some View {
-        // Low Power Mode halves the surface clock and slows the texture's
-        // drift beat — the level stays truthful, the water just works less.
-        TimelineView(.animation(minimumInterval: power.lowPower ? 1.0 / 15.0 : 1.0 / 30.0,
-                                paused: engine.phase == .paused)) { timeline in
+        // WaterPolicy decides how hard the water works (Low Power halves the
+        // clock and texture beat; Reduce Motion flattens the surface) — the
+        // level stays truthful either way.
+        let policy = waterPolicy
+        return TimelineView(.animation(minimumInterval: 1.0 / policy.fps,
+                                       paused: engine.phase == .paused)) { timeline in
             let now = timeline.date
             let time = now.timeIntervalSinceReferenceDate
             let target = engine.fraction(at: now)
             let level = fullHeight * waterSpring.advance(toward: target, at: now)
-            // Tilt rests in Low Power Mode too — the surface stays level.
             let surface = waterSurface.advance(
                 targetFraction: target,
-                gravitySlope: (reduceMotion || power.lowPower) ? 0 : waterMotion.slope,
-                at: now)
-            let ripple: CGFloat = reduceMotion ? 0 : 1.6
-            let textureBeat: Double = power.lowPower ? 1 : 4
+                gravitySlope: policy.tiltEnabled ? waterMotion.slope : 0,
+                at: now, calm: policy.calm)
+            let ripple = policy.rippleAmp
             ZStack {
                 WaterFill(color: engine.workout.palette.fill,
-                          time: (time * textureBeat).rounded() / textureBeat)
+                          time: (time * policy.textureBeat).rounded() / policy.textureBeat)
                     .equatable()
                     .mask {
                         WaterSurfaceShape(level: level, slope: surface.slope,
@@ -287,26 +297,21 @@ struct PlayerView: View {
                     .font(.app(24, .medium))
                     .monospacedDigit()
             }
-            if engine.phase == .finished {
+            // Gated on the recorded entry, not just the phase: the entry
+            // lands one frame after the phase flips, and rendering before
+            // it exists would flash the non-gilded variant on lucky rolls.
+            if engine.phase == .finished, let entryID = earnedEntryID {
                 VStack(spacing: 8) {
-                    let shiny = earnedEntryID.map(pond.isShiny) ?? false
+                    let shiny = pond.isShiny(entryID)
                     Text("Complete")
                         .display(15)
                         .foregroundStyle(Color.ink)
                     EarnedToyView(colorIndex: engine.workout.colorIndex, shiny: shiny)
-                    if shiny {
-                        Text("A gilded \(engine.workout.palette.toy.displayName) — lucky you.")
-                            .font(.app(13, .medium))
-                            .foregroundStyle(Color.goldDeep)
-                    } else {
-                        Text("Afloat in your \(MonthKey.current.monthName) pool")
-                            .font(.app(13))
-                            .foregroundStyle(Color.ink.opacity(0.55))
-                    }
+                    EarnedCaption(toy: engine.workout.palette.toy, shiny: shiny)
                     Button {
                         showingNote = true
                     } label: {
-                        Text((earnedEntryID.map(pond.note(for:)) ?? "").isEmpty
+                        Text(pond.note(for: entryID).isEmpty
                              ? "Add a note" : "Edit note")
                             .font(.app(13, .medium))
                             .underline()
