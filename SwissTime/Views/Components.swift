@@ -5,7 +5,7 @@ import UIKit
 struct PrimaryButton: View {
     let title: String
     var fill: Color = .ink
-    var textColor: Color = .white
+    var textColor: Color = .onInk
     let action: () -> Void
 
     var body: some View {
@@ -38,7 +38,7 @@ struct EmptyStateView: View {
             Button(action: action) {
                 Text(buttonTitle)
                     .font(.app(16, .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.onInk)
                     .padding(.horizontal, 24)
                     .frame(height: 48)
                     .inkButton(.ink)

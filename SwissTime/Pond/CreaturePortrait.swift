@@ -218,7 +218,7 @@ enum ToyProfileArt {
         c.fill(Path(ellipseIn: CGRect(x: 5.4, y: -17, width: 4.2, height: 2.6)),
                with: .color(.white.opacity(0.55)))
 
-        drawEye(in: c, at: CGPoint(x: 11, y: -14.4), color: .ink, t: t, seed: seed)
+        drawEye(in: c, at: CGPoint(x: 11, y: -14.4), color: .toyInk, t: t, seed: seed)
     }
 
     private static func drawBeachBall(in context: GraphicsContext, t: Double) {
@@ -239,7 +239,7 @@ enum ToyProfileArt {
                                     width: cuts[index + 1] - cuts[index], height: 22)),
                         with: .color(color))
         }
-        c.stroke(ball, with: .color(.ink.opacity(0.10)), lineWidth: 1)
+        c.stroke(ball, with: .color(.toyInk.opacity(0.10)), lineWidth: 1)
         c.fill(Path(ellipseIn: CGRect(x: -6.5, y: -15.5, width: 6.5, height: 3.6)),
                with: .color(.white.opacity(0.6)))
     }
@@ -261,7 +261,7 @@ enum ToyProfileArt {
                      with: .color(.ballRed))
         stripes.fill(Path(CGRect(x: 7, y: -8, width: 7, height: 12)),
                      with: .color(.ballRed))
-        c.stroke(outer, with: .color(.ink.opacity(0.10)), lineWidth: 1)
+        c.stroke(outer, with: .color(.toyInk.opacity(0.10)), lineWidth: 1)
         c.fill(Path(ellipseIn: CGRect(x: -8, y: -7.6, width: 6, height: 2.4)),
                with: .color(.white.opacity(0.8)))
     }
@@ -345,11 +345,11 @@ enum ToyProfileArt {
         beak.addQuadCurve(to: CGPoint(x: 11.4, y: -13.6),
                           control: CGPoint(x: 13.4, y: -13.6))
         beak.closeSubpath()
-        c.fill(beak, with: .color(.ink))
+        c.fill(beak, with: .color(.toyInk))
         c.fill(Path(ellipseIn: CGRect(x: -5, y: -6.2, width: 6, height: 2.4)),
                with: .color(.white.opacity(0.5)))
 
-        drawEye(in: c, at: CGPoint(x: 8.4, y: -15.2), color: .ink, t: t, seed: seed,
+        drawEye(in: c, at: CGPoint(x: 8.4, y: -15.2), color: .toyInk, t: t, seed: seed,
                 diameter: 1.9)
     }
 

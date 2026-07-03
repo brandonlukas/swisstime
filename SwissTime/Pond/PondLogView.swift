@@ -67,7 +67,6 @@ struct PondLogView: View {
             }
         }
         .background(PaperBackground())
-        .preferredColorScheme(.light)
         .sheet(item: $notingEntry) { entry in
             NoteFormView(initial: entry.note ?? "") { pond.setNote($0, for: entry.id) }
         }

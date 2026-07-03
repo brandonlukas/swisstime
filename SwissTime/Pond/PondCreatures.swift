@@ -140,7 +140,7 @@ enum PoolToyArt {
         // Painted eyes on both sides of the head.
         for y in [-3.4, 3.4] {
             c.fill(Path(ellipseIn: CGRect(x: 11.2, y: y - 1.1, width: 2.2, height: 2.2)),
-                   with: .color(.ink))
+                   with: .color(.toyInk))
         }
         // Vinyl catch-light.
         c.fill(Path(ellipseIn: CGRect(x: 8.2, y: -3.8, width: 3.4, height: 2.2)),
@@ -189,7 +189,7 @@ enum PoolToyArt {
         }
         // Inner rim shading so the tube reads round.
         c.stroke(Path(ellipseIn: CGRect(x: -7, y: -7, width: 14, height: 14)),
-                 with: .color(.ink.opacity(0.12)), lineWidth: 1.2)
+                 with: .color(.toyInk.opacity(0.12)), lineWidth: 1.2)
         c.fill(Path(ellipseIn: CGRect(x: -9, y: -11.5, width: 7, height: 3.6)),
                with: .color(.white.opacity(0.7)))
     }
@@ -274,11 +274,11 @@ enum PoolToyArt {
         beak.closeSubpath()
         c.fill(beak, with: .color(shiny ? .gold : .white.opacity(0.9)))
         c.fill(Path(ellipseIn: CGRect(x: 22.6, y: -1.6, width: 3.2, height: 3.2)),
-               with: .color(.ink))
+               with: .color(.toyInk))
         // Painted eyes on both sides of the head, like the duck's.
         for y in [-2.4, 2.4] {
             c.fill(Path(ellipseIn: CGRect(x: 14.6, y: y - 0.9, width: 1.8, height: 1.8)),
-                   with: .color(.ink))
+                   with: .color(.toyInk))
         }
         c.fill(Path(ellipseIn: CGRect(x: -6, y: -10.5, width: 6.5, height: 3.4)),
                with: .color(.white.opacity(0.45)))

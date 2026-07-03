@@ -32,7 +32,6 @@ struct SetCounterView: View {
             }
         }
         .background(PaperBackground())
-        .preferredColorScheme(.light)
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-autoStartSets"),
                !DebugLaunch.didAutoStartSets {
@@ -226,11 +225,11 @@ private struct SetCounterRunView: View {
         Button(action: action) {
             Text(title)
                 .font(.app(filled ? 18 : 17, filled ? .medium : .regular))
-                .foregroundStyle(filled ? .white : Color.ink)
+                .foregroundStyle(filled ? Color.onInk : Color.ink)
                 .frame(width: 84, height: 84)
                 .background(Circle().fill(filled ? Color.ink : Color.paperCardFill.opacity(0.92)))
                 .overlay(Circle().stroke(Color.ink.opacity(filled ? 0 : 0.1), lineWidth: 1))
-                .shadow(color: Color.ink.opacity(filled ? 0.15 : 0.08), radius: 8, y: 3)
+                .shadow(color: Color.shade.opacity(filled ? 0.15 : 0.08), radius: 8, y: 3)
         }
         .buttonStyle(PressableButtonStyle())
     }

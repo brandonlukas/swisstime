@@ -61,7 +61,6 @@ struct SheetScaffold<Content: View>: View {
             .padding(20)
         }
         .background(Color.paper.ignoresSafeArea())
-        .preferredColorScheme(.light)
     }
 }
 
@@ -76,8 +75,20 @@ struct LabeledField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(label)
-                .font(.app(17, .medium))
+            HStack(alignment: .firstTextBaseline) {
+                Text(label)
+                    .font(.app(17, .medium))
+                Spacer()
+                // The cap is silent until it's near — then say where it is,
+                // so truncation never reads as a broken keyboard.
+                if let maxLength, focused, text.count >= maxLength - 8 {
+                    Text("\(text.count)/\(maxLength)")
+                        .font(.app(13))
+                        .monospacedDigit()
+                        .foregroundStyle(text.count >= maxLength
+                                         ? Color.signalRed : .secondary)
+                }
+            }
             TextField(placeholder, text: $text)
                 .font(.app(17))
                 .submitLabel(.done)
@@ -204,7 +215,7 @@ struct SegmentRow<Value: Hashable>: View {
                     } label: {
                         Text(display(option))
                             .font(.app(16, selection == option ? .medium : .regular))
-                            .foregroundStyle(selection == option ? .white : Color.ink)
+                            .foregroundStyle(selection == option ? Color.onInk : Color.ink)
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                             .background(

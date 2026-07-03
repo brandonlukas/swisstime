@@ -50,7 +50,6 @@ struct CompletionCeremonyView: View {
         .presentationBackground(Color.paper)
         .presentationDetents([.height(450)])
         .presentationDragIndicator(.visible)
-        .preferredColorScheme(.light)
         // Saving on the way out covers Done and a swipe-down alike.
         .onDisappear { pond.setNote(note, for: entryID) }
     }

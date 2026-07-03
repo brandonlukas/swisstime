@@ -127,7 +127,8 @@ struct PondScene {
 
     // MARK: - Drawing
 
-    func draw(in context: GraphicsContext, size: CGSize, time: TimeInterval, detail: Detail) {
+    func draw(in context: GraphicsContext, size: CGSize, time: TimeInterval, detail: Detail,
+              night: Bool = false) {
         let deckInset: CGFloat = detail == .hero ? 12 : 22
         let waterRect = CGRect(origin: .zero, size: size)
             .insetBy(dx: deckInset, dy: deckInset)
@@ -166,7 +167,23 @@ struct PondScene {
                  spacing: tile, time: time,
                  color: .white.opacity(0.14), lineWidth: 1.2)
 
-        // Caustic light and cloud shade drifting through.
+        // At night the pool is lit from below: two underwater lamps glow
+        // through the water, anchored to the pool, steady like fixtures.
+        if night {
+            for (ux, uy) in [(0.28, 0.30), (0.74, 0.72)] {
+                let center = CGPoint(x: waterRect.minX + ux * waterRect.width,
+                                     y: waterRect.minY + uy * waterRect.height)
+                water.fill(
+                    Path(CGRect(origin: .zero, size: size)),
+                    with: .radialGradient(
+                        Gradient(colors: [Color.white.opacity(0.13), .clear]),
+                        center: center, startRadius: 0,
+                        endRadius: waterRect.width * 0.42))
+            }
+        }
+
+        // Caustic light and cloud shade drifting through — the light reads
+        // brighter after dark, the shade softer.
         water.drawLayer { layer in
             layer.addFilter(.blur(radius: detail == .hero ? 9 : 14))
             for caustic in caustics {
@@ -181,8 +198,8 @@ struct PondScene {
                     width: w, height: h)
                 layer.fill(Path(ellipseIn: rect),
                            with: .color(caustic.light
-                                        ? Color.white.opacity(0.10)
-                                        : Color.poolWaterDeep.opacity(0.45)))
+                                        ? Color.white.opacity(night ? 0.16 : 0.10)
+                                        : Color.poolWaterDeep.opacity(night ? 0.32 : 0.45)))
             }
         }
 

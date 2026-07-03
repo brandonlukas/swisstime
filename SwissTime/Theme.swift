@@ -2,23 +2,55 @@ import SwiftUI
 import UIKit
 
 extension Color {
-    /// Cool natatorium off-white — the dry deck behind every screen.
-    static let paper = Color(red: 0.914, green: 0.929, blue: 0.953)
-    /// Brighter cool white for matte cards.
-    static let paperCardFill = Color(red: 0.969, green: 0.978, blue: 0.992)
-    /// Deep pool navy — the app's "black" for text, buttons, rules.
-    static let ink = Color(red: 0.075, green: 0.13, blue: 0.28)
-    /// Lifeguard red, destructive actions only.
-    static let signalRed = Color(red: 0.82, green: 0.26, blue: 0.24)
-    /// The poster accent: airy periwinkle for index numbers and tags.
-    static let periwinkle = Color(red: 0.52, green: 0.57, blue: 0.90)
+    /// One palette, two pools: day at the lido and the night swim. Every
+    /// surface token resolves per the system appearance; toy vinyl and the
+    /// workout swatches stay fixed — a duck is yellow at midnight too.
+    init(light: Color, dark: Color) {
+        self.init(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
+        })
+    }
 
-    /// Pool scene colors.
-    static let poolWater = Color(red: 0.17, green: 0.45, blue: 0.79)
-    static let poolWaterDeep = Color(red: 0.08, green: 0.27, blue: 0.57)
+    /// The deck behind every screen: natatorium off-white by day,
+    /// blue-black by night.
+    static let paper = Color(light: Color(red: 0.914, green: 0.929, blue: 0.953),
+                             dark: Color(red: 0.063, green: 0.082, blue: 0.157))
+    /// Matte cards: brighter cool white / elevated navy.
+    static let paperCardFill = Color(light: Color(red: 0.969, green: 0.978, blue: 0.992),
+                                     dark: Color(red: 0.118, green: 0.145, blue: 0.259))
+    /// The app's "black" for text, buttons, rules — pale at night.
+    static let ink = Color(light: Color(red: 0.075, green: 0.13, blue: 0.28),
+                           dark: Color(red: 0.902, green: 0.925, blue: 0.969))
+    /// Legible on an ink fill in either mode.
+    static let onInk = Color(light: .white,
+                             dark: Color(red: 0.063, green: 0.082, blue: 0.157))
+    /// Shadows are cast, not lit: never let ink-turned-pale glow under a card.
+    static let shade = Color(light: Color(red: 0.075, green: 0.13, blue: 0.28),
+                             dark: .black)
+    /// The ambient light pooled on the page behind content.
+    static let pageLight = Color(light: Color.white.opacity(0.38),
+                                 dark: Color.white.opacity(0.05))
+    /// Lifeguard red, destructive actions only.
+    static let signalRed = Color(light: Color(red: 0.82, green: 0.26, blue: 0.24),
+                                 dark: Color(red: 0.93, green: 0.43, blue: 0.41))
+    /// The poster accent: airy periwinkle for index numbers and tags.
+    static let periwinkle = Color(light: Color(red: 0.52, green: 0.57, blue: 0.90),
+                                  dark: Color(red: 0.64, green: 0.69, blue: 0.98))
+
+    /// Pool scene colors. At night the water dims only a little — a lit
+    /// pool after dark glows against its deck; that glow IS the dark mode.
+    static let poolWater = Color(light: Color(red: 0.17, green: 0.45, blue: 0.79),
+                                 dark: Color(red: 0.10, green: 0.37, blue: 0.72))
+    static let poolWaterDeep = Color(light: Color(red: 0.08, green: 0.27, blue: 0.57),
+                                     dark: Color(red: 0.04, green: 0.20, blue: 0.45))
     /// Dry tile on the deck around the water.
-    static let tileDry = Color(red: 0.76, green: 0.845, blue: 0.915)
-    static let tileGrout = Color(red: 0.615, green: 0.72, blue: 0.83)
+    static let tileDry = Color(light: Color(red: 0.76, green: 0.845, blue: 0.915),
+                               dark: Color(red: 0.122, green: 0.153, blue: 0.263))
+    static let tileGrout = Color(light: Color(red: 0.615, green: 0.72, blue: 0.83),
+                                 dark: Color(red: 0.196, green: 0.235, blue: 0.373))
+
+    /// Fixed dark for toy eyes, bills, and moldings — vinyl doesn't adapt.
+    static let toyInk = Color(red: 0.075, green: 0.13, blue: 0.28)
 
     /// Toy vinyl.
     static let duckYellow = Color(red: 1.0, green: 0.80, blue: 0.20)
@@ -38,7 +70,8 @@ extension Color {
     static let pearlShade = Color(red: 0.87, green: 0.84, blue: 0.76)
 
     /// Cool fill for plain sheet rows.
-    static let card = Color(red: 0.878, green: 0.902, blue: 0.933)
+    static let card = Color(light: Color(red: 0.878, green: 0.902, blue: 0.933),
+                            dark: Color(red: 0.145, green: 0.176, blue: 0.298))
     static let fieldBorder = Color.ink.opacity(0.22)
     static let hairline = Color.ink.opacity(0.10)
 }
@@ -144,7 +177,7 @@ struct PaperBackground: View {
         ZStack {
             Color.paper
             RadialGradient(
-                colors: [Color.white.opacity(0.38), .clear],
+                colors: [Color.pageLight, .clear],
                 center: UnitPoint(x: 0.5, y: 0.3),
                 startRadius: 0, endRadius: 460
             )
@@ -348,14 +381,14 @@ extension View {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .stroke(Color.ink.opacity(0.06), lineWidth: 0.5)
             )
-            .shadow(color: Color.ink.opacity(0.08), radius: 10, y: 4)
+            .shadow(color: Color.shade.opacity(0.08), radius: 10, y: 4)
     }
 
     /// Solid ink button surface, matching the cards' curvature.
     func inkButton(_ fill: Color, radius: CGFloat = 14) -> some View {
         self
             .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .shadow(color: Color.ink.opacity(0.10), radius: 6, y: 2)
+            .shadow(color: Color.shade.opacity(0.10), radius: 6, y: 2)
     }
 }
 

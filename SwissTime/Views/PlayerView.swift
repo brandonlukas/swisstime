@@ -258,7 +258,7 @@ struct PlayerView: View {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
                         .stroke(Color.ink.opacity(0.06), lineWidth: 0.5)
                 )
-                .shadow(color: Color.ink.opacity(0.08), radius: 10, y: 4)
+                .shadow(color: Color.shade.opacity(0.08), radius: 10, y: 4)
             TimelineView(.animation(minimumInterval: 1.0 / 30.0,
                                     paused: timelinesPaused)) { timeline in
                 timerContent(now: timeline.date)

@@ -9,11 +9,19 @@ private extension Font {
 
 }
 
-// Mirrors the app's deck/ink palette; the widget target keeps its styling
-// local rather than importing app code.
+// Mirrors the app's deck/ink palette — day and night swim — the widget
+// target keeps its styling local rather than importing app code.
 private extension Color {
-    static let stPaper = Color(red: 0.914, green: 0.929, blue: 0.953)
-    static let stInk = Color(red: 0.075, green: 0.13, blue: 0.28)
+    static let stPaper = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.063, green: 0.082, blue: 0.157, alpha: 1)
+            : UIColor(red: 0.914, green: 0.929, blue: 0.953, alpha: 1)
+    })
+    static let stInk = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.902, green: 0.925, blue: 0.969, alpha: 1)
+            : UIColor(red: 0.075, green: 0.13, blue: 0.28, alpha: 1)
+    })
 }
 
 struct WorkoutLiveActivity: Widget {

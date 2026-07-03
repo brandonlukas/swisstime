@@ -16,6 +16,7 @@ struct PondSceneView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     init(monthKey: MonthKey, entries: [PondEntry], mode: Mode, paused: Bool = false,
          newIDs: Set<UUID> = []) {
@@ -31,7 +32,8 @@ struct PondSceneView: View {
             Canvas { context, size in
                 scene.draw(in: context, size: size,
                            time: Double(monthKey.seed % 997),
-                           detail: mode == .hero ? .hero : .full)
+                           detail: mode == .hero ? .hero : .full,
+                           night: colorScheme == .dark)
             }
         } else {
             TimelineView(.animation(minimumInterval: mode == .hero ? 1.0 / 20.0 : 1.0 / 24.0,
@@ -39,7 +41,8 @@ struct PondSceneView: View {
                 Canvas { context, size in
                     scene.draw(in: context, size: size,
                                time: timeline.date.timeIntervalSinceReferenceDate,
-                               detail: mode == .hero ? .hero : .full)
+                               detail: mode == .hero ? .hero : .full,
+                               night: colorScheme == .dark)
                 }
             }
         }

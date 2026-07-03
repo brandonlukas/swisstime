@@ -34,7 +34,6 @@ struct SwissTimeApp: App {
             .environmentObject(store)
             .environmentObject(pond)
             .tint(Color.ink)
-            .preferredColorScheme(.light)
         }
     }
 }
