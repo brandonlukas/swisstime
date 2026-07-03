@@ -33,18 +33,10 @@ struct CompletionCeremonyView: View {
             NoteField(text: $note)
                 .padding(.horizontal, 20)
             Spacer(minLength: 0)
-            Button {
+            PrimaryButton(title: "Done") {
                 hideKeyboard()
                 dismiss()
-            } label: {
-                Text("Done")
-                    .font(.app(17, .medium))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .inkButton(.ink)
             }
-            .buttonStyle(.plain)
             .padding(20)
         }
         .presentationBackground(Color.paper)

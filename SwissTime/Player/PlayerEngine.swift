@@ -1,6 +1,13 @@
 import Foundation
 import UIKit
 
+extension Notification.Name {
+    /// Posted (synchronously, before the audio session spins up) when a
+    /// player begins. The set counter yields on hearing it — two engines
+    /// would fight over the Live Activity and the island's skip intent.
+    static let playerEngineDidStart = Notification.Name("playerEngineDidStart")
+}
+
 @MainActor
 final class PlayerEngine: ObservableObject {
     enum Phase {
@@ -150,6 +157,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     func start() {
+        NotificationCenter.default.post(name: .playerEngineDidStart, object: self)
         audio.start()
         stepFeedback.prepare()
         pauseFeedback.prepare()
@@ -401,7 +409,7 @@ final class PlayerEngine: ObservableObject {
 
     private static func makeSteps(_ workout: Workout) -> [Step] {
         var steps: [Step] = []
-        for (index, exercise) in workout.items.enumerated() {
+        for (index, exercise) in workout.exercises.enumerated() {
             let setCount = exercise.mode == .sets ? max(1, exercise.sets) : 1
             for set in 1...setCount {
                 steps.append(Step(exercise: exercise, kind: .work,

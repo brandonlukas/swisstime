@@ -51,19 +51,12 @@ struct SheetScaffold<Content: View>: View {
             }
             .scrollDismissesKeyboard(.immediately)
             Divider()
-            Button {
+            PrimaryButton(title: buttonTitle,
+                          fill: buttonEnabled ? Color.ink : Color.ink.opacity(0.25)) {
                 hideKeyboard()
                 onSubmit()
                 dismiss()
-            } label: {
-                Text(buttonTitle)
-                    .font(.app(17, .medium))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .inkButton(buttonEnabled ? Color.ink : Color.ink.opacity(0.25))
             }
-            .buttonStyle(.plain)
             .disabled(!buttonEnabled)
             .padding(20)
         }
@@ -309,8 +302,8 @@ struct WorkoutFormView: View {
                 updated.kind = kind
                 // Exercises follow the workout's kind; a flipped exercise
                 // keeps its numbers (sets, duration) for flipping back.
-                for index in updated.items.indices {
-                    updated.items[index].mode = kind == .timed ? .interval : .sets
+                for index in updated.exercises.indices {
+                    updated.exercises[index].mode = kind == .timed ? .interval : .sets
                 }
             }
             store.update(updated)
@@ -375,7 +368,7 @@ struct ExerciseFormView: View {
     }
 
     private var restOptions: [TimeInterval] {
-        var options: [TimeInterval] = [15, 20, 30, 45, 60, 75, 90, 120, 150, 180, 240, 300]
+        var options = Presets.restDurations
         if !options.contains(rest) {
             options.append(rest)
             options.sort()
@@ -427,7 +420,7 @@ struct ExerciseFormView: View {
         } else {
             var exercise = Exercise(name: name.trimmed)
             apply(to: &exercise)
-            workout.items.append(exercise)
+            workout.exercises.append(exercise)
         }
         store.update(workout)
     }

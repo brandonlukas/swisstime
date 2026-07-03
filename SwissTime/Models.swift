@@ -12,47 +12,49 @@ struct Workout: Identifiable, Codable, Equatable {
     var title: String
     var details: String = ""
     var kind: WorkoutKind = .timed
-    var items: [Exercise] = []
+    var exercises: [Exercise] = []
     var lastPlayedAt: Date?
     /// Index into `Color.swissPalette`; optional so pre-palette files decode.
     var colorIndex: Int?
 
     var totalDuration: TimeInterval {
-        items.reduce(0) { $0 + $1.estimatedDuration }
+        exercises.reduce(0) { $0 + $1.estimatedDuration }
     }
 
     var totalSets: Int {
-        items.reduce(0) { $0 + max(1, $1.sets) }
+        exercises.reduce(0) { $0 + max(1, $1.sets) }
     }
 
     /// "3 exercises · 15 min" (timed) / "4 exercises · 13 sets" (untimed) —
     /// untimed workouts have no honest duration, so they count sets instead.
     var summaryLine: String {
         switch kind {
-        case .timed: return Format.summary(count: items.count, duration: totalDuration)
-        case .untimed: return Format.setsSummary(count: items.count, sets: totalSets)
+        case .timed: return Format.summary(count: exercises.count, duration: totalDuration)
+        case .untimed: return Format.setsSummary(count: exercises.count, sets: totalSets)
         }
     }
 
     /// Distinct exercise names in order of appearance, for the list subtitle.
     var exerciseNames: [String] {
         var names: [String] = []
-        for exercise in items where !names.contains(exercise.name) {
+        for exercise in exercises where !names.contains(exercise.name) {
             names.append(exercise.name)
         }
         return names
     }
 
     mutating func update(exercise: Exercise) {
-        if let index = items.firstIndex(where: { $0.id == exercise.id }) {
-            items[index] = exercise
+        if let index = exercises.firstIndex(where: { $0.id == exercise.id }) {
+            exercises[index] = exercise
         }
     }
 }
 
 extension Workout {
     enum CodingKeys: String, CodingKey {
-        case id, title, details, kind, items, lastPlayedAt, colorIndex
+        case id, title, details, kind, lastPlayedAt, colorIndex
+        // The key predates the rename; files on disk keep it.
+        case exercises = "items"
     }
 
     /// Items were once an exercise/circuit enum; a legacy circuit flattens to
@@ -68,15 +70,15 @@ extension Workout {
         // Probe for the legacy shape FIRST: Exercise decodes leniently
         // (every field defaulted), so a legacy enum-shaped item would
         // otherwise "succeed" as a blank exercise instead of failing over.
-        if let legacy = try? container.decode([LegacyItem].self, forKey: .items) {
-            items = legacy.flatMap(\.exercises)
+        if let legacy = try? container.decode([LegacyItem].self, forKey: .exercises) {
+            exercises = legacy.flatMap(\.exercises)
         } else {
-            items = try container.decodeIfPresent([Exercise].self, forKey: .items) ?? []
+            exercises = try container.decodeIfPresent([Exercise].self, forKey: .exercises) ?? []
         }
         // Files predate the workout-level kind: a workout built entirely of
         // sets-mode exercises was untimed in spirit, so it becomes one.
         kind = try container.decodeIfPresent(WorkoutKind.self, forKey: .kind)
-            ?? (!items.isEmpty && items.allSatisfy { $0.mode == .sets } ? .untimed : .timed)
+            ?? (!exercises.isEmpty && exercises.allSatisfy { $0.mode == .sets } ? .untimed : .timed)
     }
 }
 
@@ -114,6 +116,12 @@ private enum LegacyItem: Decodable {
 /// `sets`: untimed work you end with a tap, with a rest countdown between sets.
 enum ExerciseMode: String, Codable {
     case interval, sets
+}
+
+/// Rest lengths offered wherever a rest is picked (exercise form, Sets tab).
+enum Presets {
+    static let restDurations: [TimeInterval] = [15, 20, 30, 45, 60, 75, 90,
+                                                120, 150, 180, 240, 300]
 }
 
 struct Exercise: Identifiable, Codable, Equatable {

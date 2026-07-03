@@ -59,23 +59,17 @@ struct WorkoutDetailView: View {
         }
         .background(PaperBackground())
         .safeAreaInset(edge: .bottom) {
-            if !editing && !workout.items.isEmpty {
-                Button {
+            if !editing && !workout.exercises.isEmpty {
+                PrimaryButton(title: workout.kind == .timed ? "Play workout" : "Mark as done",
+                              fill: workout.palette.fill,
+                              textColor: workout.palette.onFill) {
                     if workout.kind == .timed {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         playing = true
                     } else {
                         markDone()
                     }
-                } label: {
-                    Text(workout.kind == .timed ? "Play workout" : "Mark as done")
-                        .font(.app(17, .medium))
-                        .foregroundStyle(workout.palette.onFill)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .inkButton(workout.palette.fill)
                 }
-                .buttonStyle(PressableButtonStyle())
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
                 .background(Color.paper.opacity(0.94))
@@ -146,13 +140,13 @@ struct WorkoutDetailView: View {
             }
             if ProcessInfo.processInfo.arguments.contains("-autoEditFirstExercise"),
                !DebugLaunch.didAutoAddItem,
-               let first = workout.items.first {
+               let first = workout.exercises.first {
                 DebugLaunch.didAutoAddItem = true
                 sheet = .editExercise(first)
             }
             if ProcessInfo.processInfo.arguments.contains("-autoMarkDone"),
                !DebugLaunch.didAutoMarkDone,
-               workout.kind == .untimed, !workout.items.isEmpty {
+               workout.kind == .untimed, !workout.exercises.isEmpty {
                 DebugLaunch.didAutoMarkDone = true
                 markDone()
             }
@@ -181,12 +175,12 @@ struct WorkoutDetailView: View {
                 }
                 Text(workout.summaryLine)
                     .font(.app(15))
-                if workout.items.isEmpty {
+                if workout.exercises.isEmpty {
                     emptyState
                         .padding(.top, 24)
                 } else {
                     VStack(spacing: 0) {
-                        ForEach(Array(workout.items.enumerated()), id: \.element.id) { index, exercise in
+                        ForEach(Array(workout.exercises.enumerated()), id: \.element.id) { index, exercise in
                             if index > 0 {
                                 Rectangle()
                                     .fill(Color.hairline)
@@ -228,26 +222,14 @@ struct WorkoutDetailView: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("No exercises yet.")
-                .font(.app(17, .medium))
-            Text(workout.kind == .timed
-                 ? "Add timed intervals — each announces itself and counts down."
-                 : "Write the program: exercises with sets and reps.")
-                .font(.app(15))
-                .foregroundStyle(.secondary)
-            Button {
-                sheet = .addExercise
-            } label: {
-                Text("Add exercise")
-                    .font(.app(16, .medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 24)
-                    .frame(height: 48)
-                    .inkButton(.ink)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
+        EmptyStateView(
+            title: "No exercises yet.",
+            message: workout.kind == .timed
+                ? "Add timed intervals — each announces itself and counts down."
+                : "Write the program: exercises with sets and reps.",
+            buttonTitle: "Add exercise"
+        ) {
+            sheet = .addExercise
         }
     }
 
@@ -256,19 +238,19 @@ struct WorkoutDetailView: View {
     private var editList: some View {
         List {
             Section {
-                ForEach(workout.items) { exercise in
+                ForEach(workout.exercises) { exercise in
                     editRow(exercise)
                         .listRowBackground(Color.paperCardFill.opacity(0.7))
                         .listRowSeparatorTint(Color.hairline)
                 }
                 .onMove { from, to in
                     var updated = workout
-                    updated.items.move(fromOffsets: from, toOffset: to)
+                    updated.exercises.move(fromOffsets: from, toOffset: to)
                     store.update(updated)
                 }
                 .onDelete { offsets in
                     var updated = workout
-                    updated.items.remove(atOffsets: offsets)
+                    updated.exercises.remove(atOffsets: offsets)
                     store.update(updated)
                 }
                 Button {

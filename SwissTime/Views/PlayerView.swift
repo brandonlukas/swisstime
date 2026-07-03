@@ -1,57 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// Drives a level (waterline, progress bar) with two regimes: while the
-/// target creeps with ordinary passage of time it is tracked EXACTLY —
-/// linear and truthful — but a discontinuity (new step, skip, finish)
-/// engages a spring so the level moves like something with mass instead
-/// of snapping. A plain reference — advanced once per timeline frame,
-/// its mutations must not invalidate views. Shared with the Sets tab's water.
-final class LevelSpring {
-    private var value: Double = 0
-    private var velocity: Double = 0
-    private var lastTime: Date?
-    private var springing = false
-
-    func advance(toward target: Double, at now: Date) -> Double {
-        // First frame adopts the target outright — the player opens with
-        // the level already where it belongs, no entrance animation.
-        guard let last = lastTime else {
-            lastTime = now
-            value = target
-            return value
-        }
-        // Clamped dt keeps the integration stable across dropped frames
-        // and prevents a lurch when the timeline resumes after a pause.
-        let dt = min(0.1, max(0, now.timeIntervalSince(last)))
-        lastTime = now
-        // Continuous motion moves well under this between frames; a gap
-        // this large in one frame means the target jumped.
-        if abs(target - value) > 0.02 { springing = true }
-        guard springing else {
-            value = target
-            return value
-        }
-        // Slightly underdamped — the water settles with a small swell.
-        // Fixed substeps keep the trajectory true when frames drop: one
-        // big Euler step through a hitch would leap straight to the target
-        // and read as a snap instead of a fill.
-        var remaining = dt
-        while remaining > 0 {
-            let h = min(remaining, 1.0 / 120.0)
-            remaining -= h
-            velocity += (-90 * (value - target) - 14 * velocity) * h
-            value += velocity * h
-        }
-        if abs(value - target) < 0.0005, abs(velocity) < 0.005 {
-            value = target
-            velocity = 0
-            springing = false
-        }
-        return value
-    }
-}
-
 struct PlayerView: View {
     @EnvironmentObject private var store: WorkoutStore
     @EnvironmentObject private var pond: PondStore
@@ -111,45 +60,24 @@ struct PlayerView: View {
                 .ignoresSafeArea(edges: .bottom)
             }
         }
-        // Once finished the page lifts with the pull and the screen behind
-        // shows through (the cover backdrop is clear), like the pond. The
-        // shadow hangs on the flattened opaque paper only — shadowing the
-        // whole hierarchy would make every sublayer cast one, darkening
-        // the entire screen.
-        .background(
-            PaperBackground()
-                .compositingGroup()
-                .shadow(color: .black.opacity(dragOffset > 0 ? 0.18 : 0), radius: 24, y: -8)
-        )
-        .offset(y: dragOffset)
         // Pull-to-dismiss exists only once the workout is complete;
         // mid-workout the X button (with its confirm) is the only exit.
-        .gesture(
-            DragGesture(minimumDistance: 40)
-                .onChanged { value in
-                    guard engine.phase == .finished,
-                          value.translation.height > abs(value.translation.width) else { return }
-                    dragOffset = max(0, value.translation.height)
-                }
-                .onEnded { value in
-                    guard dragOffset > 0 else { return }
-                    if dragOffset > 120 || value.predictedEndTranslation.height > 300 {
-                        dismiss()
-                    } else {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            dragOffset = 0
-                        }
-                    }
-                }
-        )
-        .presentationBackground(.clear)
+        // A longer engage distance keeps stray touches near the edge
+        // steppers from lifting the page.
+        .pullToDismiss(offset: $dragOffset,
+                       isEnabled: engine.phase == .finished,
+                       minimumDistance: 40) { dismiss() }
         .onAppear {
             engine.start()
             store.markPlayed(engine.workout.id)
-            UIApplication.shared.isIdleTimerDisabled = true
+            ScreenSleep.hold()
             // Debug: end the first set a few seconds in, so command-line
             // verification can screenshot the rest step without touch input.
-            if ProcessInfo.processInfo.arguments.contains("-autoAdvanceOnce") {
+            // Latched — it must not fire on workouts played by hand later
+            // in the same debug-launched process.
+            if ProcessInfo.processInfo.arguments.contains("-autoAdvanceOnce"),
+               !DebugLaunch.didAutoAdvance {
+                DebugLaunch.didAutoAdvance = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
                     engine.next()
                 }
@@ -160,7 +88,7 @@ struct PlayerView: View {
         }
         .onDisappear {
             engine.stopAndTearDown()
-            UIApplication.shared.isIdleTimerDisabled = false
+            ScreenSleep.release()
         }
         // Finishing (not just starting) earns a creature in this month's pond.
         .onChange(of: engine.phase) { _, phase in
@@ -279,19 +207,7 @@ struct PlayerView: View {
             WaterFill(color: engine.workout.palette.fill,
                       time: (now.timeIntervalSinceReferenceDate * 4).rounded() / 4)
                 .equatable()
-                .mask(alignment: .bottom) {
-                    ZStack(alignment: .bottom) {
-                        Color.clear
-                        VStack(spacing: 0) {
-                            LinearGradient(colors: [.clear, .black],
-                                           startPoint: .top, endPoint: .bottom)
-                                .frame(height: 24)
-                            Color.black
-                        }
-                        .frame(height: max(0, level), alignment: .bottom)
-                        .clipped()
-                    }
-                }
+                .mask(alignment: .bottom) { WaterlineMask(level: level) }
         }
     }
 

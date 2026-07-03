@@ -13,8 +13,13 @@ final class AudioManager: NSObject {
     /// Resolved once, on the session queue (enumerating voices can be slow).
     private lazy var voice = Self.naturalVoice()
     /// Session activation/category changes block on IPC to the media server —
-    /// tens of ms — so they all run here, never on the main thread.
-    private let sessionQueue = DispatchQueue(label: "SwissTime.AudioSession", qos: .userInitiated)
+    /// tens of ms — so they all run here, never on the main thread. Static:
+    /// the session is process-shared, and when one engine hands off to
+    /// another (counter yielding to a player) their deactivate/activate
+    /// must land in order.
+    private static let sharedSessionQueue = DispatchQueue(label: "SwissTime.AudioSession",
+                                                          qos: .userInitiated)
+    private var sessionQueue: DispatchQueue { Self.sharedSessionQueue }
     private var beepPlayer: AVAudioPlayer?
     private var donePlayer: AVAudioPlayer?
     private var silencePlayer: AVAudioPlayer?

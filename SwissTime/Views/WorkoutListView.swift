@@ -38,7 +38,7 @@ struct WorkoutListView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .overlay(alignment: .trailing) {
-                                    if workout.kind == .timed, !workout.items.isEmpty {
+                                    if workout.kind == .timed, !workout.exercises.isEmpty {
                                         Button {
                                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                             playing = workout
@@ -108,24 +108,12 @@ struct WorkoutListView: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("No workouts yet.")
-                .font(.app(17, .medium))
-            Text("Create a workout — timed ones play with voice cues, untimed ones you log when they're done.")
-                .font(.app(15))
-                .foregroundStyle(.secondary)
-            Button {
-                showingCreate = true
-            } label: {
-                Text("Create workout")
-                    .font(.app(16, .medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 24)
-                    .frame(height: 48)
-                    .inkButton(.ink)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
+        EmptyStateView(
+            title: "No workouts yet.",
+            message: "Create a workout — timed ones play with voice cues, untimed ones you log when they're done.",
+            buttonTitle: "Create workout"
+        ) {
+            showingCreate = true
         }
         .padding(.top, 8)
     }
@@ -187,7 +175,7 @@ private struct WorkoutCard: View {
             }
         }
         // Clears the play button that overlays the card's trailing edge.
-        .padding(.trailing, workout.kind == .timed && !workout.items.isEmpty ? 68 : 0)
+        .padding(.trailing, workout.kind == .timed && !workout.exercises.isEmpty ? 68 : 0)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .paperCard()

@@ -14,9 +14,6 @@ struct SetCounterView: View {
     /// cares whether one exists.
     @State private var engine: SetCounterEngine?
 
-    private let restOptions: [TimeInterval] = [15, 20, 30, 45, 60, 75, 90,
-                                               120, 150, 180, 240, 300]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
@@ -65,23 +62,15 @@ struct SetCounterView: View {
                 HStack(alignment: .top, spacing: 12) {
                     PickerField(label: "Sets", options: Array(1...12),
                                 display: { "\($0)" }, selection: $sets)
-                    PickerField(label: "Rest between sets", options: restOptions,
+                    PickerField(label: "Rest between sets", options: Presets.restDurations,
                                 display: { Format.mmss($0) }, selection: $rest)
                 }
                 Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
                     .font(.app(14))
                     .foregroundStyle(.secondary)
-                Button {
+                PrimaryButton(title: "Start") {
                     start(setCount: sets, restDuration: rest)
-                } label: {
-                    Text("Start")
-                        .font(.app(17, .medium))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .inkButton(.ink)
                 }
-                .buttonStyle(PressableButtonStyle())
                 .padding(.top, 8)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -94,7 +83,7 @@ struct SetCounterView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         let engine = SetCounterEngine(setCount: setCount, rest: restDuration)
         engine.start()
-        UIApplication.shared.isIdleTimerDisabled = true
+        ScreenSleep.hold()
         self.engine = engine
         return engine
     }
@@ -102,7 +91,7 @@ struct SetCounterView: View {
     private func stop() {
         engine?.stopAndTearDown()
         engine = nil
-        UIApplication.shared.isIdleTimerDisabled = false
+        ScreenSleep.release()
     }
 }
 
@@ -141,7 +130,7 @@ private struct SetCounterRunView: View {
                     readout(at: now)
                         .frame(width: geo.size.width, height: geo.size.height)
                         .foregroundStyle(.white)
-                        .mask(alignment: .bottom) { waterMask(level: level - bottomInset) }
+                        .mask(alignment: .bottom) { WaterlineMask(level: level - bottomInset) }
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
                 .background {
@@ -170,22 +159,7 @@ private struct SetCounterRunView: View {
         WaterFill(color: .pondWater,
                   time: (now.timeIntervalSinceReferenceDate * 4).rounded() / 4)
             .equatable()
-            .mask(alignment: .bottom) { waterMask(level: level) }
-    }
-
-    /// The shared waterline: bottom-anchored, soft top edge.
-    private func waterMask(level: CGFloat) -> some View {
-        ZStack(alignment: .bottom) {
-            Color.clear
-            VStack(spacing: 0) {
-                LinearGradient(colors: [.clear, .black],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 24)
-                Color.black
-            }
-            .frame(height: max(0, level), alignment: .bottom)
-            .clipped()
-        }
+            .mask(alignment: .bottom) { WaterlineMask(level: level) }
     }
 
     /// Numerals, dots, and the set caption — everything that must flip
@@ -216,31 +190,25 @@ private struct SetCounterRunView: View {
     /// the final set is underway.
     private var buttons: some View {
         HStack {
-            Button {
-                confirmEnd = true
-            } label: {
-                Text("End")
-                    .font(.app(17))
-                    .foregroundStyle(Color.ink)
-                    .frame(width: 84, height: 84)
-                    .background(Circle().fill(Color.paperCardFill.opacity(0.92)))
-                    .overlay(Circle().stroke(Color.ink.opacity(0.1), lineWidth: 1))
-                    .shadow(color: Color.ink.opacity(0.08), radius: 8, y: 3)
-            }
-            .buttonStyle(PressableButtonStyle())
+            circleButton("End", filled: false) { confirmEnd = true }
             Spacer()
-            Button {
-                engine.endSet()
-            } label: {
-                Text(engine.currentSet == engine.setCount ? "Done" : "Lap")
-                    .font(.app(18, .medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 84, height: 84)
-                    .background(Circle().fill(Color.ink))
-                    .shadow(color: Color.ink.opacity(0.15), radius: 8, y: 3)
-            }
-            .buttonStyle(PressableButtonStyle())
+            circleButton(engine.currentSet == engine.setCount ? "Done" : "Lap",
+                         filled: true) { engine.endSet() }
         }
+    }
+
+    private func circleButton(_ title: String, filled: Bool,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.app(filled ? 18 : 17, filled ? .medium : .regular))
+                .foregroundStyle(filled ? .white : Color.ink)
+                .frame(width: 84, height: 84)
+                .background(Circle().fill(filled ? Color.ink : Color.paperCardFill.opacity(0.92)))
+                .overlay(Circle().stroke(Color.ink.opacity(filled ? 0 : 0.1), lineWidth: 1))
+                .shadow(color: Color.ink.opacity(filled ? 0.15 : 0.08), radius: 8, y: 3)
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 }
 

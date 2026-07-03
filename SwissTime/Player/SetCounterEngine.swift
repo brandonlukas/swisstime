@@ -52,6 +52,14 @@ final class SetCounterEngine: ObservableObject {
             forName: .playerSkipStep, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.endSet() }
         })
+        // A workout player starting takes over the island and the skip
+        // intent; the counter bows out. Delivered synchronously (main
+        // thread post, main queue observer), so this teardown lands before
+        // the player's audio session activates.
+        observers.append(NotificationCenter.default.addObserver(
+            forName: .playerEngineDidStart, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.yieldToPlayer() }
+        })
         // The audio keepalive holds the app out of suspension, so the beep
         // lands on time with the screen off; assumeIsolated as in the player.
         ticker = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -60,6 +68,8 @@ final class SetCounterEngine: ObservableObject {
         RunLoop.main.add(ticker!, forMode: .common)
     }
 
+    /// Safe to call twice — the view tears down an engine that may have
+    /// already yielded to a player.
     func stopAndTearDown() {
         ticker?.invalidate()
         ticker = nil
@@ -67,6 +77,12 @@ final class SetCounterEngine: ObservableObject {
         observers = []
         liveActivity.end(nil)
         audio.stop()
+    }
+
+    private func yieldToPlayer() {
+        guard !finished else { return }
+        stopAndTearDown()
+        finished = true
     }
 
     /// The one input.

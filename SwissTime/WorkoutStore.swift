@@ -7,6 +7,9 @@ final class WorkoutStore: ObservableObject {
     }
 
     private var loaded = false
+    /// Debug-seeded runs never save: one edit in a seeded session would
+    /// otherwise overwrite the real file with the fakes.
+    private let seeded = ProcessInfo.processInfo.arguments.contains("-seedWorkouts")
     private let fileURL: URL
 
     init() {
@@ -16,10 +19,8 @@ final class WorkoutStore: ObservableObject {
            let decoded = try? JSONDecoder().decode([Workout].self, from: data) {
             workouts = decoded
         }
-        // Debug: fake a workout list (one untimed, one timed) for UI
-        // verification. Injected before `loaded`, so the fakes replace the
-        // real list in memory but aren't persisted by themselves.
-        if ProcessInfo.processInfo.arguments.contains("-seedWorkouts") {
+        // Debug: fake a workout list (one untimed, one timed) for UI verification.
+        if seeded {
             workouts = Self.sampleWorkouts()
         }
         loaded = true
@@ -54,7 +55,7 @@ final class WorkoutStore: ObservableObject {
     }
 
     private func save() {
-        guard let data = try? JSONEncoder().encode(workouts) else { return }
+        guard !seeded, let data = try? JSONEncoder().encode(workouts) else { return }
         try? data.write(to: fileURL, options: .atomic)
     }
 
@@ -79,7 +80,7 @@ final class WorkoutStore: ObservableObject {
         pushDay.kind = .untimed
         pushDay.colorIndex = 3
         pushDay.lastPlayedAt = Date()
-        pushDay.items = [
+        pushDay.exercises = [
             sets("Bench press", 4, 8, 120),
             sets("Overhead press", 3, 10, 90),
             sets("Incline dumbbell press", 3, 12, 90),
@@ -88,7 +89,7 @@ final class WorkoutStore: ObservableObject {
         var core = Workout(title: "Core circuit", details: "Every minute, something new.")
         core.kind = .timed
         core.colorIndex = 0
-        core.items = [
+        core.exercises = [
             interval("Plank", 60),
             interval("Dead bug", 60),
             interval("Side plank", 60),

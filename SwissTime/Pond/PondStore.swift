@@ -7,6 +7,9 @@ final class PondStore: ObservableObject {
     }
 
     private var loaded = false
+    /// Debug-seeded runs never save: one recorded completion in a seeded
+    /// session would otherwise overwrite the real file with the fakes.
+    private let seeded = ProcessInfo.processInfo.arguments.contains("-seedPond")
     private let fileURL: URL
 
     init() {
@@ -17,8 +20,7 @@ final class PondStore: ObservableObject {
             entries = decoded
         }
         // Debug: fake a populated pond (this month + history) for UI verification.
-        // Injected before `loaded`, so the fakes aren't persisted by themselves.
-        if ProcessInfo.processInfo.arguments.contains("-seedPond") {
+        if seeded {
             entries = Self.sampleEntries()
         }
         loaded = true
@@ -71,7 +73,7 @@ final class PondStore: ObservableObject {
     }
 
     private func save() {
-        guard let data = try? JSONEncoder().encode(entries) else { return }
+        guard !seeded, let data = try? JSONEncoder().encode(entries) else { return }
         try? data.write(to: fileURL, options: .atomic)
     }
 

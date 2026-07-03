@@ -184,6 +184,77 @@ struct WaterFill: View, Equatable {
     }
 }
 
+/// The waterline every water fill is revealed through: bottom-anchored,
+/// with a soft top edge. Shared by the player and the set counter.
+struct WaterlineMask: View {
+    let level: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.clear
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: 24)
+                Color.black
+            }
+            .frame(height: max(0, level), alignment: .bottom)
+            .clipped()
+        }
+    }
+}
+
+/// Drives a level (waterline, progress bar) with two regimes: while the
+/// target creeps with ordinary passage of time it is tracked EXACTLY —
+/// linear and truthful — but a discontinuity (new step, skip, finish)
+/// engages a spring so the level moves like something with mass instead
+/// of snapping. A plain reference — advanced once per timeline frame,
+/// its mutations must not invalidate views.
+final class LevelSpring {
+    private var value: Double = 0
+    private var velocity: Double = 0
+    private var lastTime: Date?
+    private var springing = false
+
+    func advance(toward target: Double, at now: Date) -> Double {
+        // First frame adopts the target outright — the player opens with
+        // the level already where it belongs, no entrance animation.
+        guard let last = lastTime else {
+            lastTime = now
+            value = target
+            return value
+        }
+        // Clamped dt keeps the integration stable across dropped frames
+        // and prevents a lurch when the timeline resumes after a pause.
+        let dt = min(0.1, max(0, now.timeIntervalSince(last)))
+        lastTime = now
+        // Continuous motion moves well under this between frames; a gap
+        // this large in one frame means the target jumped.
+        if abs(target - value) > 0.02 { springing = true }
+        guard springing else {
+            value = target
+            return value
+        }
+        // Slightly underdamped — the water settles with a small swell.
+        // Fixed substeps keep the trajectory true when frames drop: one
+        // big Euler step through a hitch would leap straight to the target
+        // and read as a snap instead of a fill.
+        var remaining = dt
+        while remaining > 0 {
+            let h = min(remaining, 1.0 / 120.0)
+            remaining -= h
+            velocity += (-90 * (value - target) - 14 * velocity) * h
+            value += velocity * h
+        }
+        if abs(value - target) < 0.0005, abs(velocity) < 0.005 {
+            value = target
+            velocity = 0
+            springing = false
+        }
+        return value
+    }
+}
+
 extension View {
     /// A matte paper card: warm white, faint edge, soft feathered shadow.
     /// Slightly translucent variants let the player's rising water read through.
@@ -229,6 +300,7 @@ enum DebugLaunch {
     static var didAutoEditWorkout = false
     static var didAutoMarkDone = false
     static var didAutoStartSets = false
+    static var didAutoAdvance = false
 }
 
 extension String {
