@@ -48,6 +48,21 @@ final class PondStore: ObservableObject {
         entries.first { $0.id == id }?.isShiny == true
     }
 
+    /// Toys earned since the pool was last viewed sparkle until it is —
+    /// how a fresh arrival stands out among toys that look just like it.
+    var newEntryIDs: Set<UUID> {
+        let seenAt = UserDefaults.standard.object(forKey: "pool.seenAt") as? Date
+            ?? .distantPast
+        return Set(entries.filter { $0.completedAt > seenAt }.map(\.id))
+    }
+
+    /// The full pool was on screen — arrivals are no longer news.
+    func markPoolSeen() {
+        guard !seeded else { return }
+        UserDefaults.standard.set(Date(), forKey: "pool.seenAt")
+        objectWillChange.send()
+    }
+
     /// Writes (or clears) the journal line on a logged workout.
     func setNote(_ note: String, for id: UUID) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }

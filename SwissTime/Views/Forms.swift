@@ -69,6 +69,9 @@ struct LabeledField: View {
     let label: String
     let placeholder: String
     @Binding var text: String
+    /// Hard cap, enforced as typed — titles and names render in cards,
+    /// breadcrumbs, and the Live Activity, and unbounded text breaks them.
+    var maxLength: Int?
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -85,6 +88,11 @@ struct LabeledField: View {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(focused ? Color.ink : Color.fieldBorder, lineWidth: 1)
                 )
+                .onChange(of: text) { _, newValue in
+                    if let maxLength, newValue.count > maxLength {
+                        text = String(newValue.prefix(maxLength))
+                    }
+                }
         }
     }
 }
@@ -277,8 +285,10 @@ struct WorkoutFormView: View {
             buttonEnabled: !title.trimmed.isEmpty,
             onSubmit: submit
         ) {
-            LabeledField(label: "Title", placeholder: "Title", text: $title)
-            LabeledField(label: "Description", placeholder: "Optional description", text: $details)
+            LabeledField(label: "Title", placeholder: "Title", text: $title,
+                         maxLength: 40)
+            LabeledField(label: "Description", placeholder: "Optional description",
+                         text: $details, maxLength: 120)
             VStack(alignment: .leading, spacing: 10) {
                 SegmentRow(label: "Type", options: [WorkoutKind.timed, .untimed],
                            display: { $0 == .timed ? "Timed" : "Untimed" },
@@ -340,9 +350,6 @@ enum ExerciseDefaults {
     static var reps: Int {
         store.object(forKey: "exercise.lastReps") as? Int ?? 0
     }
-    static var rest: TimeInterval {
-        store.object(forKey: "exercise.lastRest") as? Double ?? 60
-    }
 
     /// Only the fields the form actually showed — a timed save must not
     /// clobber the remembered sets shape, nor the other way around.
@@ -355,7 +362,6 @@ enum ExerciseDefaults {
         case .sets:
             store.set(exercise.sets, forKey: "exercise.lastSets")
             store.set(exercise.reps ?? 0, forKey: "exercise.lastReps")
-            store.set(exercise.restDuration, forKey: "exercise.lastRest")
         }
     }
 }
@@ -392,7 +398,7 @@ struct ExerciseFormView: View {
         // `editingExercise?.reps` can't tell "not editing" from "editing,
         // reps unset" — map keeps an unset 0 from picking up the default.
         _reps = State(initialValue: editingExercise.map { $0.reps ?? 0 } ?? ExerciseDefaults.reps)
-        _rest = State(initialValue: editingExercise?.restDuration ?? ExerciseDefaults.rest)
+        _rest = State(initialValue: editingExercise?.restDuration ?? 60)
     }
 
     private var isEditing: Bool {
@@ -410,23 +416,16 @@ struct ExerciseFormView: View {
         return options
     }
 
-    private var restOptions: [TimeInterval] {
-        var options = Presets.restDurations
-        if !options.contains(rest) {
-            options.append(rest)
-            options.sort()
-        }
-        return options
-    }
-
     var body: some View {
         SheetScaffold(
             buttonTitle: isEditing ? "Save exercise" : "Create exercise",
             buttonEnabled: !name.trimmed.isEmpty,
             onSubmit: submit
         ) {
-            LabeledField(label: "Name", placeholder: "Exercise name", text: $name)
-            LabeledField(label: "Instructions", placeholder: "Optional instructions", text: $instructions)
+            LabeledField(label: "Name", placeholder: "Exercise name", text: $name,
+                         maxLength: 40)
+            LabeledField(label: "Instructions", placeholder: "Optional instructions",
+                         text: $instructions, maxLength: 120)
             switch kind {
             case .timed:
                 PickerField(label: "Duration", options: durationOptions,
@@ -438,18 +437,13 @@ struct ExerciseFormView: View {
                     CheckboxRow(title: "5s left", isOn: $fiveSeconds)
                 }
             case .untimed:
+                // No rest field: untimed exercises never play, so a target
+                // rest would be write-only — the Sets tab times rest live.
                 HStack(alignment: .top, spacing: 12) {
                     PickerField(label: "Sets", options: Array(1...12),
                                 display: { "\($0)" }, selection: $sets)
                     PickerField(label: "Reps per set", options: [0] + Array(1...50),
                                 display: { $0 == 0 ? "Not set" : "\($0)" }, selection: $reps)
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    PickerField(label: "Rest between sets", options: restOptions,
-                                display: { Format.mmss($0) }, selection: $rest)
-                    Text("Your target rest, for the record — the Sets tab can time it for you.")
-                        .font(.app(14))
-                        .foregroundStyle(.secondary)
                 }
             }
         }

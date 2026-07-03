@@ -14,6 +14,8 @@ struct PondScene {
     struct Floater {
         let kind: ToyKind
         let shiny: Bool
+        /// Earned since the pool was last viewed — sparkles until seen.
+        let isNew: Bool
         let anchor: CGPoint            // unit coords in the water rect
         let ampX1, ampX2, ampY1, ampY2: CGFloat
         let wX1, wX2, wY1, wY2: Double // rad/s
@@ -53,7 +55,7 @@ struct PondScene {
     /// Where the ladder hangs over the top edge, unit x in the water rect.
     let ladderX: CGFloat
 
-    init(monthKey: MonthKey, entries: [PondEntry]) {
+    init(monthKey: MonthKey, entries: [PondEntry], newIDs: Set<UUID> = []) {
         var monthRng = SeededRandom(seed: monthKey.seed)
 
         var caustics: [Caustic] = []
@@ -101,6 +103,7 @@ struct PondScene {
             return Floater(
                 kind: kind,
                 shiny: entry.isShiny,
+                isNew: newIDs.contains(entry.id),
                 anchor: anchor,
                 ampX1: CGFloat.random(in: 0.45...0.7, using: &rng) * maxAx,
                 ampX2: CGFloat.random(in: 0.12...0.28, using: &rng) * maxAx,
@@ -262,7 +265,17 @@ struct PondScene {
                             rotation: rotation,
                             wiggle: time * 2.0 + floater.wigglePhase,
                             scale: toyScale, shiny: floater.shiny)
-            if floater.shiny {
+            if floater.isNew {
+                // The arrival wave: two twinkles on a quick cycle, until
+                // the pool has been viewed.
+                PoolToyArt.drawGlint(in: water, at: positions[index], time: time,
+                                     phase: floater.wigglePhase, scale: toyScale,
+                                     period: 2.6)
+                PoolToyArt.drawGlint(in: water, at: positions[index], time: time,
+                                     phase: floater.wigglePhase + 1.3,
+                                     scale: toyScale, period: 2.6,
+                                     offset: CGPoint(x: -11, y: 9))
+            } else if floater.shiny {
                 PoolToyArt.drawGlint(in: water, at: positions[index], time: time,
                                      phase: floater.wigglePhase, scale: toyScale)
             }

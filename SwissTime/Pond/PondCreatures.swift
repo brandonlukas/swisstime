@@ -44,16 +44,19 @@ enum PoolToyArt {
         }
     }
 
-    /// A brief four-point twinkle by the toy — the pool's only tell that
-    /// one is gilded. Fires every few seconds; a pure function of time.
+    /// A brief four-point twinkle by the toy — how a gilded toy tells, and
+    /// how a fresh arrival waves. Fires once per `period`; a pure function
+    /// of time.
     static func drawGlint(in context: GraphicsContext, at point: CGPoint,
-                          time: Double, phase: Double, scale: CGFloat) {
-        let cycle = (time * 0.85 + phase).truncatingRemainder(dividingBy: 6.5)
+                          time: Double, phase: Double, scale: CGFloat,
+                          period: Double = 6.5,
+                          offset: CGPoint = CGPoint(x: 9, y: -11)) {
+        let cycle = (time * 0.85 + phase).truncatingRemainder(dividingBy: period)
         guard cycle < 1.1 else { return }
         let pulse = sin(.pi * cycle / 1.1)
         var c = context
         c.opacity = 0.9 * pulse
-        c.translateBy(x: point.x + 9 * scale, y: point.y - 11 * scale)
+        c.translateBy(x: point.x + offset.x * scale, y: point.y + offset.y * scale)
         c.scaleBy(x: scale * (0.5 + 0.5 * pulse), y: scale * (0.5 + 0.5 * pulse))
         var star = Path()
         star.move(to: CGPoint(x: -4.5, y: 0))

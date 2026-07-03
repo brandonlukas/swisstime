@@ -17,7 +17,8 @@ struct WorkoutListView: View {
                     } label: {
                         // The hero rests while a full-screen cover hides it.
                         PondHeroCard(entries: pond.entries(in: .current),
-                                     paused: showingPond || playing != nil)
+                                     paused: showingPond || playing != nil,
+                                     newIDs: pond.newEntryIDs)
                     }
                     .buttonStyle(.plain)
                     .padding(.bottom, 24)
@@ -125,10 +126,11 @@ struct WorkoutListView: View {
 private struct PondHeroCard: View {
     let entries: [PondEntry]
     let paused: Bool
+    let newIDs: Set<UUID>
 
     var body: some View {
         PondSceneView(monthKey: .current, entries: entries, mode: .hero,
-                      paused: paused)
+                      paused: paused, newIDs: newIDs)
             .frame(height: 150)
             .frame(maxWidth: .infinity)
             .overlay(alignment: .bottomLeading) {

@@ -17,11 +17,12 @@ struct PondSceneView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(monthKey: MonthKey, entries: [PondEntry], mode: Mode, paused: Bool = false) {
+    init(monthKey: MonthKey, entries: [PondEntry], mode: Mode, paused: Bool = false,
+         newIDs: Set<UUID> = []) {
         self.monthKey = monthKey
         self.mode = mode
         self.paused = paused
-        self.scene = PondScene(monthKey: monthKey, entries: entries)
+        self.scene = PondScene(monthKey: monthKey, entries: entries, newIDs: newIDs)
     }
 
     var body: some View {

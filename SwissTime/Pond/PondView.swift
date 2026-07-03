@@ -37,7 +37,8 @@ struct PondView: View {
                              entries: pond.entries(in: month),
                              isCurrent: month == .current,
                              hasHistory: pages.count > 1,
-                             isVisible: month == page)
+                             isVisible: month == page,
+                             newIDs: pond.newEntryIDs)
                         .tag(month)
                 }
             }
@@ -46,6 +47,8 @@ struct PondView: View {
         // Simultaneous, so horizontal drags stay with the month-paging
         // TabView underneath.
         .pullToDismiss(offset: $dragOffset, simultaneous: true) { dismiss() }
+        // The visit is over — new arrivals have had their sparkle.
+        .onDisappear { pond.markPoolSeen() }
         .sheet(isPresented: $showingLog) {
             PondLogView()
         }
@@ -75,6 +78,7 @@ private struct PondPage: View {
     let isCurrent: Bool
     let hasHistory: Bool
     let isVisible: Bool
+    let newIDs: Set<UUID>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -86,7 +90,7 @@ private struct PondPage: View {
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
             PondSceneView(monthKey: month, entries: entries, mode: .live,
-                          paused: !isVisible)
+                          paused: !isVisible, newIDs: newIDs)
                 .aspectRatio(0.8, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
