@@ -418,6 +418,26 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
+/// Mirrors the system's Low Power Mode so the ambient water can step down
+/// with it — slower pool clocks, a coarser texture beat — without the app
+/// growing a settings switch. The setting is the situation.
+@MainActor
+final class PowerState: ObservableObject {
+    static let shared = PowerState()
+
+    @Published private(set) var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+
+    private init() {
+        NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+            }
+        }
+    }
+}
+
 /// One-shot latches for command-line UI verification hooks, so a debug launch
 /// argument fires once instead of on every reappearance of the view.
 enum DebugLaunch {

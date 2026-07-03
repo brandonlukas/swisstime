@@ -16,6 +16,7 @@ struct PlayerView: View {
     @State private var waterMotion = WaterMotion()
     @State private var dragOffset: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var power = PowerState.shared
 
     init(workout: Workout) {
         _engine = StateObject(wrappedValue: PlayerEngine(workout: workout))
@@ -222,7 +223,9 @@ struct PlayerView: View {
     /// spring, slope from gravity, chop from jumps — a crest stroke over
     /// the mask makes the line read as water, not a clip edge.
     private func waterLayer(fullHeight: CGFloat) -> some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0,
+        // Low Power Mode halves the surface clock and slows the texture's
+        // drift beat — the level stays truthful, the water just works less.
+        TimelineView(.animation(minimumInterval: power.lowPower ? 1.0 / 15.0 : 1.0 / 30.0,
                                 paused: engine.phase == .paused)) { timeline in
             let now = timeline.date
             let time = now.timeIntervalSinceReferenceDate
@@ -233,9 +236,10 @@ struct PlayerView: View {
                 gravitySlope: reduceMotion ? 0 : waterMotion.slope,
                 at: now)
             let ripple: CGFloat = reduceMotion ? 0 : 1.6
+            let textureBeat: Double = power.lowPower ? 1 : 4
             ZStack {
                 WaterFill(color: engine.workout.palette.fill,
-                          time: (time * 4).rounded() / 4)
+                          time: (time * textureBeat).rounded() / textureBeat)
                     .equatable()
                     .mask {
                         WaterSurfaceShape(level: level, slope: surface.slope,

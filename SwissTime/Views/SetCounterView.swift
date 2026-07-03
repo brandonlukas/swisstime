@@ -111,6 +111,7 @@ private struct SetCounterRunView: View {
     @State private var waterSurface = WaterSurfaceModel()
     @State private var waterMotion = WaterMotion()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var power = PowerState.shared
 
     var body: some View {
         GeometryReader { geo in
@@ -118,7 +119,8 @@ private struct SetCounterRunView: View {
             // the physical bottom of the screen; readout and buttons stay in
             // the visible area above.
             let bottomInset = geo.safeAreaInsets.bottom
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            TimelineView(.animation(minimumInterval: power.lowPower
+                                    ? 1.0 / 15.0 : 1.0 / 30.0)) { timeline in
                 let now = timeline.date
                 let time = now.timeIntervalSinceReferenceDate
                 let fullHeight = geo.size.height + bottomInset
@@ -129,6 +131,7 @@ private struct SetCounterRunView: View {
                     gravitySlope: reduceMotion ? 0 : waterMotion.slope,
                     at: now)
                 let ripple: CGFloat = reduceMotion ? 0 : 1.6
+                let textureBeat: Double = power.lowPower ? 1 : 4
                 ZStack {
                     // The readout is drawn twice — ink on the dry page, a
                     // white copy masked to the same waterline as the water —
@@ -154,7 +157,8 @@ private struct SetCounterRunView: View {
                 .frame(width: geo.size.width, height: geo.size.height)
                 .background {
                     ZStack {
-                        WaterFill(color: .poolWater, time: (time * 4).rounded() / 4)
+                        WaterFill(color: .poolWater,
+                                  time: (time * textureBeat).rounded() / textureBeat)
                             .equatable()
                             .mask {
                                 WaterSurfaceShape(level: level, slope: surface.slope,

@@ -29,6 +29,20 @@ final class AudioManager: NSObject {
     private var keepAliveWanted = true
     private var inBackground = false
 
+    /// Called once at app launch, before any engine exists. An
+    /// AVAudioPlayer's prepareToPlay acquires audio hardware under the
+    /// session's CURRENT category — and the process default (soloAmbient)
+    /// is non-mixing, so the first engine of a cold launch paused the
+    /// user's music the moment its players were created. Setting the
+    /// mixable category up front (no activation) makes the first start
+    /// behave like every start after it.
+    static func warmUpSession() {
+        sharedSessionQueue.async {
+            try? AVAudioSession.sharedInstance().setCategory(
+                .playback, mode: .spokenAudio, options: [.mixWithOthers])
+        }
+    }
+
     override init() {
         super.init()
         synthesizer.delegate = self

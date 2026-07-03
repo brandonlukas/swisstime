@@ -17,6 +17,7 @@ struct PondSceneView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var power = PowerState.shared
 
     init(monthKey: MonthKey, entries: [PondEntry], mode: Mode, paused: Bool = false,
          newIDs: Set<UUID> = []) {
@@ -36,7 +37,12 @@ struct PondSceneView: View {
                            night: colorScheme == .dark)
             }
         } else {
-            TimelineView(.animation(minimumInterval: mode == .hero ? 1.0 / 20.0 : 1.0 / 24.0,
+            // Low Power Mode calms the water: the pools tick at less than
+            // half speed until the battery situation improves.
+            let fps: Double = power.lowPower
+                ? (mode == .hero ? 8 : 10)
+                : (mode == .hero ? 20 : 24)
+            TimelineView(.animation(minimumInterval: 1.0 / fps,
                                     paused: scenePhase != .active || paused)) { timeline in
                 Canvas { context, size in
                     scene.draw(in: context, size: size,

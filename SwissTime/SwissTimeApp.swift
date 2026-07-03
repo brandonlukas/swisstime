@@ -15,6 +15,9 @@ struct SwissTimeApp: App {
         // island, frozen on a dead state. No engine is running at launch,
         // so anything alive now is an orphan.
         LiveActivityController.endOrphans()
+        // Before any audio player exists: see the comment on warmUpSession —
+        // without this, a cold launch's first workout paused background music.
+        AudioManager.warmUpSession()
         // Debug: land on the Sets tab for command-line UI verification.
         let arguments = ProcessInfo.processInfo.arguments
         _tab = State(initialValue: arguments.contains("-autoOpenSets")
