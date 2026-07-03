@@ -38,6 +38,10 @@ struct SwissTimeApp: App {
             .environmentObject(store)
             .environmentObject(pond)
             .tint(Color.ink)
+            // Reports the root's resolved scheme for sheets that pin their
+            // own (see SystemScheme); with the theme on System this is the
+            // live system appearance.
+            .background(SchemeReporter())
             // nil follows the system; Day and Night pin it.
             .preferredColorScheme(ThemeChoice(rawValue: theme)?.colorScheme)
         }

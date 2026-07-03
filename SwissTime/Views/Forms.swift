@@ -210,7 +210,12 @@ struct SegmentRow<Value: Hashable>: View {
             HStack(spacing: 10) {
                 ForEach(options, id: \.self) { option in
                     Button {
-                        selection = option
+                        // Eased, so a selection that also restyles the whole
+                        // window (the theme control) blends into that change
+                        // instead of snapping a beat ahead of it.
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selection = option
+                        }
                         hideKeyboard()
                     } label: {
                         Text(display(option))

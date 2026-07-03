@@ -79,10 +79,34 @@ final class VoicePreview {
     }
 }
 
+/// The main window's current scheme, published. When the theme is System
+/// the app root is un-overridden, so this tracks the live system
+/// appearance — and being an ObservableObject it reaches INTO a presented
+/// sheet, whose content closure would otherwise never re-evaluate.
+@MainActor
+final class SystemScheme: ObservableObject {
+    static let shared = SystemScheme()
+    @Published var scheme: ColorScheme = .light
+}
+
+/// Invisible: sits on the app root and reports its resolved scheme.
+struct SchemeReporter: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Color.clear
+            .onAppear { SystemScheme.shared.scheme = colorScheme }
+            .onChange(of: colorScheme) { _, new in
+                SystemScheme.shared.scheme = new
+            }
+    }
+}
+
 /// The whole page earns its place with the voice picker; everything else
 /// is a quiet switch. Settings that can be situations aren't here — Low
 /// Power Mode already calms the water, stills the tilt, and rests haptics.
 struct SettingsView: View {
+    @ObservedObject private var systemScheme = SystemScheme.shared
     @Environment(\.dismiss) private var dismiss
     @AppStorage("settings.theme") private var theme = ThemeChoice.system.rawValue
     @AppStorage("settings.voiceCues") private var voiceCues = true
@@ -137,6 +161,11 @@ struct SettingsView: View {
                         .font(.app(13))
                         .foregroundStyle(.secondary)
                         .padding(.top, 4)
+                    if ProcessInfo.processInfo.arguments.contains("-debugScheme") {
+                        Text(verbatim: "reported=\(systemScheme.scheme) sheet=\(sheetScheme)")
+                            .font(.app(13, .bold))
+                            .foregroundStyle(Color.signalRed)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
@@ -167,13 +196,9 @@ struct SettingsView: View {
     /// Day and Night pin the scheme. System can't just pass nil: a nil
     /// preference doesn't CLEAR an override this window already applied
     /// (Day → System left the sheet stuck light) — so System resolves to
-    /// the device's actual style.
+    /// the live system appearance reported by the app root.
     private var sheetScheme: ColorScheme {
-        if let pinned = ThemeChoice(rawValue: theme)?.colorScheme {
-            return pinned
-        }
-        return UIScreen.main.traitCollection.userInterfaceStyle == .dark
-            ? .dark : .light
+        ThemeChoice(rawValue: theme)?.colorScheme ?? systemScheme.scheme
     }
 
     private var voiceSection: some View {
