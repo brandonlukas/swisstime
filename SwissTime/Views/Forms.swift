@@ -319,6 +319,47 @@ struct WorkoutFormView: View {
 
 // MARK: - Exercise form
 
+/// New-exercise defaults: each saved exercise becomes the next form's
+/// starting point — the numbers this user actually lifts with, not
+/// factory settings. Editing an existing exercise never consults these.
+enum ExerciseDefaults {
+    private static let store = UserDefaults.standard
+
+    static var duration: TimeInterval {
+        store.object(forKey: "exercise.lastDuration") as? Double ?? 60
+    }
+    static var halfway: Bool {
+        store.object(forKey: "exercise.lastHalfway") as? Bool ?? false
+    }
+    static var fiveSeconds: Bool {
+        store.object(forKey: "exercise.lastFiveSeconds") as? Bool ?? true
+    }
+    static var sets: Int {
+        store.object(forKey: "exercise.lastSets") as? Int ?? 4
+    }
+    static var reps: Int {
+        store.object(forKey: "exercise.lastReps") as? Int ?? 0
+    }
+    static var rest: TimeInterval {
+        store.object(forKey: "exercise.lastRest") as? Double ?? 60
+    }
+
+    /// Only the fields the form actually showed — a timed save must not
+    /// clobber the remembered sets shape, nor the other way around.
+    static func remember(_ exercise: Exercise) {
+        switch exercise.mode {
+        case .interval:
+            store.set(exercise.duration, forKey: "exercise.lastDuration")
+            store.set(exercise.halfwayAlert, forKey: "exercise.lastHalfway")
+            store.set(exercise.fiveSecondsAlert, forKey: "exercise.lastFiveSeconds")
+        case .sets:
+            store.set(exercise.sets, forKey: "exercise.lastSets")
+            store.set(exercise.reps ?? 0, forKey: "exercise.lastReps")
+            store.set(exercise.restDuration, forKey: "exercise.lastRest")
+        }
+    }
+}
+
 struct ExerciseFormView: View {
     @EnvironmentObject private var store: WorkoutStore
 
@@ -344,12 +385,14 @@ struct ExerciseFormView: View {
         self.editingExercise = editingExercise
         _name = State(initialValue: editingExercise?.name ?? "")
         _instructions = State(initialValue: editingExercise?.instructions ?? "")
-        _duration = State(initialValue: editingExercise?.duration ?? 60)
-        _halfway = State(initialValue: editingExercise?.halfwayAlert ?? false)
-        _fiveSeconds = State(initialValue: editingExercise?.fiveSecondsAlert ?? true)
-        _sets = State(initialValue: editingExercise?.sets ?? 4)
-        _reps = State(initialValue: editingExercise?.reps ?? 0)
-        _rest = State(initialValue: editingExercise?.restDuration ?? 60)
+        _duration = State(initialValue: editingExercise?.duration ?? ExerciseDefaults.duration)
+        _halfway = State(initialValue: editingExercise?.halfwayAlert ?? ExerciseDefaults.halfway)
+        _fiveSeconds = State(initialValue: editingExercise?.fiveSecondsAlert ?? ExerciseDefaults.fiveSeconds)
+        _sets = State(initialValue: editingExercise?.sets ?? ExerciseDefaults.sets)
+        // `editingExercise?.reps` can't tell "not editing" from "editing,
+        // reps unset" — map keeps an unset 0 from picking up the default.
+        _reps = State(initialValue: editingExercise.map { $0.reps ?? 0 } ?? ExerciseDefaults.reps)
+        _rest = State(initialValue: editingExercise?.restDuration ?? ExerciseDefaults.rest)
     }
 
     private var isEditing: Bool {
@@ -414,15 +457,15 @@ struct ExerciseFormView: View {
 
     private func submit() {
         guard var workout = store.workout(workoutID) else { return }
-        if var exercise = editingExercise {
-            apply(to: &exercise)
+        var exercise = editingExercise ?? Exercise(name: name.trimmed)
+        apply(to: &exercise)
+        if editingExercise != nil {
             workout.update(exercise: exercise)
         } else {
-            var exercise = Exercise(name: name.trimmed)
-            apply(to: &exercise)
             workout.exercises.append(exercise)
         }
         store.update(workout)
+        ExerciseDefaults.remember(exercise)
     }
 
     private func apply(to exercise: inout Exercise) {

@@ -5,12 +5,15 @@ import UIKit
 /// Ending a set pushes `zeroDate` out by the ideal rest; the clock counts
 /// down to it, beeps once as it passes, and keeps counting into the
 /// negative — how deep into the next set (or past due) you already are.
-/// No speech, no pause, no auto-advance: the only input is "End set",
-/// and ending the last one finishes the session outright.
+/// No pause, no auto-advance: the only input is "End set", and ending the
+/// last one finishes the session outright. The one optional voice is a
+/// "5 seconds left" heads-up before the beep, off-screen warning enough
+/// to get back under the bar.
 @MainActor
 final class SetCounterEngine: ObservableObject {
     let setCount: Int
     let rest: TimeInterval
+    let fiveSecondsCue: Bool
 
     /// 1-based set underway — during the rest before it, too.
     @Published private(set) var currentSet = 1
@@ -25,11 +28,13 @@ final class SetCounterEngine: ObservableObject {
     private var observers: [NSObjectProtocol] = []
     /// The opening stretch has no rest to ring out.
     private var beepFired = true
+    private var cueFired = true
     private var lastEndSet = Date.distantPast
 
-    init(setCount: Int, rest: TimeInterval) {
+    init(setCount: Int, rest: TimeInterval, fiveSecondsCue: Bool = false) {
         self.setCount = max(1, setCount)
         self.rest = max(1, rest)
+        self.fiveSecondsCue = fiveSecondsCue
     }
 
     /// Seconds until zero — negative once past it.
@@ -100,11 +105,20 @@ final class SetCounterEngine: ObservableObject {
         currentSet += 1
         zeroDate = now.addingTimeInterval(rest)
         beepFired = false
+        cueFired = false
         liveActivity.update(activityState())
     }
 
     private func tick() {
-        guard !finished, !beepFired, Date() >= zeroDate else { return }
+        guard !finished else { return }
+        let remaining = remaining(at: Date())
+        // The heads-up, matching the player's gate: pointless on rests so
+        // short the beep is already imminent.
+        if fiveSecondsCue, !cueFired, !beepFired, remaining <= 5, rest > 10 {
+            cueFired = true
+            audio.speak("5 seconds left.")
+        }
+        guard !beepFired, remaining <= 0 else { return }
         beepFired = true
         audio.playBeep()
         // Past zero the island's countdown flips to a stopwatch.

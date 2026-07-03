@@ -10,6 +10,7 @@ import UIKit
 struct SetCounterView: View {
     @AppStorage("setCounter.sets") private var sets = 4
     @AppStorage("setCounter.rest") private var rest: TimeInterval = 90
+    @AppStorage("setCounter.fiveSeconds") private var fiveSeconds = true
     /// Held in plain @State — the running child observes it; this view only
     /// cares whether one exists.
     @State private var engine: SetCounterEngine?
@@ -38,7 +39,8 @@ struct SetCounterView: View {
                 DebugLaunch.didAutoStartSets = true
                 // Explicit values, so the debug run doesn't overwrite the
                 // remembered settings.
-                let engine = start(setCount: 3, restDuration: 15)
+                let engine = start(setCount: 3, restDuration: 15,
+                                   fiveSecondsCue: true)
                 // End the first set a few seconds in, so command-line
                 // verification can screenshot the rest countdown without
                 // touch input. Scoped to THIS auto-started session — wired
@@ -69,8 +71,10 @@ struct SetCounterView: View {
             Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
                 .font(.app(14))
                 .foregroundStyle(.secondary)
+            CheckboxRow(title: "Announce 5s left", isOn: $fiveSeconds)
             PrimaryButton(title: "Start") {
-                start(setCount: sets, restDuration: rest)
+                start(setCount: sets, restDuration: rest,
+                      fiveSecondsCue: fiveSeconds)
             }
             .padding(.top, 8)
             Spacer(minLength: 0)
@@ -80,9 +84,11 @@ struct SetCounterView: View {
     }
 
     @discardableResult
-    private func start(setCount: Int, restDuration: TimeInterval) -> SetCounterEngine {
+    private func start(setCount: Int, restDuration: TimeInterval,
+                       fiveSecondsCue: Bool) -> SetCounterEngine {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        let engine = SetCounterEngine(setCount: setCount, rest: restDuration)
+        let engine = SetCounterEngine(setCount: setCount, rest: restDuration,
+                                      fiveSecondsCue: fiveSecondsCue)
         engine.start()
         ScreenSleep.hold()
         self.engine = engine
