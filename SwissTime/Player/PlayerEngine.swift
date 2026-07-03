@@ -14,34 +14,24 @@ final class PlayerEngine: ObservableObject {
         let kind: Kind
         /// 1-based set this step belongs to; a rest follows the set it ends.
         let set: Int
-        let topNumber: Int
-        let subNumber: Int?
-        let circuitID: UUID?
-        let circuitName: String?
-        let loop: Int
-        let loopCount: Int
-        let isLoopStart: Bool
-        /// 1-based position among the workout's exercise instances,
-        /// shared by every set and rest of the same instance.
-        let exerciseOrdinal: Int
+        /// 1-based position of the exercise in the workout, shared by every
+        /// set and rest of the same exercise.
+        let number: Int
 
         var setCount: Int {
             exercise.mode == .sets ? max(1, exercise.sets) : 1
         }
 
-        var label: String {
-            if let subNumber { return "\(topNumber).\(subNumber)." }
-            return "\(topNumber)."
-        }
+        var label: String { "\(number)." }
 
         /// Fixed length for countdown steps; nil means the clock counts up
-        /// (untimed set work, or rest running past its chimed target).
+        /// (untimed set work — it ends when the user taps).
         var countdownDuration: TimeInterval? {
             switch kind {
             case .work:
                 return exercise.mode == .interval ? exercise.duration : nil
             case .rest:
-                return exercise.restCountsDown ? exercise.restDuration : nil
+                return exercise.restDuration
             }
         }
 
@@ -68,27 +58,18 @@ final class PlayerEngine: ObservableObject {
     private let audio = AudioManager()
     private let liveActivity = LiveActivityController()
     private let stepFeedback = UIImpactFeedbackGenerator(style: .medium)
+    private let pauseFeedback = UIImpactFeedbackGenerator(style: .light)
     private var ticker: Timer?
     private var observers: [NSObjectProtocol] = []
     private var halfwayFired = false
     private var fiveSecondsFired = false
-    private var restTargetFired = false
-    /// First step to run — supports "play from here".
-    private let startIndex: Int
 
-    init(workout: Workout, startID: UUID? = nil) {
+    init(workout: Workout) {
         self.workout = workout
         let steps = Self.makeSteps(workout)
         self.steps = steps
         hasUntimedSteps = steps.contains { $0.countsUp }
-        exerciseCount = steps.last?.exerciseOrdinal ?? 0
-        if let startID {
-            startIndex = steps.firstIndex {
-                ($0.exercise.id == startID && $0.kind == .work) || $0.circuitID == startID
-            } ?? 0
-        } else {
-            startIndex = 0
-        }
+        exerciseCount = steps.last?.number ?? 0
         // The water renders before onAppear calls start(); give the countdown
         // a truthful endDate so the pond opens full instead of empty.
         endDate = Date().addingTimeInterval(countdownDuration)
@@ -129,16 +110,12 @@ final class PlayerEngine: ObservableObject {
     }
 
     /// Drives the water: countdown steps (including the pre-workout
-    /// countdown) drain as the share of time remaining; count-up rest fills
-    /// toward its target and holds full; untimed work is still water.
+    /// countdown) drain as the share of time remaining; untimed set work
+    /// is still water.
     func fraction(at date: Date) -> Double {
         guard phase != .finished else { return 0 }
         if let duration = currentCountdownDuration, duration > 0 {
             return min(1, max(0, remaining(at: date) / duration))
-        }
-        guard let step = currentStep else { return 0 }
-        if step.kind == .rest, step.exercise.restDuration > 0 {
-            return min(1, elapsed(at: date) / step.exercise.restDuration)
         }
         return 0
     }
@@ -155,12 +132,8 @@ final class PlayerEngine: ObservableObject {
         guard index >= 0, !steps.isEmpty else { return 0 }
         if hasUntimedSteps {
             var inStep: Double = 0
-            if let step = currentStep {
-                if let duration = step.countdownDuration, duration > 0 {
-                    inStep = 1 - min(1, remaining(at: date) / duration)
-                } else if step.kind == .rest, step.exercise.restDuration > 0 {
-                    inStep = min(1, elapsed(at: date) / step.exercise.restDuration)
-                }
+            if let duration = currentCountdownDuration, duration > 0 {
+                inStep = 1 - min(1, remaining(at: date) / duration)
             }
             return min(1, max(0, (Double(index) + inStep) / Double(steps.count)))
         }
@@ -179,6 +152,7 @@ final class PlayerEngine: ObservableObject {
     func start() {
         audio.start()
         stepFeedback.prepare()
+        pauseFeedback.prepare()
         phase = .countdown
         index = -1
         endDate = Date().addingTimeInterval(countdownDuration)
@@ -205,6 +179,8 @@ final class PlayerEngine: ObservableObject {
     }
 
     func togglePause() {
+        guard phase != .finished else { return }
+        pauseFeedback.impactOccurred()
         switch phase {
         case .running, .countdown:
             pausedRemaining = remaining(at: Date())
@@ -224,7 +200,7 @@ final class PlayerEngine: ObservableObject {
 
     func next() {
         guard phase != .finished else { return }
-        advance(to: index < 0 ? startIndex : index + 1)
+        advance(to: index + 1)
     }
 
     func previous() {
@@ -257,7 +233,6 @@ final class PlayerEngine: ObservableObject {
     private func restartCurrent() {
         halfwayFired = false
         fiveSecondsFired = false
-        restTargetFired = false
         let duration = currentCountdownDuration ?? 0
         if phase == .paused {
             pausedRemaining = duration
@@ -276,7 +251,6 @@ final class PlayerEngine: ObservableObject {
     private func advance(to newIndex: Int, overshoot: TimeInterval = 0) {
         halfwayFired = false
         fiveSecondsFired = false
-        restTargetFired = false
         if newIndex >= steps.count {
             finish()
             return
@@ -316,8 +290,6 @@ final class PlayerEngine: ObservableObject {
                 let remainingNow = duration - overshoot
                 if remainingNow <= duration / 2 { halfwayFired = true }
                 if remainingNow <= 5 { fiveSecondsFired = true }
-            } else if step.kind == .rest, overshoot >= step.exercise.restDuration {
-                restTargetFired = true
             }
         }
         if wasFinished {
@@ -333,17 +305,8 @@ final class PlayerEngine: ObservableObject {
         var parts: [String] = []
         switch step.kind {
         case .rest:
-            if step.exercise.restCountsDown {
-                parts.append("Rest, \(Int(step.exercise.restDuration)) seconds.")
-            } else {
-                parts.append("Rest.")
-            }
+            parts.append("Rest, \(Int(step.exercise.restDuration)) seconds.")
         case .work:
-            if step.isLoopStart, let circuitName = step.circuitName {
-                parts.append(step.loopCount > 1
-                    ? "\(circuitName), round \(step.loop) of \(step.loopCount)."
-                    : "\(circuitName).")
-            }
             if step.exercise.mode == .sets {
                 if step.set == 1 {
                     parts.append("\(step.exercise.name).")
@@ -384,20 +347,8 @@ final class PlayerEngine: ObservableObject {
     private func tick() {
         guard phase == .running || phase == .countdown else { return }
         let now = Date()
-        if index >= 0, let step = currentStep, step.countsUp {
-            // Count-up steps never auto-advance. A count-up rest chimes once
-            // at its target and keeps counting until the next set is started.
-            if step.kind == .rest, !restTargetFired {
-                let target = step.exercise.restDuration
-                if target > 0, elapsed(at: now) >= target {
-                    restTargetFired = true
-                    stepFeedback.impactOccurred()
-                    audio.playBeep()
-                    audio.speak("\(Int(target)) seconds.", delay: 0.4)
-                }
-            }
-            return
-        }
+        // Untimed set work never auto-advances; the user ends it with a tap.
+        if index >= 0, currentStep?.countsUp == true { return }
         let remaining = remaining(at: now)
         if phase == .running, let step = currentStep,
            let duration = step.countdownDuration {
@@ -406,15 +357,16 @@ final class PlayerEngine: ObservableObject {
                 halfwayFired = true
                 audio.speak("Halfway done.")
             }
-            if step.exercise.fiveSecondsAlert, !fiveSecondsFired,
-               remaining <= 5, duration > 10 {
+            // Rest always warns — it's the get-ready cue before the next set
+            // auto-starts; timed work keeps its per-exercise setting.
+            if step.kind == .rest || step.exercise.fiveSecondsAlert,
+               !fiveSecondsFired, remaining <= 5, duration > 10 {
                 fiveSecondsFired = true
                 audio.speak("5 seconds left.")
             }
         }
         if remaining <= 0 {
-            advance(to: index < 0 ? startIndex : index + 1,
-                    overshoot: max(0, endDate.distance(to: now)))
+            advance(to: index + 1, overshoot: max(0, endDate.distance(to: now)))
         }
     }
 
@@ -439,7 +391,7 @@ final class PlayerEngine: ObservableObject {
             endDate: phase == .paused ? Date().addingTimeInterval(pausedRemaining) : endDate,
             paused: phase == .paused,
             pausedRemaining: countsUp ? pausedElapsed : pausedRemaining,
-            stepIndex: max(0, (step?.exerciseOrdinal ?? 1) - 1),
+            stepIndex: max(0, (step?.number ?? 1) - 1),
             stepCount: max(1, exerciseCount),
             finished: phase == .finished,
             countsUp: countsUp,
@@ -449,44 +401,15 @@ final class PlayerEngine: ObservableObject {
 
     private static func makeSteps(_ workout: Workout) -> [Step] {
         var steps: [Step] = []
-        var ordinal = 0
-        func append(_ exercise: Exercise, top: Int, sub: Int?,
-                    circuitID: UUID?, circuitName: String?,
-                    loop: Int, loopCount: Int, isLoopStart: Bool) {
-            ordinal += 1
+        for (index, exercise) in workout.items.enumerated() {
             let setCount = exercise.mode == .sets ? max(1, exercise.sets) : 1
             for set in 1...setCount {
-                steps.append(Step(exercise: exercise, kind: .work, set: set,
-                                  topNumber: top, subNumber: sub,
-                                  circuitID: circuitID, circuitName: circuitName,
-                                  loop: loop, loopCount: loopCount,
-                                  isLoopStart: isLoopStart && set == 1,
-                                  exerciseOrdinal: ordinal))
+                steps.append(Step(exercise: exercise, kind: .work,
+                                  set: set, number: index + 1))
                 // No rest after the final set — the next exercise announces itself.
                 if exercise.mode == .sets, set < setCount, exercise.restDuration > 0 {
-                    steps.append(Step(exercise: exercise, kind: .rest, set: set,
-                                      topNumber: top, subNumber: sub,
-                                      circuitID: circuitID, circuitName: circuitName,
-                                      loop: loop, loopCount: loopCount,
-                                      isLoopStart: false, exerciseOrdinal: ordinal))
-                }
-            }
-        }
-        for (topIndex, item) in workout.items.enumerated() {
-            switch item {
-            case .exercise(let exercise):
-                append(exercise, top: topIndex + 1, sub: nil,
-                       circuitID: nil, circuitName: nil,
-                       loop: 1, loopCount: 1, isLoopStart: false)
-            case .circuit(let circuit):
-                guard !circuit.exercises.isEmpty else { continue }
-                for loop in 1...max(1, circuit.loops) {
-                    for (subIndex, exercise) in circuit.exercises.enumerated() {
-                        append(exercise, top: topIndex + 1, sub: subIndex + 1,
-                               circuitID: circuit.id, circuitName: circuit.name,
-                               loop: loop, loopCount: max(1, circuit.loops),
-                               isLoopStart: subIndex == 0)
-                    }
+                    steps.append(Step(exercise: exercise, kind: .rest,
+                                      set: set, number: index + 1))
                 }
             }
         }

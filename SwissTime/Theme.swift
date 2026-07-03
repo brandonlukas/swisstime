@@ -206,6 +206,18 @@ extension View {
     }
 }
 
+/// Primary-action feedback: the button visibly sinks the moment the touch
+/// lands, so the beat before a presentation or state change never reads as
+/// a dead tap.
+struct PressableButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.93 : 1)
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
 /// One-shot latches for command-line UI verification hooks, so a debug launch
 /// argument fires once instead of on every reappearance of the view.
 enum DebugLaunch {
@@ -230,10 +242,10 @@ enum Format {
         return "\(total / 60):" + String(format: "%02d", total % 60)
     }
 
-    /// "3 items · 15 min"
+    /// "3 exercises · 15 min"
     static func summary(count: Int, duration: TimeInterval) -> String {
         let minutes = Int((duration / 60).rounded(.up))
-        return "\(count) item\(count == 1 ? "" : "s") · \(minutes) min"
+        return "\(count) exercise\(count == 1 ? "" : "s") · \(minutes) min"
     }
 
     /// "With 16, Rest, and 20" / "With A, B, C, D, and more"

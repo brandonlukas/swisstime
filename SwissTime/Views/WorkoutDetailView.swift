@@ -1,27 +1,24 @@
 import SwiftUI
 
 enum DetailSheet: Identifiable {
-    case addItem(circuitID: UUID?)
+    case addExercise
     case editExercise(Exercise)
-    case editCircuit(Circuit)
     case editWorkout
-    case itemActions(WorkoutItem)
     case confirmDelete
 
     var id: String {
         switch self {
-        case .addItem(let circuitID): return "add-\(circuitID?.uuidString ?? "top")"
+        case .addExercise: return "add"
         case .editExercise(let exercise): return "exercise-\(exercise.id)"
-        case .editCircuit(let circuit): return "circuit-\(circuit.id)"
         case .editWorkout: return "workout"
-        case .itemActions(let item): return "actions-\(item.id)"
         case .confirmDelete: return "confirm-delete"
         }
     }
 }
 
-/// Read mode is the happy path: a clean program you tap to play.
-/// Edit mode holds all the building tools: reorder, delete, duplicate, rename.
+/// Read mode is the happy path: the program as a printed sheet you glance at,
+/// with Play as its only action. Edit mode holds all the building tools:
+/// reorder, delete, rename.
 struct WorkoutDetailView: View {
     @EnvironmentObject private var store: WorkoutStore
     @Environment(\.dismiss) private var dismiss
@@ -29,15 +26,10 @@ struct WorkoutDetailView: View {
 
     @State private var editing = false
     @State private var sheet: DetailSheet?
-    @State private var playTarget: PlayTarget?
+    @State private var playing = false
     /// Set by the delete confirmation; acted on once its sheet is gone,
     /// so the pop-back never races the dismissing sheet.
     @State private var pendingDelete = false
-
-    struct PlayTarget: Identifiable {
-        let id = UUID()
-        var startID: UUID?
-    }
 
     private var workout: Workout {
         store.workout(workoutID) ?? Workout(title: "")
@@ -67,7 +59,8 @@ struct WorkoutDetailView: View {
         .safeAreaInset(edge: .bottom) {
             if !editing && !workout.items.isEmpty {
                 Button {
-                    playTarget = PlayTarget()
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    playing = true
                 } label: {
                     Text("Play workout")
                         .font(.app(17, .medium))
@@ -76,7 +69,7 @@ struct WorkoutDetailView: View {
                         .frame(height: 56)
                         .inkButton(workout.palette.fill)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableButtonStyle())
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
                 .background(Color.paper.opacity(0.94))
@@ -107,16 +100,12 @@ struct WorkoutDetailView: View {
             }
         }) { sheet in
             switch sheet {
-            case .addItem(let circuitID):
-                ItemFormView(workoutID: workoutID, circuitID: circuitID)
+            case .addExercise:
+                ExerciseFormView(workoutID: workoutID)
             case .editExercise(let exercise):
-                ItemFormView(workoutID: workoutID, editingExercise: exercise)
-            case .editCircuit(let circuit):
-                CircuitEditorView(workoutID: workoutID, circuit: circuit)
+                ExerciseFormView(workoutID: workoutID, editingExercise: exercise)
             case .editWorkout:
                 WorkoutFormView(existing: workout)
-            case .itemActions(let item):
-                ActionListSheet(actions: itemActions(item))
             case .confirmDelete:
                 ActionListSheet(actions: [
                     ActionItem(title: "Delete \"\(workout.title)\" forever",
@@ -126,8 +115,8 @@ struct WorkoutDetailView: View {
                 ])
             }
         }
-        .fullScreenCover(item: $playTarget) { target in
-            PlayerView(workout: workout, startID: target.startID)
+        .fullScreenCover(isPresented: $playing) {
+            PlayerView(workout: workout)
         }
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-autoEditFirstWorkout"),
@@ -138,7 +127,7 @@ struct WorkoutDetailView: View {
             if ProcessInfo.processInfo.arguments.contains("-autoAddItem"),
                !DebugLaunch.didAutoAddItem {
                 DebugLaunch.didAutoAddItem = true
-                sheet = .addItem(circuitID: nil)
+                sheet = .addExercise
             }
             if ProcessInfo.processInfo.arguments.contains("-autoEditWorkout"),
                !DebugLaunch.didAutoEditWorkout {
@@ -146,20 +135,18 @@ struct WorkoutDetailView: View {
                 sheet = .editWorkout
             }
             if ProcessInfo.processInfo.arguments.contains("-autoEditFirstExercise"),
-               !DebugLaunch.didAutoAddItem {
+               !DebugLaunch.didAutoAddItem,
+               let first = workout.items.first {
                 DebugLaunch.didAutoAddItem = true
-                for item in workout.items {
-                    if case .exercise(let exercise) = item {
-                        sheet = .editExercise(exercise)
-                        break
-                    }
-                }
+                sheet = .editExercise(first)
             }
         }
     }
 
     // MARK: - Read mode
 
+    /// A quiet program sheet: numbered lines and hairlines, nothing pressable
+    /// but the add row — cards would advertise taps the rows don't have.
     private var readView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -175,24 +162,21 @@ struct WorkoutDetailView: View {
                     emptyState
                         .padding(.top, 24)
                 } else {
-                    VStack(spacing: 16) {
-                        ForEach(Array(workout.items.enumerated()), id: \.element.id) { index, item in
-                            ItemCard(item: item, number: index + 1,
-                                     onPlayFrom: { startID in
-                                         playTarget = PlayTarget(startID: startID)
-                                     },
-                                     onAddToCircuit: { circuitID in
-                                         sheet = .addItem(circuitID: circuitID)
-                                     },
-                                     onEdit: { edit in
-                                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                         withAnimation { editing = true }
-                                         sheet = edit
-                                     })
+                    VStack(spacing: 0) {
+                        ForEach(Array(workout.items.enumerated()), id: \.element.id) { index, exercise in
+                            if index > 0 {
+                                Rectangle()
+                                    .fill(Color.hairline)
+                                    .frame(height: 1)
+                            }
+                            ExerciseLine(number: "\(index + 1).", exercise: exercise)
                         }
+                        Rectangle()
+                            .fill(Color.hairline)
+                            .frame(height: 1)
                         addRow
                     }
-                    .padding(.top, 24)
+                    .padding(.top, 12)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -203,19 +187,19 @@ struct WorkoutDetailView: View {
 
     private var addRow: some View {
         Button {
-            sheet = .addItem(circuitID: nil)
+            sheet = .addExercise
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "plus")
                     .font(.system(size: 15))
-                Text("Add exercise or circuit")
+                    .frame(minWidth: 30, alignment: .leading)
+                Text("Add exercise")
                     .font(.app(16))
                 Spacer()
             }
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 16)
             .padding(.vertical, 18)
-            .paperCard()
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -224,11 +208,11 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("No exercises yet.")
                 .font(.app(17, .medium))
-            Text("Add timed exercises, or group them into circuits that repeat.")
+            Text("Add timed intervals, or sets with a rest countdown between them.")
                 .font(.app(15))
                 .foregroundStyle(.secondary)
             Button {
-                sheet = .addItem(circuitID: nil)
+                sheet = .addExercise
             } label: {
                 Text("Add exercise")
                     .font(.app(16, .medium))
@@ -247,8 +231,8 @@ struct WorkoutDetailView: View {
     private var editList: some View {
         List {
             Section {
-                ForEach(workout.items) { item in
-                    editRow(item)
+                ForEach(workout.items) { exercise in
+                    editRow(exercise)
                         .listRowBackground(Color.paperCardFill.opacity(0.7))
                         .listRowSeparatorTint(Color.hairline)
                 }
@@ -263,12 +247,12 @@ struct WorkoutDetailView: View {
                     store.update(updated)
                 }
                 Button {
-                    sheet = .addItem(circuitID: nil)
+                    sheet = .addExercise
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "plus")
                             .font(.system(size: 15))
-                        Text("Add exercise or circuit")
+                        Text("Add exercise")
                             .font(.app(16))
                     }
                     .foregroundStyle(.secondary)
@@ -297,158 +281,33 @@ struct WorkoutDetailView: View {
         .environment(\.editMode, .constant(.active))
     }
 
-    private func editRow(_ item: WorkoutItem) -> some View {
+    private func editRow(_ exercise: Exercise) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                switch item {
-                case .exercise(let exercise):
-                    Text(exercise.name)
-                        .font(.app(16, .medium))
-                    if !exercise.instructions.isEmpty {
-                        Text(exercise.instructions)
-                            .font(.app(14))
-                            .foregroundStyle(.secondary)
-                    }
-                case .circuit(let circuit):
-                    Text(circuit.name)
-                        .font(.app(16, .medium))
-                    Text("\(circuit.loops) loop\(circuit.loops == 1 ? "" : "s") · \(circuit.exercises.count) exercise\(circuit.exercises.count == 1 ? "" : "s")")
+                Text(exercise.name)
+                    .font(.app(16, .medium))
+                if !exercise.instructions.isEmpty {
+                    Text(exercise.instructions)
                         .font(.app(14))
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
-            if case .exercise(let exercise) = item {
-                Text(exercise.trailingSummary)
-                    .font(.app(15))
-                    .monospacedDigit()
-            }
-            // Exercises grow a menu once there's a circuit to move them into.
-            if case .exercise = item, !circuits.isEmpty {
-                Button {
-                    sheet = .itemActions(item)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 15))
-                        .frame(width: 30, height: 30)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            } else {
-                Button {
-                    var updated = workout
-                    updated.duplicateItem(item.id)
-                    store.update(updated)
-                } label: {
-                    Image(systemName: "square.on.square")
-                        .font(.system(size: 15))
-                        .frame(width: 30, height: 30)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
+            Text(exercise.trailingSummary)
+                .font(.app(15))
+                .monospacedDigit()
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            switch item {
-            case .exercise(let exercise): sheet = .editExercise(exercise)
-            case .circuit(let circuit): sheet = .editCircuit(circuit)
-            }
+            sheet = .editExercise(exercise)
         }
-    }
-
-    private var circuits: [Circuit] {
-        workout.items.compactMap {
-            if case .circuit(let circuit) = $0 { return circuit }
-            return nil
-        }
-    }
-
-    private func itemActions(_ item: WorkoutItem) -> [ActionItem] {
-        var actions = [
-            ActionItem(title: "Duplicate", icon: "square.on.square") {
-                var updated = workout
-                updated.duplicateItem(item.id)
-                store.update(updated)
-            },
-        ]
-        if case .exercise = item {
-            for circuit in circuits {
-                actions.append(ActionItem(title: "Move into \(circuit.name)",
-                                          icon: "arrow.turn.down.right") {
-                    var updated = workout
-                    updated.moveExercise(item.id, intoCircuit: circuit.id)
-                    store.update(updated)
-                })
-            }
-        }
-        return actions
     }
 }
 
-// MARK: - Read-mode rows
-
-private struct ItemCard: View {
-    let item: WorkoutItem
-    let number: Int
-    /// Called with the id to start playing from.
-    let onPlayFrom: (UUID) -> Void
-    let onAddToCircuit: (UUID) -> Void
-    /// Long press: jump into edit mode with this item's editor open.
-    let onEdit: (DetailSheet) -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            switch item {
-            case .exercise(let exercise):
-                ExerciseRow(number: "\(number).", exercise: exercise,
-                            onTap: { onPlayFrom(exercise.id) },
-                            onLongPress: { onEdit(.editExercise(exercise)) })
-            case .circuit(let circuit):
-                CircuitHeaderRow(number: "\(number).", circuit: circuit,
-                                 onTap: { onPlayFrom(circuit.id) },
-                                 onLongPress: { onEdit(.editCircuit(circuit)) })
-                ForEach(Array(circuit.exercises.enumerated()), id: \.element.id) { sub, exercise in
-                    Rectangle()
-                        .fill(Color.hairline)
-                        .frame(height: 1)
-                        .padding(.leading, 58)
-                    ExerciseRow(number: "\(number).\(sub + 1).", exercise: exercise,
-                                onTap: { onPlayFrom(exercise.id) },
-                                onLongPress: { onEdit(.editExercise(exercise)) })
-                }
-                Rectangle()
-                    .fill(Color.hairline)
-                    .frame(height: 1)
-                    .padding(.leading, 58)
-                Button {
-                    onAddToCircuit(circuit.id)
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 13))
-                            .frame(minWidth: 30, alignment: .leading)
-                        Text("Add exercise")
-                            .font(.app(15))
-                        Spacer()
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 13)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .paperCard()
-    }
-}
-
-struct ExerciseRow: View {
+/// One line of the program sheet — purely informational, no gestures.
+private struct ExerciseLine: View {
     let number: String
     let exercise: Exercise
-    var onTap: (() -> Void)?
-    var onLongPress: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -469,35 +328,6 @@ struct ExerciseRow: View {
                 .font(.app(16))
                 .monospacedDigit()
         }
-        .padding(.horizontal, 16)
         .padding(.vertical, 18)
-        .contentShape(Rectangle())
-        .onTapGesture { onTap?() }
-        .onLongPressGesture { onLongPress?() }
-    }
-}
-
-private struct CircuitHeaderRow: View {
-    let number: String
-    let circuit: Circuit
-    let onTap: () -> Void
-    var onLongPress: (() -> Void)?
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Text(number)
-                .font(.app(15))
-                .frame(minWidth: 30, alignment: .leading)
-            Text(circuit.name)
-                .font(.app(16, .medium))
-            Spacer(minLength: 8)
-            Text("\(circuit.loops) loop\(circuit.loops == 1 ? "" : "s")")
-                .font(.app(16))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 18)
-        .contentShape(Rectangle())
-        .onTapGesture { onTap() }
-        .onLongPressGesture { onLongPress?() }
     }
 }

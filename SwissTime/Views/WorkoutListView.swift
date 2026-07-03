@@ -28,13 +28,31 @@ struct WorkoutListView: View {
                         emptyState
                     } else {
                         VStack(spacing: 16) {
+                            // The play button overlays the link as a SIBLING:
+                            // a button nested inside the link's label has to
+                            // wait out gesture disambiguation, which made
+                            // starting a workout feel laggy.
                             ForEach(store.sortedWorkouts) { workout in
                                 NavigationLink(value: workout.id) {
-                                    WorkoutCard(workout: workout) {
-                                        playing = workout
-                                    }
+                                    WorkoutCard(workout: workout)
                                 }
                                 .buttonStyle(.plain)
+                                .overlay(alignment: .trailing) {
+                                    if !workout.items.isEmpty {
+                                        Button {
+                                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                            playing = workout
+                                        } label: {
+                                            Image(systemName: "play.fill")
+                                                .font(.system(size: 18))
+                                                .foregroundStyle(workout.palette.onFill)
+                                                .frame(width: 52, height: 52)
+                                                .inkButton(workout.palette.fill)
+                                        }
+                                        .buttonStyle(PressableButtonStyle())
+                                        .padding(.trailing, 20)
+                                    }
+                                }
                             }
                         }
                     }
@@ -93,7 +111,7 @@ struct WorkoutListView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("No workouts yet.")
                 .font(.app(17, .medium))
-            Text("Create a workout, then fill it with timed exercises and circuits.")
+            Text("Create a workout, then fill it with timed exercises and sets.")
                 .font(.app(15))
                 .foregroundStyle(.secondary)
             Button {
@@ -144,44 +162,32 @@ private struct PondHeroCard: View {
 
 private struct WorkoutCard: View {
     let workout: Workout
-    let onPlay: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 10) {
-                    Circle()
-                        .fill(workout.palette.fill)
-                        .frame(width: 14, height: 14)
-                    Text(workout.title)
-                        .font(.serifApp(20, .semibold))
-                }
-                if !workout.details.isEmpty {
-                    Text(workout.details)
-                        .font(.app(15))
-                        .foregroundStyle(.secondary)
-                }
-                Text(Format.summary(count: workout.items.count, duration: workout.totalDuration))
-                    .font(.app(15))
-                    .padding(.top, 2)
-                if let line = Format.withLine(workout.exerciseNames) {
-                    Text(line)
-                        .font(.app(15))
-                        .foregroundStyle(.secondary)
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(workout.palette.fill)
+                    .frame(width: 14, height: 14)
+                Text(workout.title)
+                    .font(.serifApp(20, .semibold))
             }
-            Spacer(minLength: 8)
-            if !workout.items.isEmpty {
-                Button(action: onPlay) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(workout.palette.onFill)
-                        .frame(width: 52, height: 52)
-                        .inkButton(workout.palette.fill)
-                }
-                .buttonStyle(.plain)
+            if !workout.details.isEmpty {
+                Text(workout.details)
+                    .font(.app(15))
+                    .foregroundStyle(.secondary)
+            }
+            Text(Format.summary(count: workout.items.count, duration: workout.totalDuration))
+                .font(.app(15))
+                .padding(.top, 2)
+            if let line = Format.withLine(workout.exerciseNames) {
+                Text(line)
+                    .font(.app(15))
+                    .foregroundStyle(.secondary)
             }
         }
+        // Clears the play button that overlays the card's trailing edge.
+        .padding(.trailing, workout.items.isEmpty ? 0 : 68)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .paperCard()

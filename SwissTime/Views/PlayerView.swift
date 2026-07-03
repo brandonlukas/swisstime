@@ -63,8 +63,8 @@ struct PlayerView: View {
     @State private var barSpring = LevelSpring()
     @State private var dragOffset: CGFloat = 0
 
-    init(workout: Workout, startID: UUID? = nil) {
-        _engine = StateObject(wrappedValue: PlayerEngine(workout: workout, startID: startID))
+    init(workout: Workout) {
+        _engine = StateObject(wrappedValue: PlayerEngine(workout: workout))
     }
 
 
@@ -88,33 +88,25 @@ struct PlayerView: View {
                 let fullHeight = geo.size.height + bottomInset
                 // Each moving piece runs its own clock, so the static chrome
                 // (cards, shadows, grain) isn't re-rendered 30 times a second.
-                ZStack(alignment: .bottom) {
+                // The timer card is centered in the whole water area,
+                // independent of the breadcrumb's height, so it never shifts
+                // when the card above it grows or shrinks.
+                ZStack {
                     waterLayer(fullHeight: fullHeight)
                     GrainOverlay()
+                    edgeSteppers
+                    timerCard(side: max(1, min(geo.size.width - 84, 340)))
                     VStack(spacing: 0) {
                         breadcrumb
                             .padding(20)
-                        Spacer(minLength: 0)
-                        timerCard(side: max(1, min(geo.size.width - 84, 340)))
                         Spacer(minLength: 0)
                         controls
                             .padding(20)
                             .padding(.bottom, bottomInset)
                     }
-                    .frame(maxHeight: .infinity)
                 }
                 .frame(width: geo.size.width, height: fullHeight)
                 .ignoresSafeArea(edges: .bottom)
-                // Double-tap a side to step, mirroring the transport bar:
-                // right skips (until finished), left always goes back.
-                // Buttons inside keep priority, so single taps are untouched.
-                .onTapGesture(count: 2) { location in
-                    if location.x > geo.size.width / 2 {
-                        if engine.phase != .finished { engine.next() }
-                    } else {
-                        engine.previous()
-                    }
-                }
             }
         }
         // Once finished the page lifts with the pull and the screen behind
@@ -128,7 +120,8 @@ struct PlayerView: View {
                 .shadow(color: .black.opacity(dragOffset > 0 ? 0.18 : 0), radius: 24, y: -8)
         )
         .offset(y: dragOffset)
-        // Swipe left/right to skip between exercises, down to close.
+        // Pull-to-dismiss exists only once the workout is complete;
+        // mid-workout the X button (with its confirm) is the only exit.
         .gesture(
             DragGesture(minimumDistance: 40)
                 .onChanged { value in
@@ -137,26 +130,13 @@ struct PlayerView: View {
                     dragOffset = max(0, value.translation.height)
                 }
                 .onEnded { value in
-                    if dragOffset > 0 {
-                        if dragOffset > 120 || value.predictedEndTranslation.height > 300 {
-                            dismiss()
-                        } else {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                dragOffset = 0
-                            }
+                    guard dragOffset > 0 else { return }
+                    if dragOffset > 120 || value.predictedEndTranslation.height > 300 {
+                        dismiss()
+                    } else {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            dragOffset = 0
                         }
-                        return
-                    }
-                    let dx = value.translation.width
-                    let dy = value.translation.height
-                    if abs(dx) > abs(dy) {
-                        if dx < -60 {
-                            engine.next()
-                        } else if dx > 60 {
-                            engine.previous()
-                        }
-                    } else if dy > 80 {
-                        closeTapped()
                     }
                 }
         )
@@ -209,6 +189,27 @@ struct PlayerView: View {
 
     // MARK: - Pieces
 
+    /// Double-tap the screen's FAR edges to step — right skips, left rewinds.
+    /// Narrow zones, like the system back-swipe: stepping stays a deliberate
+    /// reach for the rim, not something a stray mid-screen tap can trigger.
+    /// They sit behind the cards, so no recognizer hangs over the transport
+    /// buttons waiting to rule out a second tap — button taps stay instant.
+    private var edgeSteppers: some View {
+        HStack {
+            Color.clear
+                .frame(width: 56)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { engine.previous() }
+            Spacer(minLength: 0)
+            Color.clear
+                .frame(width: 56)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) {
+                    if engine.phase != .finished { engine.next() }
+                }
+        }
+    }
+
     @ViewBuilder
     private var breadcrumb: some View {
         if engine.index < 0 {
@@ -218,53 +219,35 @@ struct PlayerView: View {
                 .frame(height: 76)
                 .paperCard(opacity: 0.92)
         } else if let step = engine.currentStep {
-            VStack(spacing: 0) {
-                if let circuitName = step.circuitName {
-                    HStack(spacing: 12) {
-                        Text("\(step.topNumber).")
+            HStack(spacing: 12) {
+                Text(step.label)
+                    .font(.app(15))
+                    .frame(minWidth: 30, alignment: .leading)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(step.exercise.name)
+                        .font(.app(16, .medium))
+                    if !step.exercise.instructions.isEmpty {
+                        Text(step.exercise.instructions)
                             .font(.app(15))
-                            .frame(minWidth: 30, alignment: .leading)
-                        Text(circuitName)
-                            .font(.app(16, .medium))
-                        Spacer(minLength: 8)
-                        Text("\(step.loop)/\(step.loopCount)")
-                            .font(.app(16))
-                            .monospacedDigit()
+                            .foregroundStyle(Color.ink.opacity(0.55))
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(Color.ink.opacity(0.04))
                 }
-                HStack(spacing: 12) {
-                    Text(step.label)
-                        .font(.app(15))
-                        .frame(minWidth: 30, alignment: .leading)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(step.exercise.name)
-                            .font(.app(16, .medium))
-                        if !step.exercise.instructions.isEmpty {
-                            Text(step.exercise.instructions)
-                                .font(.app(15))
-                                .foregroundStyle(Color.ink.opacity(0.55))
-                        }
+                Spacer(minLength: 8)
+                Group {
+                    switch step.kind {
+                    case .rest:
+                        Text("Rest")
+                    case .work where step.exercise.mode == .sets:
+                        Text("Set \(step.set)/\(step.setCount)")
+                    case .work:
+                        Text(Format.mmss(step.exercise.duration))
                     }
-                    Spacer(minLength: 8)
-                    Group {
-                        switch step.kind {
-                        case .rest:
-                            Text("Rest")
-                        case .work where step.exercise.mode == .sets:
-                            Text("Set \(step.set)/\(step.setCount)")
-                        case .work:
-                            Text(Format.mmss(step.exercise.duration))
-                        }
-                    }
-                    .font(.app(16))
-                    .monospacedDigit()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                .font(.app(16))
+                .monospacedDigit()
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             .paperCard(opacity: 0.92)
         }
     }
@@ -352,7 +335,7 @@ struct PlayerView: View {
             } else if let step = engine.currentStep, step.exercise.mode == .sets {
                 VStack(spacing: 12) {
                     SetDots(step: step)
-                    Text(setsCaption(step))
+                    Text("Exercise \(step.number) of \(engine.exerciseCount)")
                         .font(.app(13))
                         .monospacedDigit()
                         .foregroundStyle(Color.ink.opacity(0.55))
@@ -378,15 +361,6 @@ struct PlayerView: View {
         }
     }
 
-    /// "Exercise 3 of 7", plus the rest target while the water rises toward it.
-    private func setsCaption(_ step: PlayerEngine.Step) -> String {
-        var caption = "Exercise \(step.exerciseOrdinal) of \(engine.exerciseCount)"
-        if step.kind == .rest, !step.exercise.restCountsDown {
-            caption = "Target \(Format.mmss(step.exercise.restDuration)) · " + caption
-        }
-        return caption
-    }
-
     private var pausedLabel: some View {
         Text("PAUSED")
             .font(.app(13, .medium))
@@ -406,7 +380,7 @@ struct PlayerView: View {
                 .frame(height: 46)
                 .inkButton(engine.workout.palette.fill)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
     }
 
     private var controls: some View {
@@ -454,7 +428,7 @@ struct PlayerView: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
         .disabled(!enabled)
     }
 }
