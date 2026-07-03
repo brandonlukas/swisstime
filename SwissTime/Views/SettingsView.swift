@@ -143,7 +143,37 @@ struct SettingsView: View {
             }
         }
         .background(PaperBackground())
-        .onAppear(perform: loadVoices)
+        // A sheet is its own hosting window, and the app-level
+        // preferredColorScheme doesn't reliably reach it once the theme
+        // changes WHILE the sheet is up — it latches whatever it had.
+        // Carrying the preference on the sheet's own content keeps the
+        // very screen doing the switching honest about the result.
+        .preferredColorScheme(sheetScheme)
+        .onAppear {
+            loadVoices()
+            // Debug: walk the theme through the reported repro sequence
+            // (day → system → night) with the sheet up, for screenshots.
+            if ProcessInfo.processInfo.arguments.contains("-autoCycleTheme") {
+                let steps: [(Double, ThemeChoice)] = [(2, .day), (4, .system), (6, .night)]
+                for (delay, choice) in steps {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                        theme = choice.rawValue
+                    }
+                }
+            }
+        }
+    }
+
+    /// Day and Night pin the scheme. System can't just pass nil: a nil
+    /// preference doesn't CLEAR an override this window already applied
+    /// (Day → System left the sheet stuck light) — so System resolves to
+    /// the device's actual style.
+    private var sheetScheme: ColorScheme {
+        if let pinned = ThemeChoice(rawValue: theme)?.colorScheme {
+            return pinned
+        }
+        return UIScreen.main.traitCollection.userInterfaceStyle == .dark
+            ? .dark : .light
     }
 
     private var voiceSection: some View {
