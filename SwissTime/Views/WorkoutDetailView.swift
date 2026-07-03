@@ -119,7 +119,9 @@ struct WorkoutDetailView: View {
         .fullScreenCover(isPresented: $playing) {
             PlayerView(workout: workout)
         }
-        .sheet(item: $ceremony) { ceremony in
+        // However the ceremony ends — Done or a swipe — the workout is
+        // logged and this screen's job is over; return to the list.
+        .sheet(item: $ceremony, onDismiss: { dismiss() }) { ceremony in
             CompletionCeremonyView(workout: workout, entryID: ceremony.entryID)
         }
         .onAppear {
