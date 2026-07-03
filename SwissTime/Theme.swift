@@ -92,26 +92,40 @@ struct PaletteColor {
 /// Six water tones, shallow end to midnight, each tied to a pool toy.
 /// Indices are stable — pre-pool files decode and simply adopt the cooler
 /// colors. Every fill must survive full-screen in the player with legible
-/// text on matte cards over it.
+/// text on matte cards over it. At night each swatch lifts like the pool
+/// itself: same hue, more light — Midnight especially, which would
+/// otherwise sink into the navy cards it sits on.
 enum Palette {
     static let all: [PaletteColor] = [
         PaletteColor(name: "Shallow",
-                     fill: Color(red: 0.47, green: 0.71, blue: 0.87), onFill: .black,
+                     fill: Color(light: Color(red: 0.47, green: 0.71, blue: 0.87),
+                                 dark: Color(red: 0.53, green: 0.76, blue: 0.92)),
+                     onFill: .black,
                      toy: .ring),
         PaletteColor(name: "Pool",
-                     fill: Color(red: 0.20, green: 0.48, blue: 0.79), onFill: .white,
+                     fill: Color(light: Color(red: 0.20, green: 0.48, blue: 0.79),
+                                 dark: Color(red: 0.26, green: 0.56, blue: 0.89)),
+                     onFill: .white,
                      toy: .duck),
         PaletteColor(name: "Deep",
-                     fill: Color(red: 0.10, green: 0.26, blue: 0.52), onFill: .white,
+                     fill: Color(light: Color(red: 0.10, green: 0.26, blue: 0.52),
+                                 dark: Color(red: 0.18, green: 0.37, blue: 0.70)),
+                     onFill: .white,
                      toy: .orca),
         PaletteColor(name: "Chlorine",
-                     fill: Color(red: 0.22, green: 0.56, blue: 0.54), onFill: .white,
+                     fill: Color(light: Color(red: 0.22, green: 0.56, blue: 0.54),
+                                 dark: Color(red: 0.27, green: 0.65, blue: 0.62)),
+                     onFill: .white,
                      toy: .beachBall),
         PaletteColor(name: "Periwinkle",
-                     fill: Color(red: 0.55, green: 0.59, blue: 0.90), onFill: .black,
+                     fill: Color(light: Color(red: 0.55, green: 0.59, blue: 0.90),
+                                 dark: Color(red: 0.63, green: 0.67, blue: 0.97)),
+                     onFill: .black,
                      toy: .flamingo),
         PaletteColor(name: "Midnight",
-                     fill: Color(red: 0.15, green: 0.17, blue: 0.33), onFill: .white,
+                     fill: Color(light: Color(red: 0.15, green: 0.17, blue: 0.33),
+                                 dark: Color(red: 0.31, green: 0.33, blue: 0.56)),
+                     onFill: .white,
                      toy: .lilo),
     ]
 
