@@ -1,9 +1,17 @@
 import Foundation
 
+/// How a workout is done. A timed workout plays in the player, step by step
+/// with voice cues; an untimed one is done at your own pace and logged with
+/// a tap when it's finished.
+enum WorkoutKind: String, Codable {
+    case timed, untimed
+}
+
 struct Workout: Identifiable, Codable, Equatable {
     var id = UUID()
     var title: String
     var details: String = ""
+    var kind: WorkoutKind = .timed
     var items: [Exercise] = []
     var lastPlayedAt: Date?
     /// Index into `Color.swissPalette`; optional so pre-palette files decode.
@@ -11,6 +19,19 @@ struct Workout: Identifiable, Codable, Equatable {
 
     var totalDuration: TimeInterval {
         items.reduce(0) { $0 + $1.estimatedDuration }
+    }
+
+    var totalSets: Int {
+        items.reduce(0) { $0 + max(1, $1.sets) }
+    }
+
+    /// "3 exercises · 15 min" (timed) / "4 exercises · 13 sets" (untimed) —
+    /// untimed workouts have no honest duration, so they count sets instead.
+    var summaryLine: String {
+        switch kind {
+        case .timed: return Format.summary(count: items.count, duration: totalDuration)
+        case .untimed: return Format.setsSummary(count: items.count, sets: totalSets)
+        }
     }
 
     /// Distinct exercise names in order of appearance, for the list subtitle.
@@ -31,7 +52,7 @@ struct Workout: Identifiable, Codable, Equatable {
 
 extension Workout {
     enum CodingKeys: String, CodingKey {
-        case id, title, details, items, lastPlayedAt, colorIndex
+        case id, title, details, kind, items, lastPlayedAt, colorIndex
     }
 
     /// Items were once an exercise/circuit enum; a legacy circuit flattens to
@@ -52,6 +73,10 @@ extension Workout {
         } else {
             items = try container.decodeIfPresent([Exercise].self, forKey: .items) ?? []
         }
+        // Files predate the workout-level kind: a workout built entirely of
+        // sets-mode exercises was untimed in spirit, so it becomes one.
+        kind = try container.decodeIfPresent(WorkoutKind.self, forKey: .kind)
+            ?? (!items.isEmpty && items.allSatisfy { $0.mode == .sets } ? .untimed : .timed)
     }
 }
 

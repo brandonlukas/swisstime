@@ -15,6 +15,8 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         /// Untimed sets and count-up rests show a stopwatch, not a countdown.
         var countsUp: Bool = false
         var startDate: Date = Date()
+        /// The set counter has no pause — its only control is skip (end set).
+        var showsPause: Bool = true
     }
 
     var workoutTitle: String

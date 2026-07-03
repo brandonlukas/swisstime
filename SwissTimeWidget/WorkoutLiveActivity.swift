@@ -55,13 +55,15 @@ struct WorkoutLiveActivity: Widget {
                             .monospacedDigit()
                         Spacer()
                         if !context.state.finished {
-                            Button(intent: TogglePauseIntent()) {
-                                Image(systemName: context.state.paused ? "play" : "pause")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 44, height: 36)
+                            if context.state.showsPause {
+                                Button(intent: TogglePauseIntent()) {
+                                    Image(systemName: context.state.paused ? "play" : "pause")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 44, height: 36)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                             Button(intent: SkipStepIntent()) {
                                 Image(systemName: "forward.end")
                                     .font(.system(size: 18, weight: .medium))
@@ -137,15 +139,17 @@ private struct LockScreenView: View {
                 .monospacedDigit()
                 .foregroundStyle(Color.stInk)
             if !context.state.finished {
-                Button(intent: TogglePauseIntent()) {
-                    Image(systemName: context.state.paused ? "play" : "pause")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(Color.stInk)
-                        .frame(width: 42, height: 42)
-                        .background(Color.stInk.opacity(0.08),
-                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                if context.state.showsPause {
+                    Button(intent: TogglePauseIntent()) {
+                        Image(systemName: context.state.paused ? "play" : "pause")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(Color.stInk)
+                            .frame(width: 42, height: 42)
+                            .background(Color.stInk.opacity(0.08),
+                                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 Button(intent: SkipStepIntent()) {
                     Image(systemName: "forward.end")
                         .font(.system(size: 18, weight: .medium))

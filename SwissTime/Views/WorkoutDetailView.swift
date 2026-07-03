@@ -21,12 +21,14 @@ enum DetailSheet: Identifiable {
 /// reorder, delete, rename.
 struct WorkoutDetailView: View {
     @EnvironmentObject private var store: WorkoutStore
+    @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
     let workoutID: UUID
 
     @State private var editing = false
     @State private var sheet: DetailSheet?
     @State private var playing = false
+    @State private var ceremony: CompletionCeremony?
     /// Set by the delete confirmation; acted on once its sheet is gone,
     /// so the pop-back never races the dismissing sheet.
     @State private var pendingDelete = false
@@ -59,10 +61,14 @@ struct WorkoutDetailView: View {
         .safeAreaInset(edge: .bottom) {
             if !editing && !workout.items.isEmpty {
                 Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    playing = true
+                    if workout.kind == .timed {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        playing = true
+                    } else {
+                        markDone()
+                    }
                 } label: {
-                    Text("Play workout")
+                    Text(workout.kind == .timed ? "Play workout" : "Mark as done")
                         .font(.app(17, .medium))
                         .foregroundStyle(workout.palette.onFill)
                         .frame(maxWidth: .infinity)
@@ -101,9 +107,10 @@ struct WorkoutDetailView: View {
         }) { sheet in
             switch sheet {
             case .addExercise:
-                ExerciseFormView(workoutID: workoutID)
+                ExerciseFormView(workoutID: workoutID, kind: workout.kind)
             case .editExercise(let exercise):
-                ExerciseFormView(workoutID: workoutID, editingExercise: exercise)
+                ExerciseFormView(workoutID: workoutID, kind: workout.kind,
+                                 editingExercise: exercise)
             case .editWorkout:
                 WorkoutFormView(existing: workout)
             case .confirmDelete:
@@ -117,6 +124,9 @@ struct WorkoutDetailView: View {
         }
         .fullScreenCover(isPresented: $playing) {
             PlayerView(workout: workout)
+        }
+        .sheet(item: $ceremony) { ceremony in
+            CompletionCeremonyView(workout: workout, entryID: ceremony.entryID)
         }
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-autoEditFirstWorkout"),
@@ -140,7 +150,20 @@ struct WorkoutDetailView: View {
                 DebugLaunch.didAutoAddItem = true
                 sheet = .editExercise(first)
             }
+            if ProcessInfo.processInfo.arguments.contains("-autoMarkDone"),
+               !DebugLaunch.didAutoMarkDone,
+               workout.kind == .untimed, !workout.items.isEmpty {
+                DebugLaunch.didAutoMarkDone = true
+                markDone()
+            }
         }
+    }
+
+    /// The untimed completion: they said they did it — creature earned.
+    private func markDone() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        store.markPlayed(workoutID)
+        ceremony = CompletionCeremony(entryID: pond.record(workout: workout))
     }
 
     // MARK: - Read mode
@@ -156,7 +179,7 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(.secondary)
                         .padding(.bottom, 10)
                 }
-                Text(Format.summary(count: workout.items.count, duration: workout.totalDuration))
+                Text(workout.summaryLine)
                     .font(.app(15))
                 if workout.items.isEmpty {
                     emptyState
@@ -208,7 +231,9 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("No exercises yet.")
                 .font(.app(17, .medium))
-            Text("Add timed intervals, or sets with a rest countdown between them.")
+            Text(workout.kind == .timed
+                 ? "Add timed intervals — each announces itself and counts down."
+                 : "Write the program: exercises with sets and reps.")
                 .font(.app(15))
                 .foregroundStyle(.secondary)
             Button {

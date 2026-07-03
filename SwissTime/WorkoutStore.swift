@@ -16,6 +16,12 @@ final class WorkoutStore: ObservableObject {
            let decoded = try? JSONDecoder().decode([Workout].self, from: data) {
             workouts = decoded
         }
+        // Debug: fake a workout list (one untimed, one timed) for UI
+        // verification. Injected before `loaded`, so the fakes replace the
+        // real list in memory but aren't persisted by themselves.
+        if ProcessInfo.processInfo.arguments.contains("-seedWorkouts") {
+            workouts = Self.sampleWorkouts()
+        }
         loaded = true
     }
 
@@ -50,5 +56,43 @@ final class WorkoutStore: ObservableObject {
     private func save() {
         guard let data = try? JSONEncoder().encode(workouts) else { return }
         try? data.write(to: fileURL, options: .atomic)
+    }
+
+    /// The untimed seed was "played" recently so it sorts first —
+    /// `-autoOpenFirstWorkout` lands on the mark-as-done flow.
+    private static func sampleWorkouts() -> [Workout] {
+        func sets(_ name: String, _ sets: Int, _ reps: Int, _ rest: TimeInterval) -> Exercise {
+            var exercise = Exercise(name: name)
+            exercise.mode = .sets
+            exercise.sets = sets
+            exercise.reps = reps
+            exercise.restDuration = rest
+            return exercise
+        }
+        func interval(_ name: String, _ duration: TimeInterval) -> Exercise {
+            var exercise = Exercise(name: name)
+            exercise.mode = .interval
+            exercise.duration = duration
+            return exercise
+        }
+        var pushDay = Workout(title: "Push day", details: "Chest, shoulders, triceps.")
+        pushDay.kind = .untimed
+        pushDay.colorIndex = 3
+        pushDay.lastPlayedAt = Date()
+        pushDay.items = [
+            sets("Bench press", 4, 8, 120),
+            sets("Overhead press", 3, 10, 90),
+            sets("Incline dumbbell press", 3, 12, 90),
+            sets("Triceps pushdown", 3, 12, 60),
+        ]
+        var core = Workout(title: "Core circuit", details: "Every minute, something new.")
+        core.kind = .timed
+        core.colorIndex = 0
+        core.items = [
+            interval("Plank", 60),
+            interval("Dead bug", 60),
+            interval("Side plank", 60),
+        ]
+        return [pushDay, core]
     }
 }

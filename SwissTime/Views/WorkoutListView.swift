@@ -38,7 +38,7 @@ struct WorkoutListView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .overlay(alignment: .trailing) {
-                                    if !workout.items.isEmpty {
+                                    if workout.kind == .timed, !workout.items.isEmpty {
                                         Button {
                                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                             playing = workout
@@ -92,7 +92,7 @@ struct WorkoutListView: View {
                 let arguments = ProcessInfo.processInfo.arguments
                 if arguments.contains("-autoPlayFirstWorkout"), !DebugLaunch.didAutoPlay {
                     DebugLaunch.didAutoPlay = true
-                    playing = store.sortedWorkouts.first
+                    playing = store.sortedWorkouts.first { $0.kind == .timed }
                 } else if arguments.contains("-autoOpenPond"), !DebugLaunch.didAutoOpenPond {
                     DebugLaunch.didAutoOpenPond = true
                     showingPond = true
@@ -111,7 +111,7 @@ struct WorkoutListView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("No workouts yet.")
                 .font(.app(17, .medium))
-            Text("Create a workout, then fill it with timed exercises and sets.")
+            Text("Create a workout — timed ones play with voice cues, untimed ones you log when they're done.")
                 .font(.app(15))
                 .foregroundStyle(.secondary)
             Button {
@@ -177,7 +177,7 @@ private struct WorkoutCard: View {
                     .font(.app(15))
                     .foregroundStyle(.secondary)
             }
-            Text(Format.summary(count: workout.items.count, duration: workout.totalDuration))
+            Text(workout.summaryLine)
                 .font(.app(15))
                 .padding(.top, 2)
             if let line = Format.withLine(workout.exerciseNames) {
@@ -187,7 +187,7 @@ private struct WorkoutCard: View {
             }
         }
         // Clears the play button that overlays the card's trailing edge.
-        .padding(.trailing, workout.items.isEmpty ? 0 : 68)
+        .padding(.trailing, workout.kind == .timed && !workout.items.isEmpty ? 68 : 0)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .paperCard()

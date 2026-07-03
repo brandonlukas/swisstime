@@ -8,6 +8,8 @@ struct PondEntry: Identifiable, Codable, Equatable {
     var workoutID: UUID
     var workoutTitle: String
     var colorIndex: Int
+    /// A line the user wrote about how it went — the logbook's journal entry.
+    var note: String?
 }
 
 /// A calendar month — the pond's unit of time.

@@ -5,6 +5,7 @@ import SwiftUI
 struct PondLogView: View {
     @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
+    @State private var notingEntry: PondEntry?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -23,7 +24,7 @@ struct PondLogView: View {
                 Text("Logbook")
                     .font(.serifApp(30, .semibold))
                     .padding(.bottom, 6)
-                Text("Every finished workout, on the record. Swipe one away to strike it — its creature leaves the pond.")
+                Text("Every finished workout, on the record. Tap an entry to note how it went; swipe one away to strike it — its creature leaves the pond.")
                     .font(.app(14))
                     .foregroundStyle(.secondary)
                     .padding(.bottom, 14)
@@ -43,6 +44,8 @@ struct PondLogView: View {
                         Section {
                             ForEach(monthEntries) { entry in
                                 LogRow(entry: entry)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { notingEntry = entry }
                                     .listRowBackground(Color.paperCardFill.opacity(0.7))
                                     .listRowSeparatorTint(Color.hairline)
                             }
@@ -66,6 +69,9 @@ struct PondLogView: View {
         }
         .background(PaperBackground())
         .preferredColorScheme(.light)
+        .sheet(item: $notingEntry) { entry in
+            NoteFormView(initial: entry.note ?? "") { pond.setNote($0, for: entry.id) }
+        }
     }
 
     private func entries(in month: MonthKey) -> [PondEntry] {
@@ -77,17 +83,26 @@ private struct LogRow: View {
     let entry: PondEntry
 
     var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(Palette.color(entry.colorIndex).fill)
-                .frame(width: 12, height: 12)
-            Text(entry.workoutTitle)
-                .font(.app(16, .medium))
-            Spacer(minLength: 8)
-            Text(entry.completedAt.formatted(
-                .dateTime.month(.abbreviated).day().hour().minute()))
-                .font(.app(14))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(Palette.color(entry.colorIndex).fill)
+                    .frame(width: 12, height: 12)
+                Text(entry.workoutTitle)
+                    .font(.app(16, .medium))
+                Spacer(minLength: 8)
+                Text(entry.completedAt.formatted(
+                    .dateTime.month(.abbreviated).day().hour().minute()))
+                    .font(.app(14))
+                    .foregroundStyle(.secondary)
+            }
+            if let note = entry.note, !note.isEmpty {
+                Text(note)
+                    .font(.serifApp(15))
+                    .italic()
+                    .foregroundStyle(Color.ink.opacity(0.7))
+                    .padding(.leading, 24)
+            }
         }
         .padding(.vertical, 4)
     }

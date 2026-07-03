@@ -6,8 +6,8 @@ import UIKit
 /// linear and truthful — but a discontinuity (new step, skip, finish)
 /// engages a spring so the level moves like something with mass instead
 /// of snapping. A plain reference — advanced once per timeline frame,
-/// its mutations must not invalidate views.
-private final class LevelSpring {
+/// its mutations must not invalidate views. Shared with the Sets tab's water.
+final class LevelSpring {
     private var value: Double = 0
     private var velocity: Double = 0
     private var lastTime: Date?
@@ -59,6 +59,8 @@ struct PlayerView: View {
     @StateObject private var engine: PlayerEngine
     @State private var confirmEnd = false
     @State private var recordedCompletion = false
+    @State private var earnedEntryID: UUID?
+    @State private var showingNote = false
     @State private var waterSpring = LevelSpring()
     @State private var barSpring = LevelSpring()
     @State private var dragOffset: CGFloat = 0
@@ -164,7 +166,12 @@ struct PlayerView: View {
         .onChange(of: engine.phase) { _, phase in
             guard phase == .finished, !recordedCompletion else { return }
             recordedCompletion = true
-            pond.record(workout: engine.workout)
+            earnedEntryID = pond.record(workout: engine.workout)
+        }
+        .sheet(isPresented: $showingNote) {
+            if let id = earnedEntryID {
+                NoteFormView(initial: pond.note(for: id)) { pond.setNote($0, for: id) }
+            }
         }
         .sheet(isPresented: $confirmEnd) {
             ActionListSheet(actions: [
@@ -331,6 +338,16 @@ struct PlayerView: View {
                     Text("Added to your \(MonthKey.current.monthName) pond")
                         .font(.app(13))
                         .foregroundStyle(Color.ink.opacity(0.55))
+                    Button {
+                        showingNote = true
+                    } label: {
+                        Text((earnedEntryID.map(pond.note(for:)) ?? "").isEmpty
+                             ? "Add a note" : "Edit note")
+                            .font(.app(13, .medium))
+                            .underline()
+                            .foregroundStyle(Color.ink.opacity(0.55))
+                    }
+                    .buttonStyle(.plain)
                 }
             } else if let step = engine.currentStep, step.exercise.mode == .sets {
                 VStack(spacing: 12) {
@@ -453,61 +470,5 @@ private struct SetDots: View {
                     .frame(width: 10, height: 10)
             }
         }
-    }
-}
-
-/// The earned creature paddles across a little puddle on the finished card
-/// and settles with a ripple. Runs its own clock — the player's TimelineView
-/// is paused once the workout ends.
-private struct EarnedCreatureView: View {
-    let colorIndex: Int?
-    @State private var appearedAt = Date()
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
-            Canvas { context, size in
-                let t = timeline.date.timeIntervalSince(appearedAt)
-                let kind = Palette.creature(for: colorIndex)
-
-                // A soft puddle to arrive in.
-                context.drawLayer { layer in
-                    layer.addFilter(.blur(radius: 5))
-                    layer.fill(
-                        Path(ellipseIn: CGRect(x: 8, y: size.height / 2 - 17,
-                                               width: size.width - 16, height: 34)),
-                        with: .color(.pondWater.opacity(0.85)))
-                }
-
-                let k = min(1, t / 2.5)
-                let ease = 1 - pow(1 - k, 3)
-                let x = -20 + (size.width / 2 + 20) * ease
-                let y = size.height / 2 + sin(t * 1.8) * 1.5
-                let pos = CGPoint(x: x, y: y)
-
-                if t > 2.4 {
-                    let age = (t - 2.4).truncatingRemainder(dividingBy: 6)
-                    if age < 2.2 {
-                        let fraction = age / 2.2
-                        let radius = 5 + 13 * fraction
-                        context.stroke(
-                            Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius,
-                                                   width: radius * 2, height: radius * 2)),
-                            with: .color(.white.opacity(0.3 * (1 - fraction))),
-                            lineWidth: 1)
-                    }
-                }
-
-                if let style = PondCreatureArt.birdStyle(for: kind) {
-                    PondCreatureArt.drawBird(
-                        in: context, style: style, at: pos, heading: .zero,
-                        wiggle: t * 2.4, wakeOpacity: 0.3 * (1 - k), scale: 0.9)
-                } else {
-                    PondCreatureArt.drawFish(
-                        in: context, kind: kind, at: pos, heading: .zero,
-                        tailWiggle: t * 3.2, opacity: 0.75, scale: 0.9)
-                }
-            }
-        }
-        .frame(width: 150, height: 56)
     }
 }

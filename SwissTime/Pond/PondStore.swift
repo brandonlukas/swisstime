@@ -25,13 +25,27 @@ final class PondStore: ObservableObject {
     }
 
     /// A finished workout drops one creature into this month's pond.
-    func record(workout: Workout) {
-        entries.append(PondEntry(
+    /// Returns the entry's id so the completion flow can attach a note.
+    @discardableResult
+    func record(workout: Workout) -> UUID {
+        let entry = PondEntry(
             completedAt: Date(),
             workoutID: workout.id,
             workoutTitle: workout.title,
             colorIndex: workout.colorIndex ?? 0
-        ))
+        )
+        entries.append(entry)
+        return entry.id
+    }
+
+    /// Writes (or clears) the journal line on a logged workout.
+    func setNote(_ note: String, for id: UUID) {
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        entries[index].note = note.trimmed.isEmpty ? nil : note.trimmed
+    }
+
+    func note(for id: UUID) -> String {
+        entries.first { $0.id == id }?.note ?? ""
     }
 
     /// Strikes a finished workout from the record — its creature leaves the pond.
@@ -87,6 +101,10 @@ final class PondStore: ObservableObject {
         }
         result += lastMonth.enumerated().compactMap { index, item in
             entry(index + 100, monthsAgo: 1, day: item.day, colorIndex: item.colorIndex)
+        }
+        // One journaled entry, so the logbook's note row can be verified.
+        if !result.isEmpty {
+            result[0].note = "New PR on the last set — felt strong."
         }
         return result
     }

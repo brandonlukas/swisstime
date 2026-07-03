@@ -227,6 +227,8 @@ enum DebugLaunch {
     static var didAutoOpenPond = false
     static var didAutoAddItem = false
     static var didAutoEditWorkout = false
+    static var didAutoMarkDone = false
+    static var didAutoStartSets = false
 }
 
 extension String {
@@ -246,6 +248,11 @@ enum Format {
     static func summary(count: Int, duration: TimeInterval) -> String {
         let minutes = Int((duration / 60).rounded(.up))
         return "\(count) exercise\(count == 1 ? "" : "s") · \(minutes) min"
+    }
+
+    /// "4 exercises · 13 sets"
+    static func setsSummary(count: Int, sets: Int) -> String {
+        "\(count) exercise\(count == 1 ? "" : "s") · \(sets) set\(sets == 1 ? "" : "s")"
     }
 
     /// "With 16, Rest, and 20" / "With A, B, C, D, and more"

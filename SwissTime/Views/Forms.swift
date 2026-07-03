@@ -265,6 +265,7 @@ struct WorkoutFormView: View {
 
     @State private var title: String
     @State private var details: String
+    @State private var kind: WorkoutKind
     @State private var colorIndex: Int
 
     init(existing: Workout? = nil, defaultColorIndex: Int = 0,
@@ -273,6 +274,7 @@ struct WorkoutFormView: View {
         self.onCreated = onCreated
         _title = State(initialValue: existing?.title ?? "")
         _details = State(initialValue: existing?.details ?? "")
+        _kind = State(initialValue: existing?.kind ?? .timed)
         _colorIndex = State(initialValue: existing?.colorIndex ?? defaultColorIndex)
     }
 
@@ -284,6 +286,16 @@ struct WorkoutFormView: View {
         ) {
             LabeledField(label: "Title", placeholder: "Title", text: $title)
             LabeledField(label: "Description", placeholder: "Optional description", text: $details)
+            VStack(alignment: .leading, spacing: 10) {
+                SegmentRow(label: "Type", options: [WorkoutKind.timed, .untimed],
+                           display: { $0 == .timed ? "Timed" : "Untimed" },
+                           selection: $kind)
+                Text(kind == .timed
+                     ? "Plays step by step, with a timer and voice cues."
+                     : "Done at your own pace, logged with a tap — the Sets tab can count sets and time rest.")
+                    .font(.app(14))
+                    .foregroundStyle(.secondary)
+            }
             ColorPickerRow(selection: $colorIndex)
         }
     }
@@ -293,9 +305,18 @@ struct WorkoutFormView: View {
             updated.title = title.trimmed
             updated.details = details.trimmed
             updated.colorIndex = colorIndex
+            if updated.kind != kind {
+                updated.kind = kind
+                // Exercises follow the workout's kind; a flipped exercise
+                // keeps its numbers (sets, duration) for flipping back.
+                for index in updated.items.indices {
+                    updated.items[index].mode = kind == .timed ? .interval : .sets
+                }
+            }
             store.update(updated)
         } else {
             var workout = Workout(title: title.trimmed, details: details.trimmed)
+            workout.kind = kind
             workout.colorIndex = colorIndex
             store.workouts.append(workout)
             onCreated?(workout.id)
@@ -309,11 +330,13 @@ struct ExerciseFormView: View {
     @EnvironmentObject private var store: WorkoutStore
 
     let workoutID: UUID
+    /// The workout's kind decides the exercise's shape: timed workouts take
+    /// intervals, untimed ones take sets × reps.
+    let kind: WorkoutKind
     var editingExercise: Exercise?
 
     @State private var name: String
     @State private var instructions: String
-    @State private var mode: ExerciseMode
     @State private var duration: TimeInterval
     @State private var halfway: Bool
     @State private var fiveSeconds: Bool
@@ -322,12 +345,12 @@ struct ExerciseFormView: View {
     @State private var reps: Int
     @State private var rest: TimeInterval
 
-    init(workoutID: UUID, editingExercise: Exercise? = nil) {
+    init(workoutID: UUID, kind: WorkoutKind, editingExercise: Exercise? = nil) {
         self.workoutID = workoutID
+        self.kind = kind
         self.editingExercise = editingExercise
         _name = State(initialValue: editingExercise?.name ?? "")
         _instructions = State(initialValue: editingExercise?.instructions ?? "")
-        _mode = State(initialValue: editingExercise?.mode ?? .interval)
         _duration = State(initialValue: editingExercise?.duration ?? 60)
         _halfway = State(initialValue: editingExercise?.halfwayAlert ?? false)
         _fiveSeconds = State(initialValue: editingExercise?.fiveSecondsAlert ?? true)
@@ -360,12 +383,6 @@ struct ExerciseFormView: View {
         return options
     }
 
-    private var restExplanation: String {
-        rest > 10
-            ? "Counts down from \(Format.mmss(rest)) — you'll hear a cue 5 seconds before the next set starts."
-            : "Counts down from \(Format.mmss(rest)), then starts the next set."
-    }
-
     var body: some View {
         SheetScaffold(
             buttonTitle: isEditing ? "Save exercise" : "Create exercise",
@@ -374,11 +391,8 @@ struct ExerciseFormView: View {
         ) {
             LabeledField(label: "Name", placeholder: "Exercise name", text: $name)
             LabeledField(label: "Instructions", placeholder: "Optional instructions", text: $instructions)
-            SegmentRow(label: "Type", options: [ExerciseMode.interval, .sets],
-                       display: { $0 == .interval ? "Timed" : "Sets" },
-                       selection: $mode)
-            switch mode {
-            case .interval:
+            switch kind {
+            case .timed:
                 PickerField(label: "Duration", options: durationOptions,
                             display: { Format.mmss($0) }, selection: $duration)
                 VStack(alignment: .leading, spacing: 20) {
@@ -387,7 +401,7 @@ struct ExerciseFormView: View {
                     CheckboxRow(title: "Halfway done", isOn: $halfway)
                     CheckboxRow(title: "5s left", isOn: $fiveSeconds)
                 }
-            case .sets:
+            case .untimed:
                 HStack(alignment: .top, spacing: 12) {
                     PickerField(label: "Sets", options: Array(1...12),
                                 display: { "\($0)" }, selection: $sets)
@@ -397,7 +411,7 @@ struct ExerciseFormView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     PickerField(label: "Rest between sets", options: restOptions,
                                 display: { Format.mmss($0) }, selection: $rest)
-                    Text(restExplanation)
+                    Text("Your target rest, for the record — the Sets tab can time it for you.")
                         .font(.app(14))
                         .foregroundStyle(.secondary)
                 }
@@ -421,7 +435,7 @@ struct ExerciseFormView: View {
     private func apply(to exercise: inout Exercise) {
         exercise.name = name.trimmed
         exercise.instructions = instructions.trimmed
-        exercise.mode = mode
+        exercise.mode = kind == .timed ? .interval : .sets
         exercise.duration = duration
         exercise.halfwayAlert = halfway
         exercise.fiveSecondsAlert = fiveSeconds
