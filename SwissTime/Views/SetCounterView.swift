@@ -103,6 +103,9 @@ private struct SetCounterRunView: View {
     let onDone: () -> Void
     @State private var confirmEnd = false
     @State private var waterSpring = LevelSpring()
+    @State private var waterSurface = WaterSurfaceModel()
+    @State private var waterMotion = WaterMotion()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geo in
@@ -112,9 +115,15 @@ private struct SetCounterRunView: View {
             let bottomInset = geo.safeAreaInsets.bottom
             TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                 let now = timeline.date
+                let time = now.timeIntervalSinceReferenceDate
                 let fullHeight = geo.size.height + bottomInset
-                let level = fullHeight * waterSpring.advance(
-                    toward: engine.fraction(at: now), at: now)
+                let target = engine.fraction(at: now)
+                let level = fullHeight * waterSpring.advance(toward: target, at: now)
+                let surface = waterSurface.advance(
+                    targetFraction: target,
+                    gravitySlope: reduceMotion ? 0 : waterMotion.slope,
+                    at: now)
+                let ripple: CGFloat = reduceMotion ? 0 : 1.6
                 ZStack {
                     // The readout is drawn twice — ink on the dry page, a
                     // white copy masked to the same waterline as the water —
@@ -130,12 +139,27 @@ private struct SetCounterRunView: View {
                     readout(at: now)
                         .frame(width: geo.size.width, height: geo.size.height)
                         .foregroundStyle(.white)
-                        .mask(alignment: .bottom) { WaterlineMask(level: level - bottomInset) }
+                        .mask {
+                            WaterSurfaceShape(level: level - bottomInset,
+                                              slope: surface.slope,
+                                              chop: surface.chop, time: time,
+                                              rippleAmp: ripple)
+                        }
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
                 .background {
-                    waterLayer(level: level, now: now)
-                        .ignoresSafeArea(edges: .bottom)
+                    ZStack {
+                        WaterFill(color: .poolWater, time: (time * 4).rounded() / 4)
+                            .equatable()
+                            .mask {
+                                WaterSurfaceShape(level: level, slope: surface.slope,
+                                                  chop: surface.chop, time: time,
+                                                  rippleAmp: ripple)
+                            }
+                        WaterSurfaceCrest(level: level, surface: surface,
+                                          time: time, rippleAmp: ripple)
+                    }
+                    .ignoresSafeArea(edges: .bottom)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -143,6 +167,12 @@ private struct SetCounterRunView: View {
                     .padding(.horizontal, 32)
                     .padding(.bottom, 16)
             }
+        }
+        .onAppear {
+            if !reduceMotion { waterMotion.start() }
+        }
+        .onDisappear {
+            waterMotion.stop()
         }
         .onChange(of: engine.finished) { _, finished in
             if finished { onDone() }
@@ -153,13 +183,6 @@ private struct SetCounterRunView: View {
                            action: onDone),
             ])
         }
-    }
-
-    private func waterLayer(level: CGFloat, now: Date) -> some View {
-        WaterFill(color: .poolWater,
-                  time: (now.timeIntervalSinceReferenceDate * 4).rounded() / 4)
-            .equatable()
-            .mask(alignment: .bottom) { WaterlineMask(level: level) }
     }
 
     /// Numerals, dots, and the set caption — everything that must flip

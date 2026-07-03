@@ -12,7 +12,10 @@ struct PlayerView: View {
     @State private var showingNote = false
     @State private var waterSpring = LevelSpring()
     @State private var barSpring = LevelSpring()
+    @State private var waterSurface = WaterSurfaceModel()
+    @State private var waterMotion = WaterMotion()
     @State private var dragOffset: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(workout: Workout) {
         _engine = StateObject(wrappedValue: PlayerEngine(workout: workout))
@@ -71,6 +74,7 @@ struct PlayerView: View {
             engine.start()
             store.markPlayed(engine.workout.id)
             ScreenSleep.hold()
+            if !reduceMotion { waterMotion.start() }
             // Debug: end the first set a few seconds in, so command-line
             // verification can screenshot the rest step without touch input.
             // Latched — it must not fire on workouts played by hand later
@@ -89,6 +93,7 @@ struct PlayerView: View {
         .onDisappear {
             engine.stopAndTearDown()
             ScreenSleep.release()
+            waterMotion.stop()
         }
         // Finishing (not just starting) earns a toy in this month's pool.
         .onChange(of: engine.phase) { _, phase in
@@ -197,17 +202,33 @@ struct PlayerView: View {
     /// (A TimelineView nested inside .mask doesn't reliably drive updates —
     /// the waterline was moving at the slow texture rate, which read as a
     /// delay-then-jump on step transitions.) Not paused on finish so the
-    /// water drains out.
+    /// water drains out. The surface itself is alive: level from the
+    /// spring, slope from gravity, chop from jumps — a crest stroke over
+    /// the mask makes the line read as water, not a clip edge.
     private func waterLayer(fullHeight: CGFloat) -> some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0,
                                 paused: engine.phase == .paused)) { timeline in
             let now = timeline.date
+            let time = now.timeIntervalSinceReferenceDate
             let target = engine.fraction(at: now)
             let level = fullHeight * waterSpring.advance(toward: target, at: now)
-            WaterFill(color: engine.workout.palette.fill,
-                      time: (now.timeIntervalSinceReferenceDate * 4).rounded() / 4)
-                .equatable()
-                .mask(alignment: .bottom) { WaterlineMask(level: level) }
+            let surface = waterSurface.advance(
+                targetFraction: target,
+                gravitySlope: reduceMotion ? 0 : waterMotion.slope,
+                at: now)
+            let ripple: CGFloat = reduceMotion ? 0 : 1.6
+            ZStack {
+                WaterFill(color: engine.workout.palette.fill,
+                          time: (time * 4).rounded() / 4)
+                    .equatable()
+                    .mask {
+                        WaterSurfaceShape(level: level, slope: surface.slope,
+                                          chop: surface.chop, time: time,
+                                          rippleAmp: ripple)
+                    }
+                WaterSurfaceCrest(level: level, surface: surface, time: time,
+                                  rippleAmp: ripple)
+            }
         }
     }
 

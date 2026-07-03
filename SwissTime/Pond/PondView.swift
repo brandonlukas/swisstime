@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The fullscreen pool: this month lives and moves; swiping back through
-/// past months turns them into kept postcards.
+/// The fullscreen pool: swipe back through past months — every pool stays
+/// alive, still drifting whatever it earned.
 struct PondView: View {
     @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
@@ -83,15 +83,14 @@ private struct PondPage: View {
                 .font(.app(14))
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
-            PondSceneView(monthKey: month, entries: entries,
-                          mode: isCurrent ? .live : .frozen)
+            PondSceneView(monthKey: month, entries: entries, mode: .live)
                 .aspectRatio(0.8, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
                 .paperCard(26)
                 .overlay {
                     if !isCurrent {
-                        // Past months read as kept postcards.
+                        // A quiet frame marks the kept months.
                         RoundedRectangle(cornerRadius: 26, style: .continuous)
                             .stroke(Color.ink.opacity(0.16), lineWidth: 1)
                     }

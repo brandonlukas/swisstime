@@ -280,26 +280,6 @@ struct WaterFill: View, Equatable {
     }
 }
 
-/// The waterline every water fill is revealed through: bottom-anchored,
-/// with a soft top edge. Shared by the player and the set counter.
-struct WaterlineMask: View {
-    let level: CGFloat
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            Color.clear
-            VStack(spacing: 0) {
-                LinearGradient(colors: [.clear, .black],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 24)
-                Color.black
-            }
-            .frame(height: max(0, level), alignment: .bottom)
-            .clipped()
-        }
-    }
-}
-
 /// Drives a level (waterline, progress bar) with two regimes: while the
 /// target creeps with ordinary passage of time it is tracked EXACTLY —
 /// linear and truthful — but a discontinuity (new step, skip, finish)
