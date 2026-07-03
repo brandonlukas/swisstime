@@ -26,6 +26,9 @@ final class PondStore: ObservableObject {
         loaded = true
     }
 
+    /// One finish in twenty comes up gilded.
+    static let shinyOdds = 20
+
     /// A finished workout drops one toy into this month's pool.
     /// Returns the entry's id so the completion flow can attach a note.
     @discardableResult
@@ -34,10 +37,15 @@ final class PondStore: ObservableObject {
             completedAt: Date(),
             workoutID: workout.id,
             workoutTitle: workout.title,
-            colorIndex: workout.colorIndex ?? 0
+            colorIndex: workout.colorIndex ?? 0,
+            shiny: Int.random(in: 0..<Self.shinyOdds) == 0 ? true : nil
         )
         entries.append(entry)
         return entry.id
+    }
+
+    func isShiny(_ id: UUID) -> Bool {
+        entries.first { $0.id == id }?.isShiny == true
     }
 
     /// Writes (or clears) the journal line on a logged workout.
@@ -104,9 +112,14 @@ final class PondStore: ObservableObject {
         result += lastMonth.enumerated().compactMap { index, item in
             entry(index + 100, monthsAgo: 1, day: item.day, colorIndex: item.colorIndex)
         }
-        // One journaled entry, so the logbook's note row can be verified.
+        // One journaled entry, so the logbook's note row can be verified,
+        // and a couple of gilded ones for the shiny art.
         if !result.isEmpty {
             result[0].note = "New PR on the last set — felt strong."
+        }
+        if result.count > 4 {
+            result[2].shiny = true
+            result[4].shiny = true
         }
         return result
     }

@@ -31,6 +31,12 @@ extension Color {
     static let flamingoPink = Color(red: 0.96, green: 0.56, blue: 0.63)
     static let flamingoDeep = Color(red: 0.87, green: 0.42, blue: 0.52)
 
+    /// The gilded colorway — the rare pull.
+    static let gold = Color(red: 0.87, green: 0.70, blue: 0.33)
+    static let goldDeep = Color(red: 0.72, green: 0.55, blue: 0.22)
+    static let pearl = Color(red: 0.97, green: 0.95, blue: 0.90)
+    static let pearlShade = Color(red: 0.87, green: 0.84, blue: 0.76)
+
     /// Cool fill for plain sheet rows.
     static let card = Color(red: 0.878, green: 0.902, blue: 0.933)
     static let fieldBorder = Color.ink.opacity(0.22)

@@ -32,6 +32,18 @@ struct ToyPortrait: View {
 }
 
 extension ToyKind {
+    /// "rubber duck" — for the ceremony lines.
+    var displayName: String {
+        switch self {
+        case .duck: return "rubber duck"
+        case .beachBall: return "beach ball"
+        case .ring: return "swim ring"
+        case .orca: return "orca floatie"
+        case .flamingo: return "flamingo floatie"
+        case .lilo: return "lilo"
+        }
+    }
+
     /// The color picker's one-line promise of what this color floats in.
     var pickerLine: String {
         switch self {

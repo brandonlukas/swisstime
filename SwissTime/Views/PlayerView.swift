@@ -268,13 +268,20 @@ struct PlayerView: View {
             }
             if engine.phase == .finished {
                 VStack(spacing: 8) {
+                    let shiny = earnedEntryID.map(pond.isShiny) ?? false
                     Text("Complete")
                         .display(15)
                         .foregroundStyle(Color.ink)
-                    EarnedToyView(colorIndex: engine.workout.colorIndex)
-                    Text("Afloat in your \(MonthKey.current.monthName) pool")
-                        .font(.app(13))
-                        .foregroundStyle(Color.ink.opacity(0.55))
+                    EarnedToyView(colorIndex: engine.workout.colorIndex, shiny: shiny)
+                    if shiny {
+                        Text("A gilded \(engine.workout.palette.toy.displayName) — lucky you.")
+                            .font(.app(13, .medium))
+                            .foregroundStyle(Color.goldDeep)
+                    } else {
+                        Text("Afloat in your \(MonthKey.current.monthName) pool")
+                            .font(.app(13))
+                            .foregroundStyle(Color.ink.opacity(0.55))
+                    }
                     Button {
                         showingNote = true
                     } label: {

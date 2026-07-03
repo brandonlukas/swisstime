@@ -33,7 +33,7 @@ struct PondSceneView: View {
                            detail: mode == .hero ? .hero : .full)
             }
         } else {
-            TimelineView(.animation(minimumInterval: mode == .hero ? 1.0 / 10.0 : 1.0 / 24.0,
+            TimelineView(.animation(minimumInterval: mode == .hero ? 1.0 / 20.0 : 1.0 / 24.0,
                                     paused: scenePhase != .active || paused)) { timeline in
                 Canvas { context, size in
                     scene.draw(in: context, size: size,

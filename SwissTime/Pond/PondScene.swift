@@ -13,6 +13,7 @@ struct PondScene {
     /// water's edge, so edge avoidance is structural.
     struct Floater {
         let kind: ToyKind
+        let shiny: Bool
         let anchor: CGPoint            // unit coords in the water rect
         let ampX1, ampX2, ampY1, ampY2: CGFloat
         let wX1, wX2, wY1, wY2: Double // rad/s
@@ -99,6 +100,7 @@ struct PondScene {
             let maxAy = max(0.02, min(anchor.y - 0.12, 0.88 - anchor.y))
             return Floater(
                 kind: kind,
+                shiny: entry.isShiny,
                 anchor: anchor,
                 ampX1: CGFloat.random(in: 0.45...0.7, using: &rng) * maxAx,
                 ampX2: CGFloat.random(in: 0.12...0.28, using: &rng) * maxAx,
@@ -258,7 +260,12 @@ struct PondScene {
             }
             PoolToyArt.draw(floater.kind, in: water, at: positions[index],
                             rotation: rotation,
-                            wiggle: time * 2.0 + floater.wigglePhase, scale: toyScale)
+                            wiggle: time * 2.0 + floater.wigglePhase,
+                            scale: toyScale, shiny: floater.shiny)
+            if floater.shiny {
+                PoolToyArt.drawGlint(in: water, at: positions[index], time: time,
+                                     phase: floater.wigglePhase, scale: toyScale)
+            }
         }
 
         drawLadder(in: context, water: water, waterRect: waterRect,

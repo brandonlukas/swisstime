@@ -87,6 +87,14 @@ private struct LogRow: View {
                 Circle()
                     .fill(Palette.color(entry.colorIndex).fill)
                     .frame(width: 12, height: 12)
+                    .overlay {
+                        // A thin gold ring marks the gilded pulls.
+                        if entry.isShiny {
+                            Circle()
+                                .stroke(Color.gold, lineWidth: 1.2)
+                                .frame(width: 17, height: 17)
+                        }
+                    }
                 Text(entry.workoutTitle)
                     .font(.app(16, .medium))
                 Spacer(minLength: 8)

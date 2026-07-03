@@ -24,12 +24,20 @@ struct CompletionCeremonyView: View {
             Text(workout.title)
                 .font(.app(15))
                 .foregroundStyle(.secondary)
-            EarnedToyView(colorIndex: workout.colorIndex)
+            EarnedToyView(colorIndex: workout.colorIndex,
+                          shiny: pond.isShiny(entryID))
                 .padding(.vertical, 10)
-            Text("Afloat in your \(MonthKey.current.monthName) pool")
-                .font(.app(13))
-                .foregroundStyle(Color.ink.opacity(0.55))
-                .padding(.bottom, 22)
+            if pond.isShiny(entryID) {
+                Text("A gilded \(workout.palette.toy.displayName) — lucky you.")
+                    .font(.app(13, .medium))
+                    .foregroundStyle(Color.goldDeep)
+                    .padding(.bottom, 22)
+            } else {
+                Text("Afloat in your \(MonthKey.current.monthName) pool")
+                    .font(.app(13))
+                    .foregroundStyle(Color.ink.opacity(0.55))
+                    .padding(.bottom, 22)
+            }
             NoteField(text: $note)
                 .padding(.horizontal, 20)
             Spacer(minLength: 0)
@@ -95,10 +103,11 @@ struct NoteFormView: View {
 }
 
 /// The earned toy drifts across a strip of tiled pool and settles with a
-/// ripple. Runs its own clock — the player's TimelineView is paused once
-/// the workout ends.
+/// ripple — twinkling, if the roll came up gilded. Runs its own clock —
+/// the player's TimelineView is paused once the workout ends.
 struct EarnedToyView: View {
     let colorIndex: Int?
+    var shiny = false
     @State private var appearedAt = Date()
 
     var body: some View {
@@ -152,7 +161,15 @@ struct EarnedToyView: View {
                 let rotation: Angle = PoolToyArt.isDirectional(kind)
                     ? .zero : .radians(0.15 * t)
                 PoolToyArt.draw(kind, in: water, at: pos, rotation: rotation,
-                                wiggle: t * 2.0, scale: 0.8)
+                                wiggle: t * 2.0, scale: 0.8, shiny: shiny)
+                if shiny, t > 1.6 {
+                    PoolToyArt.drawGlint(in: water, at: pos, time: t + 5.6,
+                                         phase: 0, scale: 0.9)
+                    PoolToyArt.drawGlint(
+                        in: water,
+                        at: CGPoint(x: pos.x - 16, y: pos.y + 8),
+                        time: t + 2.4, phase: 0, scale: 0.65)
+                }
             }
         }
         .frame(width: 150, height: 56)

@@ -10,6 +10,11 @@ struct PondEntry: Identifiable, Codable, Equatable {
     var colorIndex: Int
     /// A line the user wrote about how it went — the logbook's journal entry.
     var note: String?
+    /// The lucky roll: a gilded pearl-and-gold colorway of the earned toy.
+    /// Optional so pre-shiny files decode; nil reads as false.
+    var shiny: Bool?
+
+    var isShiny: Bool { shiny == true }
 }
 
 /// A calendar month — the pond's unit of time.
