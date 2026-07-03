@@ -90,7 +90,7 @@ struct PlayerView: View {
             engine.stopAndTearDown()
             ScreenSleep.release()
         }
-        // Finishing (not just starting) earns a creature in this month's pond.
+        // Finishing (not just starting) earns a toy in this month's pool.
         .onChange(of: engine.phase) { _, phase in
             guard phase == .finished, !recordedCompletion else { return }
             recordedCompletion = true
@@ -248,10 +248,10 @@ struct PlayerView: View {
             if engine.phase == .finished {
                 VStack(spacing: 8) {
                     Text("Complete")
-                        .font(.serifApp(20, .semibold))
+                        .display(15)
                         .foregroundStyle(Color.ink)
-                    EarnedCreatureView(colorIndex: engine.workout.colorIndex)
-                    Text("Added to your \(MonthKey.current.monthName) pond")
+                    EarnedToyView(colorIndex: engine.workout.colorIndex)
+                    Text("Afloat in your \(MonthKey.current.monthName) pool")
                         .font(.app(13))
                         .foregroundStyle(Color.ink.opacity(0.55))
                     Button {

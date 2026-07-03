@@ -26,7 +26,7 @@ final class PondStore: ObservableObject {
         loaded = true
     }
 
-    /// A finished workout drops one creature into this month's pond.
+    /// A finished workout drops one toy into this month's pool.
     /// Returns the entry's id so the completion flow can attach a note.
     @discardableResult
     func record(workout: Workout) -> UUID {
@@ -50,7 +50,7 @@ final class PondStore: ObservableObject {
         entries.first { $0.id == id }?.note ?? ""
     }
 
-    /// Strikes a finished workout from the record — its creature leaves the pond.
+    /// Strikes a finished workout from the record — its toy leaves the pool.
     func remove(_ id: UUID) {
         entries.removeAll { $0.id == id }
     }

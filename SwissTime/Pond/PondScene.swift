@@ -1,26 +1,26 @@
 import SwiftUI
 
-/// Pure pond renderer. All layout is precomputed from seeds in `init`, and
-/// motion is a pure function of time — so the live pond, the low-fps hero
-/// strip, and frozen postcards share one code path with no simulation state.
+/// Pure pool renderer: a top-down municipal pool — dry tile deck, water
+/// inset with a chrome ladder, toys adrift under an afternoon sun. All
+/// layout is precomputed from seeds in `init`, and motion is a pure
+/// function of time — so the live pool, the low-fps hero strip, and frozen
+/// postcards share one code path with no simulation state.
 struct PondScene {
     enum Detail { case hero, full }
 
-    /// A creature wandering the water. Position is a sum of two slow
-    /// sinusoids per axis; amplitudes are clamped to the anchor's distance
-    /// from the water's edge, so edge avoidance is structural.
-    struct Swimmer {
-        let kind: CreatureKind
+    /// A toy adrift on the water. Position is a sum of two slow sinusoids
+    /// per axis; amplitudes are clamped to the anchor's distance from the
+    /// water's edge, so edge avoidance is structural.
+    struct Floater {
+        let kind: ToyKind
         let anchor: CGPoint            // unit coords in the water rect
         let ampX1, ampX2, ampY1, ampY2: CGFloat
         let wX1, wX2, wY1, wY2: Double // rad/s
         let pX1, pX2, pY1, pY2: Double
+        let spinRate: Double           // rad/s, for the symmetric toys
+        let spinPhase: Double
         let wigglePhase: Double
         let ripplePeriod: Double
-        let surfacePeriod: Double      // fish only
-        let surfacePhase: Double
-
-        var isFish: Bool { kind == .koi || kind == .shadowFish }
 
         func unitPosition(at t: Double) -> CGPoint {
             CGPoint(
@@ -38,17 +38,8 @@ struct PondScene {
         }
     }
 
-    struct Reed {
-        let base: CGPoint      // unit coords in the water rect (y 0 top edge, 1 bottom)
-        let height: CGFloat    // points
-        let lean: CGFloat      // sideways drift of the tip, points
-        let width: CGFloat
-        let hasCattail: Bool
-        let swayPhase: Double
-        let shade: CGFloat     // 0 dark – 1 light
-    }
-
-    struct Patch {
+    /// A patch of caustic light (or cloud shade) drifting in the water.
+    struct Caustic {
         let center: CGPoint    // unit coords in the water rect
         let radius: CGFloat    // fraction of water width
         let aspect: CGFloat
@@ -56,61 +47,31 @@ struct PondScene {
         let light: Bool
     }
 
-    let swimmers: [Swimmer]
-    let reeds: [Reed]
-    let patches: [Patch]
+    let floaters: [Floater]
+    let caustics: [Caustic]
+    /// Where the ladder hangs over the top edge, unit x in the water rect.
+    let ladderX: CGFloat
 
     init(monthKey: MonthKey, entries: [PondEntry]) {
         var monthRng = SeededRandom(seed: monthKey.seed)
 
-        var patches: [Patch] = []
+        var caustics: [Caustic] = []
         for index in 0..<6 {
-            patches.append(Patch(
+            caustics.append(Caustic(
                 center: CGPoint(x: CGFloat.random(in: 0.08...0.92, using: &monthRng),
                                 y: CGFloat.random(in: 0.12...0.88, using: &monthRng)),
                 radius: CGFloat.random(in: 0.16...0.30, using: &monthRng),
                 aspect: CGFloat.random(in: 0.45...0.85, using: &monthRng),
                 driftPhase: Double.random(in: 0...(2 * .pi), using: &monthRng),
-                light: index >= 4))
+                light: index >= 3))
         }
-        self.patches = patches
+        self.caustics = caustics
+        self.ladderX = CGFloat.random(in: 0.16...0.34, using: &monthRng)
 
-        // Reed clusters hug the banks: a few up top, more along the bottom,
-        // one or two at the sides — like grass at the pond's edge.
-        var reeds: [Reed] = []
-        func cluster(x: CGFloat, y: CGFloat, count: Int, rng: inout SeededRandom) {
-            for _ in 0..<count {
-                reeds.append(Reed(
-                    base: CGPoint(x: x + CGFloat.random(in: -0.035...0.035, using: &rng),
-                                  y: y + CGFloat.random(in: -0.015...0.015, using: &rng)),
-                    height: CGFloat.random(in: 26...58, using: &rng),
-                    lean: CGFloat.random(in: -10...10, using: &rng),
-                    width: CGFloat.random(in: 1.2...2.2, using: &rng),
-                    hasCattail: Double.random(in: 0...1, using: &rng) < 0.38,
-                    swayPhase: Double.random(in: 0...(2 * .pi), using: &rng),
-                    shade: CGFloat.random(in: 0...1, using: &rng)))
-            }
-        }
-        let topClusters = Int.random(in: 2...3, using: &monthRng)
-        for _ in 0..<topClusters {
-            cluster(x: CGFloat.random(in: 0.06...0.94, using: &monthRng), y: 0.01,
-                    count: Int.random(in: 3...6, using: &monthRng), rng: &monthRng)
-        }
-        let bottomClusters = Int.random(in: 3...5, using: &monthRng)
-        for _ in 0..<bottomClusters {
-            cluster(x: CGFloat.random(in: 0.04...0.96, using: &monthRng), y: 1.0,
-                    count: Int.random(in: 4...8, using: &monthRng), rng: &monthRng)
-        }
-        for x: CGFloat in [0.015, 0.985] where Bool.random(using: &monthRng) {
-            cluster(x: x, y: CGFloat.random(in: 0.5...0.95, using: &monthRng),
-                    count: Int.random(in: 3...5, using: &monthRng), rng: &monthRng)
-        }
-        self.reeds = reeds
-
-        // One swimmer per finished workout, seeded by the entry itself so a
-        // creature keeps its spot and habits for the whole month.
+        // One toy per finished workout, seeded by the entry itself so it
+        // keeps its spot and habits for the whole month.
         var placed: [CGPoint] = []
-        self.swimmers = entries.map { entry in
+        self.floaters = entries.map { entry in
             var rng = SeededRandom(entry.id)
             var anchor = CGPoint(x: 0.5, y: 0.5)
             for _ in 0..<24 {
@@ -123,17 +84,20 @@ struct PondScene {
             }
             placed.append(anchor)
 
-            let kind = Palette.creature(for: entry.colorIndex)
+            let kind = Palette.toy(for: entry.colorIndex)
+            // Vinyl drifts at the water's pace; only the duck has any hustle.
             let tempo: Double
             switch kind {
-            case .duckling: tempo = 1.7
-            case .goose: tempo = 0.6
-            case .koi: tempo = 0.8
-            default: tempo = 1.0
+            case .duck: tempo = 1.2
+            case .beachBall: tempo = 1.0
+            case .orca: tempo = 0.9
+            case .ring: tempo = 0.75
+            case .flamingo: tempo = 0.65
+            case .lilo: tempo = 0.5
             }
             let maxAx = max(0.02, min(anchor.x - 0.10, 0.90 - anchor.x))
             let maxAy = max(0.02, min(anchor.y - 0.12, 0.88 - anchor.y))
-            return Swimmer(
+            return Floater(
                 kind: kind,
                 anchor: anchor,
                 ampX1: CGFloat.random(in: 0.45...0.7, using: &rng) * maxAx,
@@ -148,62 +112,81 @@ struct PondScene {
                 pX2: Double.random(in: 0...(2 * .pi), using: &rng),
                 pY1: Double.random(in: 0...(2 * .pi), using: &rng),
                 pY2: Double.random(in: 0...(2 * .pi), using: &rng),
+                spinRate: Double.random(in: 0.04...0.10, using: &rng)
+                    * (Bool.random(using: &rng) ? 1 : -1),
+                spinPhase: Double.random(in: 0...(2 * .pi), using: &rng),
                 wigglePhase: Double.random(in: 0...(2 * .pi), using: &rng),
-                ripplePeriod: Double.random(in: 8...15, using: &rng),
-                surfacePeriod: Double.random(in: 20...40, using: &rng),
-                surfacePhase: Double.random(in: 0...40, using: &rng))
+                ripplePeriod: Double.random(in: 8...15, using: &rng))
         }
     }
 
     // MARK: - Drawing
 
     func draw(in context: GraphicsContext, size: CGSize, time: TimeInterval, detail: Detail) {
+        let deckInset: CGFloat = detail == .hero ? 12 : 22
         let waterRect = CGRect(origin: .zero, size: size)
-            .insetBy(dx: 14, dy: detail == .hero ? 12 : 18)
+            .insetBy(dx: deckInset, dy: deckInset)
         guard waterRect.width > 40, waterRect.height > 40 else { return }
-        let cornerRadius = min(waterRect.width, waterRect.height) * 0.16
-        let waterPath = Path(roundedRect: waterRect, cornerRadius: cornerRadius, style: .continuous)
-        let crowd: CGFloat = swimmers.count > 14 ? 0.8 : 1.0
-        let creatureScale = (detail == .hero ? 0.85 : 1.0) * crowd
+        let tile: CGFloat = detail == .hero ? 22 : 28
+        let cornerRadius: CGFloat = detail == .hero ? 10 : 14
+        let waterPath = Path(roundedRect: waterRect, cornerRadius: cornerRadius,
+                             style: .continuous)
+        let crowd: CGFloat = floaters.count > 14 ? 0.8 : 1.0
+        let toyScale = (detail == .hero ? 0.85 : 1.0) * crowd
 
-        // Water with a feathered, blurred edge.
-        context.drawLayer { layer in
-            layer.addFilter(.blur(radius: detail == .hero ? 4 : 6))
-            layer.fill(waterPath, with: .color(.pondWater))
-        }
+        // Dry deck: pale tile with straight grout, edge to edge.
+        context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.tileDry))
+        drawGrid(in: context, over: CGRect(origin: .zero, size: size),
+                 spacing: tile, time: nil,
+                 color: .tileGrout.opacity(0.75), lineWidth: 1.2)
 
-        // Everything on the water clips to it.
+        // The pool cut into it, darker at the rim like depth falling away.
+        context.fill(waterPath, with: .color(.poolWater))
         var water = context
         water.clip(to: waterPath)
-
-        // Darker toward the rim, like depth falling away from the banks.
         water.fill(
             Path(CGRect(origin: .zero, size: size)),
             with: .radialGradient(
-                Gradient(colors: [.clear, Color.pondWaterDeep.opacity(0.45)]),
+                Gradient(colors: [.clear, Color.poolWaterDeep.opacity(0.5)]),
                 center: CGPoint(x: waterRect.midX, y: waterRect.midY),
                 startRadius: min(waterRect.width, waterRect.height) * 0.25,
                 endRadius: max(waterRect.width, waterRect.height) * 0.75))
 
-        // Slow drifting cloud-shadows in the water.
+        // The same grid continues underwater, refracting: grout lines wave
+        // slowly, offset dark-under-light so the joints read submerged.
+        drawGrid(in: water, over: waterRect.insetBy(dx: -tile, dy: -tile),
+                 spacing: tile, time: time,
+                 color: .poolWaterDeep.opacity(0.55), lineWidth: 1.6)
+        drawGrid(in: water, over: waterRect.insetBy(dx: -tile, dy: -tile).offsetBy(dx: 1.5, dy: 1.5),
+                 spacing: tile, time: time,
+                 color: .white.opacity(0.14), lineWidth: 1.2)
+
+        // Caustic light and cloud shade drifting through.
         water.drawLayer { layer in
             layer.addFilter(.blur(radius: detail == .hero ? 9 : 14))
-            for patch in patches {
+            for caustic in caustics {
                 let drift = CGPoint(
-                    x: sin(time / 47 + patch.driftPhase) * 10,
-                    y: cos(time / 53 + patch.driftPhase) * 7)
-                let w = patch.radius * waterRect.width
-                let h = w * patch.aspect
+                    x: sin(time / 47 + caustic.driftPhase) * 10,
+                    y: cos(time / 53 + caustic.driftPhase) * 7)
+                let w = caustic.radius * waterRect.width
+                let h = w * caustic.aspect
                 let rect = CGRect(
-                    x: waterRect.minX + patch.center.x * waterRect.width - w / 2 + drift.x,
-                    y: waterRect.minY + patch.center.y * waterRect.height - h / 2 + drift.y,
+                    x: waterRect.minX + caustic.center.x * waterRect.width - w / 2 + drift.x,
+                    y: waterRect.minY + caustic.center.y * waterRect.height - h / 2 + drift.y,
                     width: w, height: h)
                 layer.fill(Path(ellipseIn: rect),
-                           with: .color(patch.light
-                                        ? Color.white.opacity(0.06)
-                                        : Color.pondWaterDeep.opacity(0.5)))
+                           with: .color(caustic.light
+                                        ? Color.white.opacity(0.10)
+                                        : Color.poolWaterDeep.opacity(0.45)))
             }
         }
+
+        // The wet line where water meets tile.
+        water.stroke(waterPath, with: .color(.poolWaterDeep.opacity(0.6)), lineWidth: 2)
+        context.stroke(
+            Path(roundedRect: waterRect.insetBy(dx: -1.5, dy: -1.5),
+                 cornerRadius: cornerRadius + 1.5, style: .continuous),
+            with: .color(.white.opacity(0.5)), lineWidth: 1)
 
         drawGrain(in: water, over: waterRect)
 
@@ -212,54 +195,115 @@ struct PondScene {
                     y: waterRect.minY + unit.y * waterRect.height)
         }
 
-        // Fish glide under the surface; birds paddle on it.
-        for swimmer in swimmers where swimmer.isFish {
-            let pos = point(swimmer.unitPosition(at: time))
-            let v = swimmer.unitVelocity(at: time)
-            let heading = Angle(radians: atan2(v.dy * waterRect.height, v.dx * waterRect.width))
-            let cycle = (time + swimmer.surfacePhase)
-                .truncatingRemainder(dividingBy: swimmer.surfacePeriod)
-            let surfacing = cycle < 3 ? sin(.pi * cycle / 3) : 0
-            let opacity = 0.34 + 0.4 * surfacing
-            PondCreatureArt.drawFish(
-                in: water, kind: swimmer.kind, at: pos, heading: heading,
-                tailWiggle: time * 3.2 + swimmer.wigglePhase,
-                opacity: opacity, scale: creatureScale)
-            if surfacing > 0.05 {
-                drawRipple(in: water, at: pos, age: cycle / 3 * 2.2, maxRadius: 20)
-                drawRipple(in: water, at: pos, age: cycle / 3 * 2.2 - 0.6, maxRadius: 16)
-            }
-        }
-
-        for swimmer in swimmers where !swimmer.isFish {
+        for floater in floaters {
             // A quiet ripple ring left behind now and then.
-            let rippleAge = (time + swimmer.wigglePhase)
-                .truncatingRemainder(dividingBy: swimmer.ripplePeriod)
+            let rippleAge = (time + floater.wigglePhase)
+                .truncatingRemainder(dividingBy: floater.ripplePeriod)
             if rippleAge < 2.2 {
-                let origin = point(swimmer.unitPosition(at: time - rippleAge))
+                let origin = point(floater.unitPosition(at: time - rippleAge))
                 drawRipple(in: water, at: origin, age: rippleAge, maxRadius: 22)
             }
 
-            let pos = point(swimmer.unitPosition(at: time))
-            let v = swimmer.unitVelocity(at: time)
-            let vx = v.dx * waterRect.width
-            let vy = v.dy * waterRect.height
-            let heading = Angle(radians: atan2(vy, vx))
-            let speed = hypot(vx, vy)
-            guard let style = PondCreatureArt.birdStyle(for: swimmer.kind) else { continue }
-            PondCreatureArt.drawBird(
-                in: water, style: style, at: pos, heading: heading,
-                wiggle: time * 2.4 + swimmer.wigglePhase,
-                wakeOpacity: min(0.28, Double(speed) / 7 * 0.28),
-                scale: creatureScale)
+            let pos = point(floater.unitPosition(at: time))
+            let rotation: Angle
+            if PoolToyArt.isDirectional(floater.kind) {
+                let v = floater.unitVelocity(at: time)
+                rotation = Angle(radians: atan2(v.dy * waterRect.height,
+                                                v.dx * waterRect.width))
+            } else {
+                rotation = Angle(radians: floater.spinRate * time + floater.spinPhase)
+            }
+            PoolToyArt.draw(floater.kind, in: water, at: pos, rotation: rotation,
+                            wiggle: time * 2.0 + floater.wigglePhase, scale: toyScale)
         }
 
-        // Reeds grow from the banks, over the water's edge. The hero strip
-        // skips the top bank — tall blades would be cut by the card's clip.
-        for reed in reeds where detail == .full || reed.base.y > 0.5 {
-            drawReed(reed, in: context, waterRect: waterRect, time: time,
-                     heightScale: detail == .hero ? 0.65 : 1.0)
+        drawLadder(in: context, water: water, waterRect: waterRect,
+                   scale: detail == .hero ? 0.8 : 1.0)
+    }
+
+    /// A grout grid over `rect`. With a `time` the lines refract — a slow
+    /// travelling wave, like looking through a metre of water.
+    private func drawGrid(in context: GraphicsContext, over rect: CGRect,
+                          spacing: CGFloat, time: TimeInterval?,
+                          color: Color, lineWidth: CGFloat) {
+        var path = Path()
+        let step: CGFloat = 10
+        var x = rect.minX
+        while x <= rect.maxX {
+            if let time {
+                path.move(to: CGPoint(x: x + wobble(x, 0, time), y: rect.minY))
+                var y = rect.minY
+                while y < rect.maxY {
+                    y += step
+                    path.addLine(to: CGPoint(x: x + wobble(x, y, time), y: y))
+                }
+            } else {
+                path.move(to: CGPoint(x: x, y: rect.minY))
+                path.addLine(to: CGPoint(x: x, y: rect.maxY))
+            }
+            x += spacing
         }
+        var y = rect.minY
+        while y <= rect.maxY {
+            if let time {
+                path.move(to: CGPoint(x: rect.minX, y: y + wobble(y, 0, time)))
+                var x = rect.minX
+                while x < rect.maxX {
+                    x += step
+                    path.addLine(to: CGPoint(x: x, y: y + wobble(y, x, time)))
+                }
+            } else {
+                path.move(to: CGPoint(x: rect.minX, y: y))
+                path.addLine(to: CGPoint(x: rect.maxX, y: y))
+            }
+            y += spacing
+        }
+        context.stroke(path, with: .color(color), lineWidth: lineWidth)
+    }
+
+    private func wobble(_ along: CGFloat, _ across: CGFloat, _ time: TimeInterval) -> CGFloat {
+        1.8 * sin(across / 17 + along / 41 + time * 0.55)
+    }
+
+    /// Chrome ladder hanging over the top edge — rails bright on the deck,
+    /// dimmed where they continue underwater.
+    private func drawLadder(in context: GraphicsContext, water: GraphicsContext,
+                            waterRect: CGRect, scale: CGFloat) {
+        let x = waterRect.minX + ladderX * waterRect.width
+        let gap = 14 * scale
+        let above = 12 * scale
+        let below = 30 * scale
+        let chrome = Color(red: 0.93, green: 0.96, blue: 0.99)
+
+        // The rails' sun shadow on the deck seats them in the scene.
+        var shadow = Path()
+        for railX in [x - gap / 2, x + gap / 2] {
+            shadow.move(to: CGPoint(x: railX + 2.5, y: waterRect.minY - above + 3))
+            shadow.addLine(to: CGPoint(x: railX + 2.5, y: waterRect.minY))
+        }
+        shadow.move(to: CGPoint(x: x - gap / 2 + 2.5, y: waterRect.minY - above + 3))
+        shadow.addLine(to: CGPoint(x: x + gap / 2 + 2.5, y: waterRect.minY - above + 3))
+        context.stroke(shadow, with: .color(.black.opacity(0.13)),
+                       style: StrokeStyle(lineWidth: 3 * scale, lineCap: .round))
+
+        for railX in [x - gap / 2, x + gap / 2] {
+            var sunk = Path()
+            sunk.move(to: CGPoint(x: railX, y: waterRect.minY))
+            sunk.addLine(to: CGPoint(x: railX, y: waterRect.minY + below))
+            water.stroke(sunk, with: .color(chrome.opacity(0.6)),
+                         style: StrokeStyle(lineWidth: 3.4 * scale, lineCap: .round))
+
+            var rail = Path()
+            rail.move(to: CGPoint(x: railX, y: waterRect.minY - above))
+            rail.addLine(to: CGPoint(x: railX, y: waterRect.minY + 1))
+            context.stroke(rail, with: .color(chrome),
+                           style: StrokeStyle(lineWidth: 3.4 * scale, lineCap: .round))
+        }
+        var rung = Path()
+        rung.move(to: CGPoint(x: x - gap / 2, y: waterRect.minY - above))
+        rung.addLine(to: CGPoint(x: x + gap / 2, y: waterRect.minY - above))
+        context.stroke(rung, with: .color(chrome),
+                       style: StrokeStyle(lineWidth: 3 * scale, lineCap: .round))
     }
 
     private func drawRipple(in context: GraphicsContext, at point: CGPoint,
@@ -274,40 +318,12 @@ struct PondScene {
             lineWidth: 1)
     }
 
-    private func drawReed(_ reed: Reed, in context: GraphicsContext,
-                          waterRect: CGRect, time: TimeInterval, heightScale: CGFloat) {
-        let base = CGPoint(x: waterRect.minX + reed.base.x * waterRect.width,
-                           y: waterRect.minY + reed.base.y * waterRect.height)
-        let sway = sin(time / 2.6 + reed.swayPhase) * 2.5
-        let height = reed.height * heightScale
-        let tip = CGPoint(x: base.x + reed.lean + sway, y: base.y - height)
-        let control = CGPoint(x: base.x + reed.lean * 0.25, y: base.y - height * 0.55)
-
-        var blade = Path()
-        blade.move(to: base)
-        blade.addQuadCurve(to: tip, control: control)
-        let green = Color.reedGreen.opacity(0.55 + 0.4 * reed.shade)
-        context.stroke(blade, with: .color(green),
-                       style: StrokeStyle(lineWidth: reed.width, lineCap: .round))
-
-        if reed.hasCattail {
-            // The velvety brown head sits just below the tip, along the blade.
-            let angle = atan2(tip.y - control.y, tip.x - control.x)
-            var c = context
-            c.translateBy(x: tip.x, y: tip.y)
-            c.rotate(by: Angle(radians: angle + .pi / 2))
-            c.fill(Path(roundedRect: CGRect(x: -1.8, y: -1, width: 3.6, height: 10),
-                        cornerRadius: 1.8),
-                   with: .color(.cattail))
-        }
-    }
-
-    /// Extra grain over the water only — the texture that makes it read as
-    /// a printed picture-book page.
+    /// Extra grain over the water only — the slightly filmic surface that
+    /// keeps the flat blue from reading as a vector fill.
     private func drawGrain(in context: GraphicsContext, over rect: CGRect) {
         var c = context
         c.blendMode = .overlay
-        c.opacity = 0.12
+        c.opacity = 0.10
         let image = Image(uiImage: Grain.image)
         let tile: CGFloat = 128
         var y = rect.minY

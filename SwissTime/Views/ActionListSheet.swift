@@ -27,7 +27,7 @@ struct ActionListSheet: View {
                         Text(item.title)
                             .font(.app(17))
                     }
-                    .foregroundStyle(item.destructive ? Color.brick : Color.primary)
+                    .foregroundStyle(item.destructive ? Color.signalRed : Color.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 64)
                     // The empty trail of the row must catch taps too.

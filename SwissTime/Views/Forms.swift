@@ -129,8 +129,8 @@ struct PickerField<Value: Hashable>: View {
     }
 }
 
-/// Tappable row of the curated pond swatches, with a living portrait of
-/// the creature that color earns.
+/// Tappable row of the curated water swatches, with a living portrait of
+/// the pool toy that color earns.
 struct ColorPickerRow: View {
     @Binding var selection: Int
 
@@ -158,14 +158,14 @@ struct ColorPickerRow: View {
                 }
             }
             HStack(spacing: 14) {
-                CreaturePortrait(kind: Palette.color(selection).creature)
+                ToyPortrait(kind: Palette.color(selection).toy)
                     .frame(width: 76, height: 52)
-                    .id(Palette.color(selection).creature)
+                    .id(Palette.color(selection).toy)
                     .transition(.opacity)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Palette.color(selection).name)
                         .font(.app(16, .medium))
-                    Text(Palette.color(selection).creature.pickerLine)
+                    Text(Palette.color(selection).toy.pickerLine)
                         .font(.app(15))
                         .foregroundStyle(.secondary)
                 }

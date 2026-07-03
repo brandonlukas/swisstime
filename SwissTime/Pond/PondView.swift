@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The fullscreen pond: this month lives and moves; swiping back through
+/// The fullscreen pool: this month lives and moves; swiping back through
 /// past months turns them into kept postcards.
 struct PondView: View {
     @EnvironmentObject private var pond: PondStore
@@ -77,8 +77,8 @@ private struct PondPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(isCurrent ? month.monthName : month.title)
-                .font(.serifApp(30, .semibold))
-                .padding(.bottom, 6)
+                .display(28)
+                .padding(.bottom, 8)
             Text(subtitle)
                 .font(.app(14))
                 .foregroundStyle(.secondary)
@@ -97,7 +97,7 @@ private struct PondPage: View {
                     }
                 }
             if isCurrent, entries.isEmpty {
-                Text("Still water. Finish a workout and a duck moves in.")
+                Text("Flat water. Finish a workout and a toy floats in.")
                     .font(.app(15))
                     .foregroundStyle(.secondary)
                     .padding(.top, 20)

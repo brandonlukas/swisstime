@@ -14,7 +14,7 @@ struct Workout: Identifiable, Codable, Equatable {
     var kind: WorkoutKind = .timed
     var exercises: [Exercise] = []
     var lastPlayedAt: Date?
-    /// Index into `Color.swissPalette`; optional so pre-palette files decode.
+    /// Index into `Palette.all`; optional so pre-palette files decode.
     var colorIndex: Int?
 
     var totalDuration: TimeInterval {

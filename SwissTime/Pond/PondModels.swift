@@ -1,6 +1,6 @@
 import Foundation
 
-/// One finished workout — one creature in that month's pond. Title and color
+/// One finished workout — one toy in that month's pool. Title and color
 /// are snapshots so the pond survives workout renames and deletions.
 struct PondEntry: Identifiable, Codable, Equatable {
     var id = UUID()

@@ -7,16 +7,13 @@ private extension Font {
         .system(size: size, weight: weight)
     }
 
-    static func serifApp(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .serif)
-    }
 }
 
-// Mirrors the app's paper/ink palette; the widget target keeps its styling
+// Mirrors the app's deck/ink palette; the widget target keeps its styling
 // local rather than importing app code.
 private extension Color {
-    static let stPaper = Color(red: 0.949, green: 0.937, blue: 0.906)
-    static let stInk = Color(red: 0.16, green: 0.19, blue: 0.23)
+    static let stPaper = Color(red: 0.914, green: 0.929, blue: 0.953)
+    static let stInk = Color(red: 0.075, green: 0.13, blue: 0.28)
 }
 
 struct WorkoutLiveActivity: Widget {
@@ -125,7 +122,7 @@ private struct LockScreenView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(stepTitle(context))
-                    .font(.serifApp(16, .semibold))
+                    .font(.app(16, .semibold))
                     .foregroundStyle(Color.stInk)
                     .lineLimit(1)
                 Text(context.attributes.workoutTitle)

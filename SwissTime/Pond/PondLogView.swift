@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The pond's written record: every finished workout by month, newest first.
-/// Swiping an entry away strikes it from the record — its creature leaves too.
+/// The pool's written record: every finished workout by month, newest first.
+/// Swiping an entry away strikes it from the record — its toy leaves too.
 struct PondLogView: View {
     @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
@@ -22,9 +22,9 @@ struct PondLogView: View {
             .padding(20)
             VStack(alignment: .leading, spacing: 0) {
                 Text("Logbook")
-                    .font(.serifApp(30, .semibold))
-                    .padding(.bottom, 6)
-                Text("Every finished workout, on the record. Tap an entry to note how it went; swipe one away to strike it — its creature leaves the pond.")
+                    .display(26)
+                    .padding(.bottom, 8)
+                Text("Every finished workout, on the record. Tap an entry to note how it went; swipe one away to strike it — its toy leaves the pool.")
                     .font(.app(14))
                     .foregroundStyle(.secondary)
                     .padding(.bottom, 14)
@@ -56,9 +56,8 @@ struct PondLogView: View {
                             }
                         } header: {
                             Text(month.title)
-                                .font(.serifApp(18, .semibold))
-                                .foregroundStyle(Color.ink)
-                                .textCase(nil)
+                                .overline(12)
+                                .foregroundStyle(Color.periwinkle)
                                 .padding(.leading, 4)
                         }
                     }
@@ -98,7 +97,7 @@ private struct LogRow: View {
             }
             if let note = entry.note, !note.isEmpty {
                 Text(note)
-                    .font(.serifApp(15))
+                    .font(.app(15))
                     .italic()
                     .foregroundStyle(Color.ink.opacity(0.7))
                     .padding(.leading, 24)

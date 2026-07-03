@@ -1,172 +1,265 @@
 import SwiftUI
 
-/// Top-down creature drawings: simple layered shapes, deadpan and flat,
-/// in the spirit of a picture book. All code-drawn — no assets.
-enum PondCreatureArt {
-    struct BirdStyle {
-        let body: Color
-        let shade: Color
-        let wing: Color
-        let beak: Color
-        let darkHead: Bool
-        let speckled: Bool
-        let size: CGFloat
-    }
-
-    static let gooseDark = Color(red: 0.24, green: 0.27, blue: 0.25)
-
-    static func birdStyle(for kind: CreatureKind) -> BirdStyle? {
+/// Top-down pool-toy drawings: flat vinyl shapes with a hard afternoon sun
+/// shadow, deadpan like a catalog photo. All code-drawn — no assets.
+enum PoolToyArt {
+    /// Toys that point where they drift; the rest just spin slowly.
+    static func isDirectional(_ kind: ToyKind) -> Bool {
         switch kind {
-        case .drake:
-            return BirdStyle(body: .white,
-                             shade: Color(red: 0.94, green: 0.93, blue: 0.89),
-                             wing: Color(red: 0.90, green: 0.88, blue: 0.83),
-                             beak: .beakOchre, darkHead: false, speckled: false, size: 1.0)
-        case .hen:
-            return BirdStyle(body: Color(red: 0.85, green: 0.76, blue: 0.60),
-                             shade: Color(red: 0.79, green: 0.69, blue: 0.52),
-                             wing: Color(red: 0.73, green: 0.63, blue: 0.46),
-                             beak: .beakOchre, darkHead: false, speckled: true, size: 0.95)
-        case .duckling:
-            return BirdStyle(body: Color(red: 0.89, green: 0.75, blue: 0.39),
-                             shade: Color(red: 0.83, green: 0.69, blue: 0.32),
-                             wing: Color(red: 0.78, green: 0.63, blue: 0.28),
-                             beak: .beakOchre, darkHead: false, speckled: false, size: 0.58)
-        case .goose:
-            return BirdStyle(body: Color(red: 0.78, green: 0.79, blue: 0.76),
-                             shade: Color(red: 0.71, green: 0.72, blue: 0.69),
-                             wing: Color(red: 0.64, green: 0.66, blue: 0.62),
-                             beak: gooseDark, darkHead: true, speckled: false, size: 1.3)
-        case .koi, .shadowFish:
-            return nil
+        case .duck, .orca, .flamingo, .lilo: return true
+        case .beachBall, .ring: return false
         }
     }
 
-    /// Draws a paddling bird facing along `heading`. Local space: +x forward,
-    /// body roughly 36 pt nose-to-tail at scale 1.
-    static func drawBird(in context: GraphicsContext, style: BirdStyle, at point: CGPoint,
-                         heading: Angle, wiggle: Double, wakeOpacity: Double, scale: CGFloat) {
+    /// Draws a floating toy. `rotation` is the drift heading for directional
+    /// toys, a slow spin for the symmetric ones. Local space: +x forward,
+    /// roughly 36 pt across at scale 1.
+    static func draw(_ kind: ToyKind, in context: GraphicsContext, at point: CGPoint,
+                     rotation: Angle, wiggle: Double, scale: CGFloat) {
+        // The sun shadow keeps its world-space direction no matter which way
+        // the toy points: offset first, rotate after.
+        var shadow = context
+        shadow.translateBy(x: point.x + 5 * scale, y: point.y + 7 * scale)
+        shadow.rotate(by: rotation)
+        shadow.scaleBy(x: scale, y: scale)
+        shadow.fill(silhouette(kind), with: .color(.black.opacity(0.13)))
+
         var c = context
         c.translateBy(x: point.x, y: point.y)
-        c.rotate(by: heading)
-        let s = scale * style.size
-        c.scaleBy(x: s, y: s)
-
-        // Wake trails behind, fading in with speed. Kept faint and short so
-        // it reads as water, not wires.
-        if wakeOpacity > 0.02 {
-            var wake = Path()
-            wake.move(to: CGPoint(x: -12, y: 0))
-            wake.addQuadCurve(to: CGPoint(x: -23, y: -5.5),
-                              control: CGPoint(x: -17, y: -1.5))
-            wake.move(to: CGPoint(x: -12, y: 0))
-            wake.addQuadCurve(to: CGPoint(x: -23, y: 5.5),
-                              control: CGPoint(x: -17, y: 1.5))
-            c.stroke(wake, with: .color(.white.opacity(min(wakeOpacity, 0.18))),
-                     style: StrokeStyle(lineWidth: 1, lineCap: .round))
+        c.rotate(by: rotation)
+        c.scaleBy(x: scale, y: scale)
+        if isDirectional(kind) {
+            c.rotate(by: .degrees(sin(wiggle) * 2.0))
         }
 
-        c.rotate(by: .degrees(sin(wiggle) * 2.5))
+        switch kind {
+        case .duck: drawDuck(in: c)
+        case .beachBall: drawBeachBall(in: c)
+        case .ring: drawRing(in: c)
+        case .orca: drawOrca(in: c)
+        case .flamingo: drawFlamingo(in: c)
+        case .lilo: drawLilo(in: c)
+        }
+    }
 
-        // Soft water shadow beneath the body.
-        c.fill(Path(ellipseIn: CGRect(x: -13, y: -7, width: 27, height: 16.5)),
-               with: .color(.black.opacity(0.10)))
+    /// Rough outline for the sun shadow — overlapping subpaths are fine,
+    /// they flatten into one fill.
+    private static func silhouette(_ kind: ToyKind) -> Path {
+        var path = Path()
+        switch kind {
+        case .duck:
+            path.addEllipse(in: CGRect(x: -13, y: -8, width: 23, height: 16))
+            path.addEllipse(in: CGRect(x: 6.5, y: -5.5, width: 11, height: 11))
+        case .beachBall:
+            path.addEllipse(in: CGRect(x: -13, y: -13, width: 26, height: 26))
+        case .ring:
+            path.addEllipse(in: CGRect(x: -13.5, y: -13.5, width: 27, height: 27))
+        case .orca:
+            path.addEllipse(in: CGRect(x: -14, y: -8, width: 28, height: 16))
+            path.addEllipse(in: CGRect(x: -19, y: -6, width: 9, height: 12))
+        case .flamingo:
+            path.addEllipse(in: CGRect(x: -14, y: -12, width: 24, height: 24))
+            path.addEllipse(in: CGRect(x: 10.5, y: -4.2, width: 10.5, height: 8.4))
+        case .lilo:
+            path.addRoundedRect(in: CGRect(x: -17, y: -10, width: 34, height: 20),
+                                cornerSize: CGSize(width: 5, height: 5))
+        }
+        return path
+    }
 
-        // Tail wedge, then a compact body split light/shade along the spine.
+    // MARK: - Toys
+
+    private static func drawDuck(in c: GraphicsContext) {
+        // Tail wedge, then the hull split light/shade along the spine.
         var tail = Path()
         tail.move(to: CGPoint(x: -9, y: -3.6))
-        tail.addLine(to: CGPoint(x: -16, y: 0))
+        tail.addLine(to: CGPoint(x: -15.5, y: 0))
         tail.addLine(to: CGPoint(x: -9, y: 3.6))
         tail.closeSubpath()
-        c.fill(tail, with: .color(style.shade))
+        c.fill(tail, with: .color(.duckShade))
 
         let body = Path(ellipseIn: CGRect(x: -13, y: -8, width: 23, height: 16))
-        c.fill(body, with: .color(style.body))
+        c.fill(body, with: .color(.duckYellow))
         var lower = c
         lower.clip(to: body)
         lower.fill(Path(CGRect(x: -13, y: 0, width: 23, height: 8)),
-                   with: .color(style.shade))
+                   with: .color(.duckShade))
 
-        // Folded wings.
-        c.fill(Path(ellipseIn: CGRect(x: -8.5, y: -7.2, width: 12, height: 5))
-               , with: .color(style.wing))
+        // Molded wing bumps.
+        c.fill(Path(ellipseIn: CGRect(x: -8.5, y: -7.2, width: 12, height: 5)),
+               with: .color(.duckShade.opacity(0.55)))
         c.fill(Path(ellipseIn: CGRect(x: -8.5, y: 2.2, width: 12, height: 5)),
-               with: .color(style.wing))
+               with: .color(.duckShade.opacity(0.55)))
 
-        if style.speckled {
-            for spot in [CGPoint(x: -7, y: -2.5), CGPoint(x: -2, y: 3.5), CGPoint(x: 2, y: -3)] {
-                c.fill(Path(ellipseIn: CGRect(x: spot.x, y: spot.y, width: 1.8, height: 1.8)),
-                       with: .color(style.wing.opacity(0.9)))
-            }
-        }
+        // Head proud of the body, beak reaching forward.
+        c.fill(Path(ellipseIn: CGRect(x: 6.5, y: -5.5, width: 11, height: 11)),
+               with: .color(.duckYellow))
+        var beak = Path()
+        beak.move(to: CGPoint(x: 16, y: -2.6))
+        beak.addLine(to: CGPoint(x: 21.5, y: 0))
+        beak.addLine(to: CGPoint(x: 16, y: 2.6))
+        beak.closeSubpath()
+        c.fill(beak, with: .color(.duckBeak))
 
-        if style.darkHead {
-            // Goose: dark neck reaching forward, dark head, white chin patch.
-            var neck = Path()
-            neck.move(to: CGPoint(x: 6, y: 0))
-            neck.addLine(to: CGPoint(x: 14, y: 0))
-            c.stroke(neck, with: .color(gooseDark),
-                     style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
-            c.fill(Path(ellipseIn: CGRect(x: 10.5, y: -4, width: 8, height: 8)),
-                   with: .color(gooseDark))
-            c.fill(Path(ellipseIn: CGRect(x: 12.2, y: -3.6, width: 4.2, height: 2.2)),
-                   with: .color(.white.opacity(0.92)))
-            var beak = Path()
-            beak.move(to: CGPoint(x: 17.5, y: -1.5))
-            beak.addLine(to: CGPoint(x: 21, y: 0))
-            beak.addLine(to: CGPoint(x: 17.5, y: 1.5))
-            beak.closeSubpath()
-            c.fill(beak, with: .color(gooseDark))
-        } else {
-            // A clearly separated head: a shade ring first, then the head disc
-            // sitting proud of the body, then a bigger beak.
-            c.fill(Path(ellipseIn: CGRect(x: 7, y: -5.2, width: 10.4, height: 10.4)),
-                   with: .color(style.shade))
-            c.fill(Path(ellipseIn: CGRect(x: 8, y: -4.2, width: 8.4, height: 8.4)),
-                   with: .color(style.body))
-            var beak = Path()
-            beak.move(to: CGPoint(x: 15.6, y: -2.4))
-            beak.addLine(to: CGPoint(x: 20.5, y: 0))
-            beak.addLine(to: CGPoint(x: 15.6, y: 2.4))
-            beak.closeSubpath()
-            c.fill(beak, with: .color(style.beak))
+        // Painted eyes on both sides of the head.
+        for y in [-3.4, 3.4] {
+            c.fill(Path(ellipseIn: CGRect(x: 11.2, y: y - 1.1, width: 2.2, height: 2.2)),
+                   with: .color(.ink))
         }
+        // Vinyl catch-light.
+        c.fill(Path(ellipseIn: CGRect(x: 8.2, y: -3.8, width: 3.4, height: 2.2)),
+               with: .color(.white.opacity(0.55)))
     }
 
-    /// Draws a fish facing along `heading`; caller sets opacity for depth.
-    static func drawFish(in context: GraphicsContext, kind: CreatureKind, at point: CGPoint,
-                         heading: Angle, tailWiggle: Double, opacity: Double, scale: CGFloat) {
-        var c = context
-        c.opacity = opacity
-        c.translateBy(x: point.x, y: point.y)
-        c.rotate(by: heading)
-        c.scaleBy(x: scale, y: scale)
-
-        let bodyColor = kind == .koi
-            ? Color(red: 0.69, green: 0.41, blue: 0.30)
-            : Color(red: 0.13, green: 0.19, blue: 0.25)
-
-        // Tail swings around the body's rear joint.
-        var tail = c
-        tail.translateBy(x: -9, y: 0)
-        tail.rotate(by: .degrees(sin(tailWiggle) * 14))
-        var fin = Path()
-        fin.move(to: CGPoint(x: 0, y: 0))
-        fin.addLine(to: CGPoint(x: -8.5, y: -4.5))
-        fin.addLine(to: CGPoint(x: -8.5, y: 4.5))
-        fin.closeSubpath()
-        tail.fill(fin, with: .color(bodyColor))
-
-        c.fill(Path(ellipseIn: CGRect(x: -11, y: -4.5, width: 24, height: 9)),
-               with: .color(bodyColor))
-        // Side fins.
-        c.fill(Path(ellipseIn: CGRect(x: -1, y: -6.5, width: 5, height: 3)),
-               with: .color(bodyColor))
-        c.fill(Path(ellipseIn: CGRect(x: -1, y: 3.5, width: 5, height: 3)),
-               with: .color(bodyColor))
-        if kind == .koi {
-            c.fill(Path(ellipseIn: CGRect(x: 0, y: -2.5, width: 8, height: 5)),
-                   with: .color(Color(red: 0.88, green: 0.79, blue: 0.66).opacity(0.85)))
+    private static func drawBeachBall(in c: GraphicsContext) {
+        let radius: CGFloat = 13
+        let panels: [Color] = [.white, .ballRed, .white, .ballBlue, .white, .ballYellow]
+        for (index, color) in panels.enumerated() {
+            var wedge = Path()
+            wedge.move(to: .zero)
+            wedge.addArc(center: .zero, radius: radius,
+                         startAngle: .degrees(Double(index) * 60),
+                         endAngle: .degrees(Double(index + 1) * 60),
+                         clockwise: false)
+            wedge.closeSubpath()
+            c.fill(wedge, with: .color(color))
         }
+        // Molded cap where the panels meet, and a vinyl catch-light.
+        c.fill(Path(ellipseIn: CGRect(x: -3.2, y: -3.2, width: 6.4, height: 6.4)),
+               with: .color(.white))
+        c.fill(Path(ellipseIn: CGRect(x: -8, y: -9.5, width: 6, height: 3.6)),
+               with: .color(.white.opacity(0.5)))
+    }
+
+    private static func drawRing(in c: GraphicsContext) {
+        var ring = Path()
+        ring.addEllipse(in: CGRect(x: -13.5, y: -13.5, width: 27, height: 27))
+        ring.addEllipse(in: CGRect(x: -7, y: -7, width: 14, height: 14))
+        c.fill(ring, with: .color(.white), style: FillStyle(eoFill: true))
+
+        // Four rescue-red quadrants.
+        var striped = c
+        striped.clip(to: ring, style: FillStyle(eoFill: true))
+        for start in stride(from: 22.5, to: 360, by: 90.0) {
+            var wedge = Path()
+            wedge.move(to: .zero)
+            wedge.addArc(center: .zero, radius: 15,
+                         startAngle: .degrees(start), endAngle: .degrees(start + 45),
+                         clockwise: false)
+            wedge.closeSubpath()
+            striped.fill(wedge, with: .color(.ballRed))
+        }
+        // Inner rim shading so the tube reads round.
+        c.stroke(Path(ellipseIn: CGRect(x: -7, y: -7, width: 14, height: 14)),
+                 with: .color(.ink.opacity(0.12)), lineWidth: 1.2)
+        c.fill(Path(ellipseIn: CGRect(x: -9, y: -11.5, width: 7, height: 3.6)),
+               with: .color(.white.opacity(0.7)))
+    }
+
+    private static func drawOrca(in c: GraphicsContext) {
+        // Tail flukes swept back from the rear joint.
+        var flukes = Path()
+        flukes.move(to: CGPoint(x: -12, y: 0))
+        flukes.addQuadCurve(to: CGPoint(x: -19.5, y: -5.5),
+                            control: CGPoint(x: -14, y: -1.5))
+        flukes.addQuadCurve(to: CGPoint(x: -14.5, y: 0),
+                            control: CGPoint(x: -16.5, y: -1))
+        flukes.addQuadCurve(to: CGPoint(x: -19.5, y: 5.5),
+                            control: CGPoint(x: -16.5, y: 1))
+        flukes.addQuadCurve(to: CGPoint(x: -12, y: 0),
+                            control: CGPoint(x: -14, y: 1.5))
+        c.fill(flukes, with: .color(.orcaDark))
+
+        let body = Path(ellipseIn: CGRect(x: -14, y: -8, width: 28, height: 16))
+        c.fill(body, with: .color(.orcaDark))
+
+        // Pectoral fins.
+        c.fill(Path(ellipseIn: CGRect(x: -3, y: -10.5, width: 8, height: 5)),
+               with: .color(.orcaDark))
+        c.fill(Path(ellipseIn: CGRect(x: -3, y: 5.5, width: 8, height: 5)),
+               with: .color(.orcaDark))
+
+        // White eye patches by the head, saddle patch behind the fin.
+        c.fill(Path(ellipseIn: CGRect(x: 5.5, y: -6.2, width: 5.4, height: 3.2)),
+               with: .color(.white.opacity(0.92)))
+        c.fill(Path(ellipseIn: CGRect(x: 5.5, y: 3.0, width: 5.4, height: 3.2)),
+               with: .color(.white.opacity(0.92)))
+        c.fill(Path(ellipseIn: CGRect(x: -8, y: -2.2, width: 5, height: 4.4)),
+               with: .color(.white.opacity(0.35)))
+
+        // The dorsal fin from above: a slim ridge along the spine.
+        c.fill(Path(roundedRect: CGRect(x: -4, y: -1.4, width: 9, height: 2.8),
+                    cornerRadius: 1.4),
+               with: .color(.black.opacity(0.5)))
+        c.fill(Path(ellipseIn: CGRect(x: 2, y: -7.4, width: 6, height: 3)),
+               with: .color(.white.opacity(0.4)))
+    }
+
+    private static func drawFlamingo(in c: GraphicsContext) {
+        // The inflatable ring you sit in.
+        var ring = Path()
+        ring.addEllipse(in: CGRect(x: -14, y: -12, width: 24, height: 24))
+        ring.addEllipse(in: CGRect(x: -8, y: -6, width: 12, height: 12))
+        c.fill(ring, with: .color(.flamingoPink), style: FillStyle(eoFill: true))
+        c.stroke(Path(ellipseIn: CGRect(x: -8, y: -6, width: 12, height: 12)),
+                 with: .color(.flamingoDeep.opacity(0.6)), lineWidth: 1.2)
+
+        // Folded tail feathers at the rear.
+        var tail = Path()
+        tail.move(to: CGPoint(x: -12, y: -4))
+        tail.addLine(to: CGPoint(x: -19, y: -7.5))
+        tail.addLine(to: CGPoint(x: -12.5, y: 0))
+        tail.closeSubpath()
+        c.fill(tail, with: .color(.flamingoDeep))
+
+        // Neck arcing forward over the rim to a head that clearly outsizes it.
+        var neck = Path()
+        neck.move(to: CGPoint(x: 5, y: -5.5))
+        neck.addQuadCurve(to: CGPoint(x: 14, y: 0),
+                          control: CGPoint(x: 12.5, y: -6))
+        c.stroke(neck, with: .color(.flamingoPink),
+                 style: StrokeStyle(lineWidth: 5, lineCap: .round))
+        c.fill(Path(ellipseIn: CGRect(x: 10.5, y: -4.2, width: 10.5, height: 8.4)),
+               with: .color(.flamingoPink))
+        // Stubby bill, black-tipped — wide enough to not read as a spike.
+        var beak = Path()
+        beak.move(to: CGPoint(x: 20.2, y: -2.4))
+        beak.addQuadCurve(to: CGPoint(x: 25, y: 0),
+                          control: CGPoint(x: 24.6, y: -2))
+        beak.addQuadCurve(to: CGPoint(x: 20.2, y: 2.4),
+                          control: CGPoint(x: 24.6, y: 2))
+        beak.closeSubpath()
+        c.fill(beak, with: .color(.white.opacity(0.9)))
+        c.fill(Path(ellipseIn: CGRect(x: 22.6, y: -1.6, width: 3.2, height: 3.2)),
+               with: .color(.ink))
+        // Painted eyes on both sides of the head, like the duck's.
+        for y in [-2.4, 2.4] {
+            c.fill(Path(ellipseIn: CGRect(x: 14.6, y: y - 0.9, width: 1.8, height: 1.8)),
+                   with: .color(.ink))
+        }
+        c.fill(Path(ellipseIn: CGRect(x: -6, y: -10.5, width: 6.5, height: 3.4)),
+               with: .color(.white.opacity(0.45)))
+    }
+
+    private static func drawLilo(in c: GraphicsContext) {
+        let base = Path(roundedRect: CGRect(x: -17, y: -10, width: 34, height: 20),
+                        cornerRadius: 5)
+        c.fill(base, with: .color(Color(red: 0.93, green: 0.96, blue: 0.98)))
+
+        var inner = c
+        inner.clip(to: base)
+        // Lengthwise air tubes: pool-blue seams.
+        for y in stride(from: -5.0, through: 5.0, by: 5.0) {
+            var seam = Path()
+            seam.move(to: CGPoint(x: -17, y: y))
+            seam.addLine(to: CGPoint(x: 12, y: y))
+            inner.stroke(seam, with: .color(.poolWater.opacity(0.5)), lineWidth: 1.3)
+        }
+        // The pillow block at the head end.
+        inner.fill(Path(CGRect(x: 12, y: -10, width: 5.5, height: 20)),
+                   with: .color(.poolWater.opacity(0.35)))
+        c.stroke(base, with: .color(.poolWater.opacity(0.45)), lineWidth: 1.2)
+        c.fill(Path(ellipseIn: CGRect(x: -12, y: -8, width: 8, height: 3.4)),
+               with: .color(.white.opacity(0.8)))
     }
 }

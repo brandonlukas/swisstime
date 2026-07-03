@@ -45,7 +45,7 @@ struct WorkoutDetailView: View {
                     .frame(width: 16, height: 16)
                     .padding(.bottom, 10)
                 Text(workout.title)
-                    .font(.serifApp(32, .bold))
+                    .display(24)
                     .padding(.bottom, 14)
                 InkRule()
             }
@@ -153,7 +153,7 @@ struct WorkoutDetailView: View {
         }
     }
 
-    /// The untimed completion: they said they did it — creature earned.
+    /// The untimed completion: they said they did it — toy earned.
     private func markDone() {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         store.markPlayed(workoutID)
@@ -186,7 +186,8 @@ struct WorkoutDetailView: View {
                                     .fill(Color.hairline)
                                     .frame(height: 1)
                             }
-                            ExerciseLine(number: "\(index + 1).", exercise: exercise)
+                            ExerciseLine(number: String(format: "%02d", index + 1),
+                                         exercise: exercise)
                         }
                         Rectangle()
                             .fill(Color.hairline)
@@ -319,7 +320,8 @@ private struct ExerciseLine: View {
     var body: some View {
         HStack(spacing: 12) {
             Text(number)
-                .font(.app(15))
+                .overline(12)
+                .foregroundStyle(Color.periwinkle)
                 .frame(minWidth: 30, alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
                 Text(exercise.name)

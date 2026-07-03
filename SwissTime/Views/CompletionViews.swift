@@ -6,7 +6,7 @@ struct CompletionCeremony: Identifiable {
     var id: UUID { entryID }
 }
 
-/// The moment an untimed workout is logged: the earned creature paddles in,
+/// The moment an untimed workout is logged: the earned toy drifts in,
 /// and there's room — never a demand — for a line about how it went.
 struct CompletionCeremonyView: View {
     @EnvironmentObject private var pond: PondStore
@@ -18,15 +18,15 @@ struct CompletionCeremonyView: View {
     var body: some View {
         VStack(spacing: 0) {
             Text("Complete")
-                .font(.serifApp(26, .semibold))
+                .display(20)
                 .padding(.top, 30)
-                .padding(.bottom, 4)
+                .padding(.bottom, 6)
             Text(workout.title)
                 .font(.app(15))
                 .foregroundStyle(.secondary)
-            EarnedCreatureView(colorIndex: workout.colorIndex)
+            EarnedToyView(colorIndex: workout.colorIndex)
                 .padding(.vertical, 10)
-            Text("Added to your \(MonthKey.current.monthName) pond")
+            Text("Afloat in your \(MonthKey.current.monthName) pool")
                 .font(.app(13))
                 .foregroundStyle(Color.ink.opacity(0.55))
                 .padding(.bottom, 22)
@@ -67,7 +67,7 @@ struct NoteField: View {
     }
 }
 
-/// Add or rewrite the journal line on a pond entry, after the fact.
+/// Add or rewrite the journal line on a pool entry, after the fact.
 struct NoteFormView: View {
     let initial: String
     let onSave: (String) -> Void
@@ -94,10 +94,10 @@ struct NoteFormView: View {
     }
 }
 
-/// The earned creature paddles across a little puddle and settles with a
+/// The earned toy drifts across a strip of tiled pool and settles with a
 /// ripple. Runs its own clock — the player's TimelineView is paused once
 /// the workout ends.
-struct EarnedCreatureView: View {
+struct EarnedToyView: View {
     let colorIndex: Int?
     @State private var appearedAt = Date()
 
@@ -105,16 +105,30 @@ struct EarnedCreatureView: View {
         TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
             Canvas { context, size in
                 let t = timeline.date.timeIntervalSince(appearedAt)
-                let kind = Palette.creature(for: colorIndex)
+                let kind = Palette.toy(for: colorIndex)
 
-                // A soft puddle to arrive in.
-                context.drawLayer { layer in
-                    layer.addFilter(.blur(radius: 5))
-                    layer.fill(
-                        Path(ellipseIn: CGRect(x: 8, y: size.height / 2 - 17,
-                                               width: size.width - 16, height: 34)),
-                        with: .color(.pondWater.opacity(0.85)))
+                // A little cut of pool to arrive in.
+                let poolRect = CGRect(x: 4, y: 4, width: size.width - 8,
+                                      height: size.height - 8)
+                let pool = Path(roundedRect: poolRect, cornerRadius: 12,
+                                style: .continuous)
+                context.fill(pool, with: .color(.poolWater))
+                var water = context
+                water.clip(to: pool)
+                var grid = Path()
+                var gx = poolRect.minX
+                while gx < poolRect.maxX {
+                    gx += 16
+                    grid.move(to: CGPoint(x: gx + 1.2 * sin(t * 0.5 + gx / 9),
+                                          y: poolRect.minY))
+                    grid.addLine(to: CGPoint(x: gx + 1.2 * sin(t * 0.5 + gx / 9 + 1.4),
+                                             y: poolRect.maxY))
                 }
+                grid.move(to: CGPoint(x: poolRect.minX, y: poolRect.midY))
+                grid.addLine(to: CGPoint(x: poolRect.maxX, y: poolRect.midY))
+                water.stroke(grid, with: .color(.white.opacity(0.13)), lineWidth: 1)
+                water.stroke(pool, with: .color(.poolWaterDeep.opacity(0.5)),
+                             lineWidth: 1.5)
 
                 let k = min(1, t / 2.5)
                 let ease = 1 - pow(1 - k, 3)
@@ -127,7 +141,7 @@ struct EarnedCreatureView: View {
                     if age < 2.2 {
                         let fraction = age / 2.2
                         let radius = 5 + 13 * fraction
-                        context.stroke(
+                        water.stroke(
                             Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius,
                                                    width: radius * 2, height: radius * 2)),
                             with: .color(.white.opacity(0.3 * (1 - fraction))),
@@ -135,15 +149,10 @@ struct EarnedCreatureView: View {
                     }
                 }
 
-                if let style = PondCreatureArt.birdStyle(for: kind) {
-                    PondCreatureArt.drawBird(
-                        in: context, style: style, at: pos, heading: .zero,
-                        wiggle: t * 2.4, wakeOpacity: 0.3 * (1 - k), scale: 0.9)
-                } else {
-                    PondCreatureArt.drawFish(
-                        in: context, kind: kind, at: pos, heading: .zero,
-                        tailWiggle: t * 3.2, opacity: 0.75, scale: 0.9)
-                }
+                let rotation: Angle = PoolToyArt.isDirectional(kind)
+                    ? .zero : .radians(0.15 * t)
+                PoolToyArt.draw(kind, in: water, at: pos, rotation: rotation,
+                                wiggle: t * 2.0, scale: 0.8)
             }
         }
         .frame(width: 150, height: 56)

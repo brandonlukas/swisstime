@@ -6,7 +6,7 @@ import UIKit
 /// one button: Lap ends a set and fills the clock with your rest, the water
 /// drains as it counts down, a single beep marks zero, and the clock keeps
 /// counting into the negative until the next Lap. The last Lap drops you
-/// back here. No creature — creatures are earned by workouts.
+/// back here. No toy — toys are earned by workouts.
 struct SetCounterView: View {
     @AppStorage("setCounter.sets") private var sets = 4
     @AppStorage("setCounter.rest") private var rest: TimeInterval = 90
@@ -18,7 +18,7 @@ struct SetCounterView: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Sets")
-                    .font(.serifApp(32, .bold))
+                    .display(26)
                     .padding(.bottom, 14)
                 InkRule()
             }
@@ -156,7 +156,7 @@ private struct SetCounterRunView: View {
     }
 
     private func waterLayer(level: CGFloat, now: Date) -> some View {
-        WaterFill(color: .pondWater,
+        WaterFill(color: .poolWater,
                   time: (now.timeIntervalSinceReferenceDate * 4).rounded() / 4)
             .equatable()
             .mask(alignment: .bottom) { WaterlineMask(level: level) }

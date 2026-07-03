@@ -2,31 +2,44 @@ import SwiftUI
 import UIKit
 
 extension Color {
-    /// Warm cream ground behind every screen.
-    static let paper = Color(red: 0.949, green: 0.937, blue: 0.906)
-    /// Slightly brighter warm white for matte cards.
-    static let paperCardFill = Color(red: 0.984, green: 0.973, blue: 0.949)
-    /// Warm indigo-charcoal — the app's "black" for text, buttons, rules.
-    static let ink = Color(red: 0.16, green: 0.19, blue: 0.23)
-    /// Muted brick for destructive actions.
-    static let brick = Color(red: 0.70, green: 0.30, blue: 0.24)
+    /// Cool natatorium off-white — the dry deck behind every screen.
+    static let paper = Color(red: 0.914, green: 0.929, blue: 0.953)
+    /// Brighter cool white for matte cards.
+    static let paperCardFill = Color(red: 0.969, green: 0.978, blue: 0.992)
+    /// Deep pool navy — the app's "black" for text, buttons, rules.
+    static let ink = Color(red: 0.075, green: 0.13, blue: 0.28)
+    /// Lifeguard red, destructive actions only.
+    static let signalRed = Color(red: 0.82, green: 0.26, blue: 0.24)
+    /// The poster accent: airy periwinkle for index numbers and tags.
+    static let periwinkle = Color(red: 0.52, green: 0.57, blue: 0.90)
 
-    /// Pond scene colors.
-    static let pondWater = Color(red: 0.227, green: 0.333, blue: 0.439)
-    static let pondWaterDeep = Color(red: 0.165, green: 0.251, blue: 0.345)
-    static let reedGreen = Color(red: 0.42, green: 0.47, blue: 0.31)
-    static let cattail = Color(red: 0.42, green: 0.29, blue: 0.19)
-    static let beakOchre = Color(red: 0.85, green: 0.60, blue: 0.24)
+    /// Pool scene colors.
+    static let poolWater = Color(red: 0.17, green: 0.45, blue: 0.79)
+    static let poolWaterDeep = Color(red: 0.08, green: 0.27, blue: 0.57)
+    /// Dry tile on the deck around the water.
+    static let tileDry = Color(red: 0.76, green: 0.845, blue: 0.915)
+    static let tileGrout = Color(red: 0.615, green: 0.72, blue: 0.83)
 
-    /// Warm fill for plain sheet rows.
-    static let card = Color(red: 0.93, green: 0.915, blue: 0.88)
+    /// Toy vinyl.
+    static let duckYellow = Color(red: 1.0, green: 0.80, blue: 0.20)
+    static let duckShade = Color(red: 0.93, green: 0.68, blue: 0.12)
+    static let duckBeak = Color(red: 0.96, green: 0.48, blue: 0.16)
+    static let ballRed = Color(red: 0.90, green: 0.30, blue: 0.26)
+    static let ballBlue = Color(red: 0.16, green: 0.42, blue: 0.78)
+    static let ballYellow = Color(red: 0.98, green: 0.77, blue: 0.22)
+    static let orcaDark = Color(red: 0.10, green: 0.13, blue: 0.20)
+    static let flamingoPink = Color(red: 0.96, green: 0.56, blue: 0.63)
+    static let flamingoDeep = Color(red: 0.87, green: 0.42, blue: 0.52)
+
+    /// Cool fill for plain sheet rows.
+    static let card = Color(red: 0.878, green: 0.902, blue: 0.933)
     static let fieldBorder = Color.ink.opacity(0.22)
     static let hairline = Color.ink.opacity(0.10)
 }
 
-/// What swims in for a finished workout of this color.
-enum CreatureKind {
-    case drake, hen, duckling, goose, koi, shadowFish
+/// What floats in for a finished workout of this color.
+enum ToyKind {
+    case duck, beachBall, ring, orca, flamingo, lilo
 }
 
 struct PaletteColor {
@@ -34,40 +47,41 @@ struct PaletteColor {
     let fill: Color
     /// Legible ink on top of `fill` — the light fills need black.
     let onFill: Color
-    let creature: CreatureKind
+    let toy: ToyKind
 }
 
-/// Muted natural swatches, each tied to a pond creature. Indices are stable —
-/// pre-pond files decode and simply adopt the quieter colors. Every fill must
-/// survive full-screen in the player with legible text on matte cards over it.
+/// Six water tones, shallow end to midnight, each tied to a pool toy.
+/// Indices are stable — pre-pool files decode and simply adopt the cooler
+/// colors. Every fill must survive full-screen in the player with legible
+/// text on matte cards over it.
 enum Palette {
     static let all: [PaletteColor] = [
-        PaletteColor(name: "Reed",
-                     fill: Color(red: 0.47, green: 0.51, blue: 0.33), onFill: .white,
-                     creature: .drake),
-        PaletteColor(name: "Pond",
-                     fill: Color(red: 0.227, green: 0.333, blue: 0.439), onFill: .white,
-                     creature: .shadowFish),
-        PaletteColor(name: "Ochre",
-                     fill: Color(red: 0.78, green: 0.59, blue: 0.28), onFill: .black,
-                     creature: .duckling),
-        PaletteColor(name: "Clay",
-                     fill: Color(red: 0.66, green: 0.39, blue: 0.26), onFill: .white,
-                     creature: .koi),
-        PaletteColor(name: "Mist",
-                     fill: Color(red: 0.55, green: 0.63, blue: 0.68), onFill: .black,
-                     creature: .goose),
-        PaletteColor(name: "Cattail",
-                     fill: Color(red: 0.48, green: 0.36, blue: 0.26), onFill: .white,
-                     creature: .hen),
+        PaletteColor(name: "Shallow",
+                     fill: Color(red: 0.47, green: 0.71, blue: 0.87), onFill: .black,
+                     toy: .ring),
+        PaletteColor(name: "Pool",
+                     fill: Color(red: 0.20, green: 0.48, blue: 0.79), onFill: .white,
+                     toy: .duck),
+        PaletteColor(name: "Deep",
+                     fill: Color(red: 0.10, green: 0.26, blue: 0.52), onFill: .white,
+                     toy: .orca),
+        PaletteColor(name: "Chlorine",
+                     fill: Color(red: 0.22, green: 0.56, blue: 0.54), onFill: .white,
+                     toy: .beachBall),
+        PaletteColor(name: "Periwinkle",
+                     fill: Color(red: 0.55, green: 0.59, blue: 0.90), onFill: .black,
+                     toy: .flamingo),
+        PaletteColor(name: "Midnight",
+                     fill: Color(red: 0.15, green: 0.17, blue: 0.33), onFill: .white,
+                     toy: .lilo),
     ]
 
     static func color(_ index: Int?) -> PaletteColor {
         all[(index ?? 0) % all.count]
     }
 
-    static func creature(for index: Int?) -> CreatureKind {
-        color(index).creature
+    static func toy(for index: Int?) -> ToyKind {
+        color(index).toy
     }
 }
 
@@ -83,9 +97,26 @@ extension Font {
         .system(size: size, weight: weight)
     }
 
-    /// New York — titles, month labels, headlines. The storybook voice.
-    static func serifApp(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .serif)
+    /// Expanded grotesque — the poster voice. Use through `Text.display`.
+    static func display(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> Font {
+        .system(size: size, weight: weight).width(.expanded)
+    }
+}
+
+extension Text {
+    /// Poster type: expanded, heavy, uppercase, tracked out.
+    func display(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> some View {
+        kerning(size * 0.05)
+            .font(.display(size, weight))
+            .textCase(.uppercase)
+    }
+
+    /// Small tracked tag — index numbers, month labels.
+    func overline(_ size: CGFloat = 12, _ weight: Font.Weight = .semibold) -> some View {
+        kerning(1.5)
+            .font(.app(size, weight))
+            .monospacedDigit()
+            .textCase(.uppercase)
     }
 }
 
@@ -98,16 +129,16 @@ struct InkRule: View {
     }
 }
 
-// MARK: - Paper surfaces
+// MARK: - Deck surfaces
 
-/// Ambient backdrop: warm cream paper with a barely-there pool of light,
-/// textured with static grain.
+/// Ambient backdrop: cool poolside light on a pale ground, textured with
+/// static grain so it reads as a photograph, not a fill.
 struct PaperBackground: View {
     var body: some View {
         ZStack {
             Color.paper
             RadialGradient(
-                colors: [Color.white.opacity(0.35), .clear],
+                colors: [Color.white.opacity(0.38), .clear],
                 center: UnitPoint(x: 0.5, y: 0.3),
                 startRadius: 0, endRadius: 460
             )
@@ -117,7 +148,7 @@ struct PaperBackground: View {
     }
 }
 
-/// Static tiled noise — kills gradient banding and reads as paper texture.
+/// Static tiled noise — kills gradient banding and adds the film-photo grain.
 struct GrainOverlay: View {
     var body: some View {
         Image(uiImage: Grain.image)
@@ -149,10 +180,71 @@ enum Grain {
     }()
 }
 
-/// The player's pond water: the workout's swatch with slow drifting
-/// cloud-shadows. Rendered full-size at fixed geometry on a slow clock;
-/// PlayerView reveals it up to the waterline with a soft-edged moving mask,
-/// so the expensive blurs stay off the per-frame path.
+/// One seamlessly tiling cell of wavy tile grout: three tiles per side, the
+/// wobble's period matched to the image so the refraction never shows a seam.
+/// Alpha-only white — tint it through `TileGridImage`.
+enum TileGrid {
+    static let tile: CGFloat = 44
+    private static let cells = 3
+
+    static let image: UIImage = {
+        let side = tile * CGFloat(cells)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side))
+        let image = renderer.image { rendererContext in
+            let context = rendererContext.cgContext
+            context.setStrokeColor(UIColor.white.cgColor)
+            context.setLineWidth(1.4)
+            let phases: [CGFloat] = [0, 2.1, 4.4]
+            let step: CGFloat = 4
+            // Verticals wave in y, horizontals in x; line 3 repeats line 0's
+            // phase so the pattern closes across the tile edge.
+            for line in 0...cells {
+                let x = CGFloat(line) * tile
+                let phase = phases[line % cells]
+                var y: CGFloat = 0
+                context.move(to: CGPoint(x: x + 1.6 * sin(phase), y: 0))
+                while y < side {
+                    y += step
+                    context.addLine(to: CGPoint(
+                        x: x + 1.6 * sin(2 * .pi * y / side + phase), y: y))
+                }
+            }
+            for line in 0...cells {
+                let y = CGFloat(line) * tile
+                let phase = phases[line % cells] + 1.0
+                var x: CGFloat = 0
+                context.move(to: CGPoint(x: 0, y: y + 1.6 * sin(phase)))
+                while x < side {
+                    x += step
+                    context.addLine(to: CGPoint(
+                        x: x, y: y + 1.6 * sin(2 * .pi * x / side + phase)))
+                }
+            }
+            context.strokePath()
+        }
+        return image.withRenderingMode(.alwaysTemplate)
+    }()
+}
+
+/// The tiling grout grid, tinted. Layer a light copy and a nudged dark copy
+/// for embossed tile joints on any water color.
+struct TileGridImage: View {
+    let tint: Color
+    let opacity: Double
+
+    var body: some View {
+        Image(uiImage: TileGrid.image)
+            .resizable(resizingMode: .tile)
+            .foregroundStyle(tint)
+            .opacity(opacity)
+            .allowsHitTesting(false)
+    }
+}
+
+/// The player's pool water: the workout's swatch over a sunken tile grid,
+/// with slow drifting caustic light. Rendered full-size at fixed geometry on
+/// a slow clock; PlayerView reveals it up to the waterline with a soft-edged
+/// moving mask, so the expensive blurs stay off the per-frame path.
 struct WaterFill: View, Equatable {
     let color: Color
     let time: TimeInterval
@@ -161,6 +253,10 @@ struct WaterFill: View, Equatable {
         GeometryReader { geo in
             ZStack {
                 color
+                // The pool floor: embossed grout under the water color.
+                TileGridImage(tint: .black, opacity: 0.10)
+                    .offset(x: 1.5, y: 1.5)
+                TileGridImage(tint: .white, opacity: 0.13)
                 Ellipse()
                     .fill(Color.black.opacity(0.12))
                     .frame(width: geo.size.width * 1.1,
@@ -169,7 +265,7 @@ struct WaterFill: View, Equatable {
                     .offset(x: sin(time / 19) * 46,
                             y: geo.size.height * 0.28 + cos(time / 23) * 30)
                 Ellipse()
-                    .fill(Color.white.opacity(0.07))
+                    .fill(Color.white.opacity(0.09))
                     .frame(width: geo.size.width * 0.8,
                            height: max(60, geo.size.height * 0.4))
                     .blur(radius: 32)
@@ -256,7 +352,7 @@ final class LevelSpring {
 }
 
 extension View {
-    /// A matte paper card: warm white, faint edge, soft feathered shadow.
+    /// A matte card: cool white, faint edge, soft feathered shadow.
     /// Slightly translucent variants let the player's rising water read through.
     func paperCard(_ radius: CGFloat = 18, opacity: Double = 1) -> some View {
         self
@@ -269,7 +365,7 @@ extension View {
             .shadow(color: Color.ink.opacity(0.08), radius: 10, y: 4)
     }
 
-    /// Solid ink button surface, matching the paper cards' curvature.
+    /// Solid ink button surface, matching the cards' curvature.
     func inkButton(_ fill: Color, radius: CGFloat = 14) -> some View {
         self
             .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))

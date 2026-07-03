@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// One pond, three temperatures: the ambient hero strip (low fps), the
-/// fullscreen live pond, and frozen postcards of past months.
+/// One pool, three temperatures: the ambient hero strip (low fps), the
+/// fullscreen live pool, and frozen postcards of past months.
 struct PondSceneView: View {
     enum Mode { case hero, live, frozen }
 

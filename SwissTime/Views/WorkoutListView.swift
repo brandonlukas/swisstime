@@ -20,7 +20,7 @@ struct WorkoutListView: View {
                     .buttonStyle(.plain)
                     .padding(.bottom, 24)
                     Text("Workouts")
-                        .font(.serifApp(32, .bold))
+                        .display(26)
                         .padding(.bottom, 14)
                     InkRule()
                         .padding(.bottom, 24)
@@ -119,7 +119,7 @@ struct WorkoutListView: View {
     }
 }
 
-/// The live pond strip: this month's flock at a glance, tap for the full pond.
+/// The live pool strip: this month's toys at a glance, tap for the full pool.
 private struct PondHeroCard: View {
     let entries: [PondEntry]
 
@@ -129,18 +129,18 @@ private struct PondHeroCard: View {
             .frame(maxWidth: .infinity)
             .overlay(alignment: .bottomLeading) {
                 Text(MonthKey.current.monthName)
-                    .font(.serifApp(16, .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(.horizontal, 28)
-                    .padding(.bottom, 24)
+                    .display(13, .bold)
+                    .foregroundStyle(.white.opacity(0.92))
+                    .padding(.horizontal, 26)
+                    .padding(.bottom, 23)
             }
             .overlay(alignment: .bottomTrailing) {
                 if !entries.isEmpty {
                     Text("\(entries.count) afloat")
-                        .font(.app(12, .medium))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .padding(.horizontal, 28)
-                        .padding(.bottom, 25)
+                        .overline(11, .medium)
+                        .foregroundStyle(.white.opacity(0.65))
+                        .padding(.horizontal, 26)
+                        .padding(.bottom, 24)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -158,7 +158,7 @@ private struct WorkoutCard: View {
                     .fill(workout.palette.fill)
                     .frame(width: 14, height: 14)
                 Text(workout.title)
-                    .font(.serifApp(20, .semibold))
+                    .font(.app(18, .semibold))
             }
             if !workout.details.isEmpty {
                 Text(workout.details)
