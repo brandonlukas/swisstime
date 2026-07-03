@@ -366,9 +366,11 @@ final class PlayerEngine: ObservableObject {
                 audio.speak("Halfway done.")
             }
             // Rest always warns — it's the get-ready cue before the next set
-            // auto-starts; timed work keeps its per-exercise setting.
+            // auto-starts; timed work keeps its per-exercise setting. The
+            // small lead covers the synthesizer's spin-up, so speech starts
+            // while the clock still shows 0:05.
             if step.kind == .rest || step.exercise.fiveSecondsAlert,
-               !fiveSecondsFired, remaining <= 5, duration > 10 {
+               !fiveSecondsFired, remaining <= 5.2, duration > 10 {
                 fiveSecondsFired = true
                 audio.speak("5 seconds left.")
             }

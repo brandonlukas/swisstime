@@ -84,6 +84,11 @@ final class AudioManager: NSObject {
             applyCategory(ducking: false)
             try? session.setActive(true)
             silencePlayer?.play()
+            // Resolve the voice now, off the critical path: enumerating
+            // voices is slow, and in a session whose FIRST speech is a
+            // timed cue (the Sets tab's "5 seconds left") that cost would
+            // otherwise land on the cue itself and make it audibly late.
+            _ = voice
         }
     }
 
