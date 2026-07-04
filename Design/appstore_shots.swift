@@ -54,6 +54,96 @@ func posterFont(size: CGFloat) -> NSFont {
     return font
 }
 
+// Water, grout, and caustics — shared by the poster and every UI frame.
+func drawWater(_ ctx: CGContext, night: Bool) {
+    ctx.setFillColor(night ? nightPool : dayPool)
+    ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+
+    func groutPath(vertical: Bool, at position: CGFloat, flip: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        let limit = CGFloat(vertical ? H : W)
+        let wob = { (t: CGFloat) in 9 * flip * sin(2 * .pi * t / 682) }
+        var along: CGFloat = 0
+        if vertical { path.move(to: CGPoint(x: position + wob(0), y: 0)) }
+        else { path.move(to: CGPoint(x: 0, y: position + wob(0))) }
+        while along < limit {
+            along += 8
+            if vertical { path.addLine(to: CGPoint(x: position + wob(along), y: along)) }
+            else { path.addLine(to: CGPoint(x: along, y: position + wob(along))) }
+        }
+        return path
+    }
+    ctx.setLineCap(.round)
+    let verticals: [CGFloat] = [440, 880]
+    let horizontals: [CGFloat] = stride(from: 440, to: CGFloat(H), by: 440).map { $0 }
+    for pass in 0..<2 {
+        ctx.saveGState()
+        if pass == 0 {
+            ctx.translateBy(x: 10, y: 10)
+            ctx.setStrokeColor(night ? nightGroutDark : dayGroutDark)
+            ctx.setLineWidth(21)
+        } else {
+            ctx.setStrokeColor(night ? nightGroutLight : dayGroutLight)
+            ctx.setLineWidth(19)
+        }
+        var flip: CGFloat = 1
+        for v in verticals { ctx.addPath(groutPath(vertical: true, at: v, flip: flip)); flip = -flip }
+        for h in horizontals { ctx.addPath(groutPath(vertical: false, at: h, flip: flip)); flip = -flip }
+        ctx.strokePath()
+        ctx.restoreGState()
+    }
+
+    func blob(cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat,
+              color: CGColor, alpha: CGFloat) {
+        ctx.saveGState()
+        ctx.translateBy(x: cx, y: cy)
+        ctx.scaleBy(x: rx, y: ry)
+        let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                              colors: [color.copy(alpha: alpha)!,
+                                       color.copy(alpha: 0)!] as CFArray,
+                              locations: [0, 1])!
+        ctx.drawRadialGradient(grad, startCenter: .zero, startRadius: 0,
+                               endCenter: .zero, endRadius: 1, options: [])
+        ctx.restoreGState()
+    }
+    blob(cx: 330, cy: 420, rx: 560, ry: 380,
+         color: night ? nightBlob : dayBlob, alpha: 0.45)
+    blob(cx: 1050, cy: 2450, rx: 520, ry: 360, color: rgb(1, 1, 1),
+         alpha: night ? 0.05 : 0.12)
+}
+
+/// One line of type at a baseline; returns drawn width. `stretchTo`
+/// forces glyph width (the wordmark's wide O); otherwise text only
+/// shrinks to fit maxWidth. Centered when x is nil.
+@discardableResult
+func drawText(_ ctx: CGContext, _ text: String, font: NSFont, color: CGColor,
+              kern: CGFloat, x: CGFloat?, baseline: CGFloat,
+              maxWidth: CGFloat, stretchTo: CGFloat? = nil) -> CGFloat {
+    let attributed = NSAttributedString(string: text, attributes: [
+        .font: font, .kern: kern, .foregroundColor: NSColor(cgColor: color)!,
+    ])
+    let line = CTLineCreateWithAttributedString(attributed)
+    ctx.textMatrix = .identity   // not graphics state; reset per pass
+    let bounds = CTLineGetImageBounds(line, ctx)
+    let scaleX: CGFloat
+    let scaleY: CGFloat
+    if let target = stretchTo {
+        scaleX = target / bounds.width; scaleY = 1
+    } else {
+        let fit = min(1, maxWidth / bounds.width)
+        scaleX = fit; scaleY = fit
+    }
+    let drawnWidth = bounds.width * scaleX
+    let originX = x ?? (CGFloat(W) - drawnWidth) / 2
+    ctx.saveGState()
+    ctx.translateBy(x: originX, y: baseline)
+    ctx.scaleBy(x: scaleX, y: -scaleY)
+    ctx.textPosition = CGPoint(x: -bounds.minX, y: 0)
+    CTLineDraw(line, ctx)
+    ctx.restoreGState()
+    return drawnWidth
+}
+
 struct Frame {
     let capture: String          // basename in <captures-dir>
     let index: String            // "01"
@@ -91,89 +181,16 @@ func render(_ frame: Frame) {
     ctx.translateBy(x: 0, y: CGFloat(H))
     ctx.scaleBy(x: 1, y: -1)     // top-left origin; images/text flip locally
 
-    // 1 · Water, edge to edge.
-    ctx.setFillColor(frame.night ? nightPool : dayPool)
-    ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+    drawWater(ctx, night: frame.night)
 
-    // 2 · Grout: the icon's long-sine joints at deck scale (~440px cells).
-    func groutPath(vertical: Bool, at position: CGFloat, flip: CGFloat) -> CGPath {
-        let path = CGMutablePath()
-        let limit = CGFloat(vertical ? H : W)
-        let wob = { (t: CGFloat) in 9 * flip * sin(2 * .pi * t / 682) }
-        var along: CGFloat = 0
-        if vertical { path.move(to: CGPoint(x: position + wob(0), y: 0)) }
-        else { path.move(to: CGPoint(x: 0, y: position + wob(0))) }
-        while along < limit {
-            along += 8
-            if vertical { path.addLine(to: CGPoint(x: position + wob(along), y: along)) }
-            else { path.addLine(to: CGPoint(x: along, y: position + wob(along))) }
-        }
-        return path
-    }
-    ctx.setLineCap(.round)
-    let verticals: [CGFloat] = [440, 880]
-    let horizontals: [CGFloat] = stride(from: 440, to: CGFloat(H), by: 440).map { $0 }
-    for pass in 0..<2 {
-        ctx.saveGState()
-        if pass == 0 {
-            ctx.translateBy(x: 10, y: 10)
-            ctx.setStrokeColor(frame.night ? nightGroutDark : dayGroutDark)
-            ctx.setLineWidth(21)
-        } else {
-            ctx.setStrokeColor(frame.night ? nightGroutLight : dayGroutLight)
-            ctx.setLineWidth(19)
-        }
-        var flip: CGFloat = 1
-        for v in verticals { ctx.addPath(groutPath(vertical: true, at: v, flip: flip)); flip = -flip }
-        for h in horizontals { ctx.addPath(groutPath(vertical: false, at: h, flip: flip)); flip = -flip }
-        ctx.strokePath()
-        ctx.restoreGState()
-    }
-
-    // 3 · Caustic depth, one blob high and one low.
-    func blob(cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat,
-              color: CGColor, alpha: CGFloat) {
-        ctx.saveGState()
-        ctx.translateBy(x: cx, y: cy)
-        ctx.scaleBy(x: rx, y: ry)
-        let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
-                              colors: [color.copy(alpha: alpha)!,
-                                       color.copy(alpha: 0)!] as CFArray,
-                              locations: [0, 1])!
-        ctx.drawRadialGradient(grad, startCenter: .zero, startRadius: 0,
-                               endCenter: .zero, endRadius: 1, options: [])
-        ctx.restoreGState()
-    }
-    blob(cx: 330, cy: 420, rx: 560, ry: 380,
-         color: frame.night ? nightBlob : dayBlob, alpha: 0.45)
-    blob(cx: 1050, cy: 2450, rx: 520, ry: 360, color: rgb(1, 1, 1),
-         alpha: frame.night ? 0.05 : 0.12)
-
-    // 4 · Header: index overline, then the headline with its sun shadow.
-    func drawLine(_ text: String, font: NSFont, color: CGColor, kern: CGFloat,
-                  x: CGFloat, baseline: CGFloat, maxWidth: CGFloat) -> CGFloat {
-        let attributed = NSAttributedString(string: text, attributes: [
-            .font: font, .kern: kern, .foregroundColor: NSColor(cgColor: color)!,
-        ])
-        let line = CTLineCreateWithAttributedString(attributed)
-        ctx.textMatrix = .identity   // not graphics state; reset per pass
-        let bounds = CTLineGetImageBounds(line, ctx)
-        let fit = min(1, maxWidth / bounds.width)
-        ctx.saveGState()
-        ctx.translateBy(x: x, y: baseline)
-        ctx.scaleBy(x: fit, y: -fit)
-        ctx.textPosition = CGPoint(x: -bounds.minX, y: 0)
-        CTLineDraw(line, ctx)
-        ctx.restoreGState()
-        return bounds.width * fit
-    }
+    // Header: the headline with its sun shadow.
     let headlineFont = posterFont(size: 128)
     var baseline: CGFloat = 270
     for text in frame.lines {
-        _ = drawLine(text, font: headlineFont, color: sunShadow, kern: 128 * 0.02,
-                     x: margin + 8, baseline: baseline + 10, maxWidth: 1128)
-        _ = drawLine(text, font: headlineFont, color: vinylWhite, kern: 128 * 0.02,
-                     x: margin, baseline: baseline, maxWidth: 1128)
+        drawText(ctx, text, font: headlineFont, color: sunShadow, kern: 128 * 0.02,
+                 x: margin + 8, baseline: baseline + 10, maxWidth: 1128)
+        drawText(ctx, text, font: headlineFont, color: vinylWhite, kern: 128 * 0.02,
+                 x: margin, baseline: baseline, maxWidth: 1128)
         baseline += 164
     }
 
@@ -219,5 +236,109 @@ func render(_ frame: Frame) {
         .write(to: URL(fileURLWithPath: "\(outDir)/lido-shot-\(frame.index).png"))
 }
 
+// Shot 00 — the poster: the icon's world at store size. No UI by design;
+// the four frames after it carry the real app (2.3.3's spirit: the SET
+// shows the app in use). Duck geometry is lido_icon.swift's, scaled.
+func renderPoster() {
+    let ctx = makeContext(W, H)
+    ctx.translateBy(x: 0, y: CGFloat(H))
+    ctx.scaleBy(x: 1, y: -1)
+    drawWater(ctx, night: false)
+
+    // Wordmark: forced-width stretch (the wide O), sun shadow first.
+    let wordFont = posterFont(size: 300)
+    drawText(ctx, "LIDO", font: wordFont, color: sunShadow, kern: 300 * 0.02,
+             x: (CGFloat(W) - 1060) / 2 + 14, baseline: 618, maxWidth: 1128,
+             stretchTo: 1060)
+    drawText(ctx, "LIDO", font: wordFont, color: vinylWhite, kern: 300 * 0.02,
+             x: (CGFloat(W) - 1060) / 2, baseline: 600, maxWidth: 1128,
+             stretchTo: 1060)
+    drawText(ctx, "A WORKOUT TIMER WITH A POOL.",
+             font: NSFont.monospacedSystemFont(ofSize: 42, weight: .semibold),
+             color: rgb(1, 1, 1, 0.82), kern: 9, x: nil, baseline: 760,
+             maxWidth: 1128)
+
+    // The duck, ported from lido_icon.swift: local space +x forward,
+    // drawn at 1.9x with its ripple and hard sun shadow.
+    let k: CGFloat = 1.9
+    let duckCenter = CGPoint(x: 660, y: 1780)
+
+    ctx.setStrokeColor(rgb(1, 1, 1, 0.15))
+    ctx.setLineWidth(9 * k)
+    let rippleR = 320 * k
+    ctx.strokeEllipse(in: CGRect(x: duckCenter.x - rippleR, y: duckCenter.y - rippleR,
+                                 width: rippleR * 2, height: rippleR * 2))
+
+    func duckSilhouette(into c: CGContext) {
+        let tail = CGMutablePath()
+        tail.move(to: CGPoint(x: -126, y: -50))
+        tail.addLine(to: CGPoint(x: -217, y: 0))
+        tail.addLine(to: CGPoint(x: -126, y: 50))
+        tail.closeSubpath()
+        c.addPath(tail)
+        c.addEllipse(in: CGRect(x: -182, y: -112, width: 322, height: 224))
+        c.addEllipse(in: CGRect(x: 91, y: -77, width: 154, height: 154))
+        let beak = CGMutablePath()
+        beak.move(to: CGPoint(x: 224, y: -36))
+        beak.addLine(to: CGPoint(x: 301, y: 0))
+        beak.addLine(to: CGPoint(x: 224, y: 36))
+        beak.closeSubpath()
+        c.addPath(beak)
+    }
+    func placeDuck(dx: CGFloat, dy: CGFloat, body: () -> Void) {
+        ctx.saveGState()
+        ctx.translateBy(x: duckCenter.x + dx, y: duckCenter.y + dy)
+        ctx.scaleBy(x: k, y: k)
+        ctx.rotate(by: -20 * .pi / 180)
+        body()
+        ctx.restoreGState()
+    }
+    let duckBody = rgb(1.0, 0.796, 0.20)
+    let duckShade = rgb(0.89, 0.659, 0.11)
+    let duckBeak = rgb(0.941, 0.455, 0.165)
+    let toyInk = rgb(0.075, 0.13, 0.28)
+
+    placeDuck(dx: 76, dy: 129) {
+        duckSilhouette(into: ctx)
+        ctx.setFillColor(sunShadow)
+        ctx.fillPath()
+    }
+    placeDuck(dx: 0, dy: 0) {
+        let tail = CGMutablePath()
+        tail.move(to: CGPoint(x: -126, y: -50))
+        tail.addLine(to: CGPoint(x: -217, y: 0))
+        tail.addLine(to: CGPoint(x: -126, y: 50))
+        tail.closeSubpath()
+        ctx.addPath(tail)
+        ctx.setFillColor(duckShade)
+        ctx.fillPath()
+        ctx.setFillColor(duckBody)
+        ctx.fillEllipse(in: CGRect(x: -182, y: -112, width: 322, height: 224))
+        ctx.setFillColor(duckShade.copy(alpha: 0.55)!)
+        ctx.fillEllipse(in: CGRect(x: -119, y: -101, width: 168, height: 70))
+        ctx.fillEllipse(in: CGRect(x: -119, y: 31, width: 168, height: 70))
+        ctx.setFillColor(duckBody)
+        ctx.fillEllipse(in: CGRect(x: 91, y: -77, width: 154, height: 154))
+        let beak = CGMutablePath()
+        beak.move(to: CGPoint(x: 224, y: -36))
+        beak.addLine(to: CGPoint(x: 301, y: 0))
+        beak.addLine(to: CGPoint(x: 224, y: 36))
+        beak.closeSubpath()
+        ctx.addPath(beak)
+        ctx.setFillColor(duckBeak)
+        ctx.fillPath()
+        ctx.setFillColor(toyInk)
+        ctx.fillEllipse(in: CGRect(x: 157, y: -63, width: 30, height: 30))
+        ctx.fillEllipse(in: CGRect(x: 157, y: 33, width: 30, height: 30))
+        ctx.setFillColor(rgb(1, 1, 1, 0.55))
+        ctx.fillEllipse(in: CGRect(x: 102, y: -54, width: 52, height: 32))
+    }
+
+    let rep = NSBitmapImageRep(cgImage: ctx.makeImage()!)
+    try! rep.representation(using: .png, properties: [:])!
+        .write(to: URL(fileURLWithPath: "\(outDir)/lido-shot-00.png"))
+}
+
+renderPoster()
 for frame in frames { render(frame) }
 print("done — \(frames.count) frames at \(W)×\(H), font \(posterFont(size: 116).fontName)")
