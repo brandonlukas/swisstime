@@ -409,8 +409,12 @@ struct ExerciseFormView: View {
         editingExercise != nil
     }
 
+    /// Starts at 0:10, not 0:05 — nothing real lasts five seconds, and the
+    /// step's own announcement would talk through the whole interval. Ten
+    /// stays for Tabata rests (20 on / 10 off) and get-ready buffer steps.
+    /// An existing exercise with an off-list value keeps it (see below).
     private static let baseDurations: [TimeInterval] = [
-        5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180,
+        10, 15, 20, 30, 45, 60, 90, 120, 150, 180,
         240, 300, 360, 420, 480, 540, 600, 720, 900,
         1200, 1500, 1800,
     ]
@@ -439,6 +443,13 @@ struct ExerciseFormView: View {
                         .font(.app(17, .medium))
                     CheckboxRow(title: "Halfway done", isOn: $halfway)
                     CheckboxRow(title: "5s left", isOn: $fiveSeconds)
+                    // Matches the player's merged-cue rule for short steps —
+                    // the user hears one thing, so the form promises one thing.
+                    if duration <= VoiceCueRule.minimumSpan, halfway || fiveSeconds {
+                        Text("At \(Format.mmss(duration)), halfway is the 5-second mark — one “5 seconds left” plays.")
+                            .font(.app(13))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             case .untimed:
                 // No rest field: untimed exercises never play, so a target

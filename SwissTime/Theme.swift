@@ -392,6 +392,7 @@ enum DebugLaunch {
     static var didAutoMarkDone = false
     static var didAutoStartSets = false
     static var didAutoAdvance = false
+    static var didAutoAdopt = false
 }
 
 extension String {

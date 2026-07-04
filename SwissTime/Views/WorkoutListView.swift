@@ -8,6 +8,9 @@ struct WorkoutListView: View {
     @State private var showingPond = false
     @State private var showingSettings = false
     @State private var playing: Workout?
+    /// The shelf's starters, built once per view lifetime so their IDs are
+    /// stable across renders (adopting one navigates by that ID).
+    @State private var starters = WorkoutStore.starterWorkouts()
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -119,20 +122,85 @@ struct WorkoutListView: View {
                           let first = store.sortedWorkouts.first {
                     DebugLaunch.didAutoOpen = true
                     path = [first.id]
+                } else if arguments.contains("-autoAdoptFirstSample"),
+                          !DebugLaunch.didAutoAdopt,
+                          store.workouts.isEmpty,
+                          let first = starters.first {
+                    DebugLaunch.didAutoAdopt = true
+                    adopt(first)
                 }
             }
         }
     }
 
+    /// The one screen every new user sees and no established user ever
+    /// revisits — so the sample shelf lives here, borrowing the empty
+    /// state's lifetime instead of claiming standing chrome. Anything in
+    /// the library (adopted or created) sinks the whole thing.
     private var emptyState: some View {
-        EmptyStateView(
-            title: "No workouts yet.",
-            message: "Create a workout — timed ones play with voice cues, untimed ones you log when they're done.",
-            buttonTitle: "Create workout"
-        ) {
-            showingCreate = true
+        VStack(alignment: .leading, spacing: 0) {
+            EmptyStateView(
+                title: "No workouts yet.",
+                message: "Create a workout — timed ones play with voice cues, untimed ones you log when they're done.",
+                buttonTitle: "Create workout"
+            ) {
+                showingCreate = true
+            }
+            Text("Or start from a sample")
+                .overline()
+                .foregroundStyle(.secondary)
+                .padding(.top, 28)
+                .padding(.bottom, 12)
+            VStack(spacing: 10) {
+                ForEach(starters) { sample in
+                    Button {
+                        adopt(sample)
+                    } label: {
+                        sampleRow(sample)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+            }
         }
         .padding(.top, 8)
+    }
+
+    /// A quiet, dashed outline — the one hint this isn't yours yet.
+    private func sampleRow(_ sample: Workout) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(sample.palette.fill)
+                .frame(width: 11, height: 11)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sample.title)
+                    .font(.app(15, .semibold))
+                Text("\(sample.kind == .timed ? "Timed" : "Sets") · \(sample.summaryLine)")
+                    .font(.app(12))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "plus")
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        // Transparent pixels don't hit-test — the row needs its shape.
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.ink.opacity(0.25),
+                              style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+        )
+    }
+
+    /// One tap: the sample becomes a real workout — same editing, same
+    /// delete — and its detail opens so the structure is immediately
+    /// visible. Adding ends the empty state, which retires the shelf.
+    private func adopt(_ sample: Workout) {
+        Haptics.impact()
+        store.workouts.append(sample)
+        path = [sample.id]
     }
 }
 

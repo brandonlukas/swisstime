@@ -372,10 +372,28 @@ final class PlayerEngine: ObservableObject {
         let remaining = remaining(at: now)
         if phase == .running, let step = currentStep,
            let duration = step.countdownDuration {
-            if step.kind == .work, step.exercise.halfwayAlert,
-               !halfwayFired, remaining <= duration / 2 {
+            // On a step of ten seconds or less, the midpoint IS the
+            // five-second mark — the two cues are the same moment. A
+            // checked alert (either one) collapses into a single
+            // "5 seconds left." there, because a checked box that says
+            // nothing reads as broken. Below the speech lead itself
+            // there's no moment left worth narrating.
+            if step.kind == .work, duration <= VoiceCueRule.minimumSpan,
+               duration > VoiceCueRule.lead,
+               step.exercise.halfwayAlert || step.exercise.fiveSecondsAlert,
+               !fiveSecondsFired, !halfwayFired, remaining <= duration / 2 {
+                fiveSecondsFired = true
                 halfwayFired = true
-                audio.speak("Halfway done.")
+                // Cues are clocks, announcements are context: a timed cue
+                // queued behind a long announcement plays LATE, and a late
+                // clock is a lie. Cues cut in; context yields.
+                audio.speak("5 seconds left.", interrupting: true)
+            }
+            if step.kind == .work, step.exercise.halfwayAlert,
+               !halfwayFired, remaining <= duration / 2,
+               duration > VoiceCueRule.minimumSpan {
+                halfwayFired = true
+                audio.speak("Halfway done.", interrupting: true)
             }
             // Rest always warns — it's the get-ready cue before the next set
             // auto-starts; timed work keeps its per-exercise setting.
@@ -383,7 +401,7 @@ final class PlayerEngine: ObservableObject {
                !fiveSecondsFired, remaining <= VoiceCueRule.lead,
                duration > VoiceCueRule.minimumSpan {
                 fiveSecondsFired = true
-                audio.speak("5 seconds left.")
+                audio.speak("5 seconds left.", interrupting: true)
             }
         }
         if remaining <= 0 {

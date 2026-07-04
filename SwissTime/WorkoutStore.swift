@@ -61,40 +61,92 @@ final class WorkoutStore: ObservableObject {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
+    // MARK: - Starters & seeds
+
+    private static func setsExercise(_ name: String, _ sets: Int, _ reps: Int,
+                                     _ rest: TimeInterval) -> Exercise {
+        var exercise = Exercise(name: name)
+        exercise.mode = .sets
+        exercise.sets = sets
+        exercise.reps = reps
+        exercise.restDuration = rest
+        return exercise
+    }
+
+    private static func intervalExercise(_ name: String, _ duration: TimeInterval,
+                                         halfway: Bool = false) -> Exercise {
+        var exercise = Exercise(name: name)
+        exercise.mode = .interval
+        exercise.duration = duration
+        exercise.halfwayAlert = halfway
+        return exercise
+    }
+
+    /// The empty state's shelf: three curated starters, adopted one tap at
+    /// a time. Three on purpose — enough to cover both modes without
+    /// making the first screen a decision. Push Day teaches sets mode
+    /// (Lap + rest clock); the other two are hands-free timed circuits.
+    /// Fresh IDs per call, so re-adopting after a delete never collides.
+    static func starterWorkouts() -> [Workout] {
+        var pushDay = Workout(title: "Push Day", details: "Chest, shoulders, triceps.")
+        pushDay.kind = .untimed
+        pushDay.colorIndex = 3
+        pushDay.exercises = [
+            setsExercise("Bench press", 4, 8, 120),
+            setsExercise("Overhead press", 3, 10, 90),
+            setsExercise("Incline dumbbell press", 3, 12, 90),
+            setsExercise("Triceps pushdown", 3, 12, 60),
+        ]
+        var core = Workout(title: "Core Circuit", details: "Every minute, something new.")
+        core.kind = .timed
+        core.colorIndex = 0
+        core.exercises = [
+            intervalExercise("Plank", 60),
+            intervalExercise("Dead bug", 60),
+            // "Halfway done." is the cue to switch sides.
+            intervalExercise("Side plank", 60, halfway: true),
+        ]
+        // Pitched for a first-timer: dynamic moves carry the eight minutes
+        // (a minute of crunches is far kinder than a minute of holding),
+        // holds are capped at 60s, and the side plank's halfway cue splits
+        // it into 30 a side. Hard-guy moves like hollow holds stay out —
+        // anyone can finish this on day one, and nobody's bored by it.
+        var abs = Workout(title: "Morning Abs", details: "Eight minutes, hands-free.")
+        abs.kind = .timed
+        abs.colorIndex = 4
+        abs.exercises = [
+            intervalExercise("Crunches", 60),
+            intervalExercise("Heel taps", 60),
+            intervalExercise("Reverse crunches", 60),
+            intervalExercise("Side plank", 60, halfway: true),
+            intervalExercise("Leg raises", 60),
+            intervalExercise("Bicycle crunches", 60),
+            intervalExercise("Mountain climbers", 60),
+            intervalExercise("Plank", 60),
+        ]
+        return [pushDay, core, abs]
+    }
+
     /// The untimed seed was "played" recently so it sorts first —
     /// `-autoOpenFirstWorkout` lands on the mark-as-done flow.
     private static func sampleWorkouts() -> [Workout] {
-        func sets(_ name: String, _ sets: Int, _ reps: Int, _ rest: TimeInterval) -> Exercise {
-            var exercise = Exercise(name: name)
-            exercise.mode = .sets
-            exercise.sets = sets
-            exercise.reps = reps
-            exercise.restDuration = rest
-            return exercise
-        }
-        func interval(_ name: String, _ duration: TimeInterval) -> Exercise {
-            var exercise = Exercise(name: name)
-            exercise.mode = .interval
-            exercise.duration = duration
-            return exercise
-        }
         var pushDay = Workout(title: "Push day", details: "Chest, shoulders, triceps.")
         pushDay.kind = .untimed
         pushDay.colorIndex = 3
         pushDay.lastPlayedAt = Date()
         pushDay.exercises = [
-            sets("Bench press", 4, 8, 120),
-            sets("Overhead press", 3, 10, 90),
-            sets("Incline dumbbell press", 3, 12, 90),
-            sets("Triceps pushdown", 3, 12, 60),
+            setsExercise("Bench press", 4, 8, 120),
+            setsExercise("Overhead press", 3, 10, 90),
+            setsExercise("Incline dumbbell press", 3, 12, 90),
+            setsExercise("Triceps pushdown", 3, 12, 60),
         ]
         var core = Workout(title: "Core circuit", details: "Every minute, something new.")
         core.kind = .timed
         core.colorIndex = 0
         core.exercises = [
-            interval("Plank", 60),
-            interval("Dead bug", 60),
-            interval("Side plank", 60),
+            intervalExercise("Plank", 60),
+            intervalExercise("Dead bug", 60),
+            intervalExercise("Side plank", 60),
         ]
         return [pushDay, core]
     }

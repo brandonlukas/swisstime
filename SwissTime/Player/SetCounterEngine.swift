@@ -115,7 +115,9 @@ final class SetCounterEngine: ObservableObject {
         if fiveSecondsCue, !cueFired, !beepFired,
            remaining <= VoiceCueRule.lead, rest > VoiceCueRule.minimumSpan {
             cueFired = true
-            audio.speak("5 seconds left.")
+            // Interrupting for the same reason as the player's cues: the
+            // heads-up is a clock, and it must not queue behind anything.
+            audio.speak("5 seconds left.", interrupting: true)
         }
         guard !beepFired, remaining <= 0 else { return }
         beepFired = true

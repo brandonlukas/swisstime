@@ -136,6 +136,9 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.voiceIdentifier) private var voiceIdentifier = ""
     @State private var voices: [VoiceOption] = []
     @State private var preview = VoicePreview()
+    /// The voice list is long enough to bury Haptics and Live Activity —
+    /// it stays folded behind the current pick until asked for.
+    @State private var voicesExpanded = false
 
     /// A voice plus its display line, resolved once when the list loads —
     /// `detailLine` does a Locale lookup per voice, too slow to redo on
@@ -198,7 +201,6 @@ struct SettingsView: View {
         // very screen doing the switching honest about the result.
         .preferredColorScheme(sheetScheme)
         .onAppear {
-            loadVoices()
             // Debug: walk the theme through the reported repro sequence
             // (day → system → night) with the sheet up, for screenshots.
             if ProcessInfo.processInfo.arguments.contains("-autoCycleTheme") {
@@ -222,29 +224,60 @@ struct SettingsView: View {
 
     private var voiceSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Voice")
-                .font(.app(17, .medium))
-                .padding(.bottom, 4)
-            voiceRow(name: "Automatic",
-                     detail: "The most natural voice on this device",
-                     selected: voiceIdentifier.isEmpty) {
-                voiceIdentifier = ""
-                preview.speak(nil)
-            }
-            ForEach(voices) { option in
-                Rectangle().fill(Color.hairline).frame(height: 1)
-                voiceRow(name: option.voice.name,
-                         detail: option.detail,
-                         selected: voiceIdentifier == option.voice.identifier) {
-                    voiceIdentifier = option.voice.identifier
-                    preview.speak(option.voice)
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    voicesExpanded.toggle()
                 }
+                if voicesExpanded, voices.isEmpty { loadVoices() }
+            } label: {
+                HStack(spacing: 10) {
+                    Text("Voice")
+                        .font(.app(17, .medium))
+                    Spacer(minLength: 8)
+                    Text(selectedVoiceName)
+                        .font(.app(15))
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(voicesExpanded ? 180 : 0))
+                }
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
             }
-            Text("More voices — including higher-quality ones — can be downloaded in Settings → Accessibility → Spoken Content → Voices.")
-                .font(.app(13))
-                .foregroundStyle(.secondary)
-                .padding(.top, 12)
+            .buttonStyle(.plain)
+            if voicesExpanded {
+                voiceRow(name: "Automatic",
+                         detail: "The most natural voice on this device",
+                         selected: voiceIdentifier.isEmpty) {
+                    voiceIdentifier = ""
+                    preview.speak(nil)
+                }
+                ForEach(voices) { option in
+                    Rectangle().fill(Color.hairline).frame(height: 1)
+                    voiceRow(name: option.voice.name,
+                             detail: option.detail,
+                             selected: voiceIdentifier == option.voice.identifier) {
+                        voiceIdentifier = option.voice.identifier
+                        preview.speak(option.voice)
+                    }
+                }
+                Text("More voices — including higher-quality ones — can be downloaded in Settings → Accessibility → Spoken Content → Voices.")
+                    .font(.app(13))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 12)
+            }
         }
+    }
+
+    /// The folded row's summary — the pick by name, resolved without
+    /// enumerating (the full list loads only when the section opens).
+    private var selectedVoiceName: String {
+        guard !voiceIdentifier.isEmpty else { return "Automatic" }
+        if let option = voices.first(where: { $0.voice.identifier == voiceIdentifier }) {
+            return option.voice.name
+        }
+        return AVSpeechSynthesisVoice(identifier: voiceIdentifier)?.name ?? "Automatic"
     }
 
     private func voiceRow(name: String, detail: String, selected: Bool,
