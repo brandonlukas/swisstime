@@ -2,23 +2,28 @@ import SwiftUI
 import UIKit
 
 /// The floating tab bar can miss a system appearance change that arrives
-/// while the app is backgrounded: on return its traitCollection updates but
+/// while the scene isn't frontmost: on return its traitCollection updates but
 /// the glass material stays rendered in the old style. Bouncing the bar
 /// through an explicit opposite style and back — held for a beat, so the
 /// two changes land in separate render transactions — forces the material
 /// to re-resolve. Only fired when the appearance actually changed while
 /// away, so ordinary foregrounds never see the bounce.
+///
+/// "Away" isn't just `.background`: flipping Dark/Light through Control
+/// Center (or the app-switcher preview) only ever dips the scene to
+/// `.inactive` — the app is never truly backgrounded — so the style must be
+/// captured on every departure from `.active`, not only a full background.
 @MainActor
 enum TabBarRefresher {
-    private static var styleAtBackground: UIUserInterfaceStyle?
+    private static var styleBeforeLeaving: UIUserInterfaceStyle?
 
-    static func noteBackgrounded() {
-        styleAtBackground = currentStyle()
+    static func noteLeavingActive() {
+        styleBeforeLeaving = currentStyle()
     }
 
     static func kickIfStyleChanged() {
-        guard let old = styleAtBackground else { return }
-        styleAtBackground = nil
+        guard let old = styleBeforeLeaving else { return }
+        styleBeforeLeaving = nil
         if old != currentStyle() { kick() }
     }
 
@@ -120,13 +125,16 @@ struct SwissTimeApp: App {
             .background(SchemeReporter())
             // nil follows the system; Day and Night pin it.
             .preferredColorScheme(ThemeChoice(rawValue: theme)?.colorScheme)
-            // A backgrounded appearance flip leaves the tab bar's material
-            // latched on the old style — detect and re-resolve on return.
-            .onChange(of: scenePhase) { _, phase in
-                switch phase {
-                case .background: TabBarRefresher.noteBackgrounded()
-                case .active: TabBarRefresher.kickIfStyleChanged()
-                default: break
+            // An appearance flip while the scene wasn't frontmost leaves the
+            // tab bar's material latched on the old style — detect and
+            // re-resolve on return. Keyed on the .active transition itself
+            // (not just .background) so a Control Center toggle, which only
+            // ever dips to .inactive, is caught too.
+            .onChange(of: scenePhase) { old, new in
+                if old == .active, new != .active {
+                    TabBarRefresher.noteLeavingActive()
+                } else if new == .active, old != .active {
+                    TabBarRefresher.kickIfStyleChanged()
                 }
             }
         }
