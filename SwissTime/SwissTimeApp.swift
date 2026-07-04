@@ -1,16 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// Cross-view latch for launcher deep links. The URL can arrive before its
-/// destination exists (cold launch from a lock-screen widget), so arrival
-/// both posts a notification (for a live Sets tab) and sets a flag (for one
-/// about to be built) — whoever gets there consumes it.
-@MainActor
-enum DeepLink {
-    static let startSets = Notification.Name("SwissTime.startSets")
-    static var pendingSetsStart = false
-}
-
 @main
 struct SwissTimeApp: App {
     enum AppTab {
@@ -21,6 +11,7 @@ struct SwissTimeApp: App {
     @StateObject private var pond = PondStore()
     @State private var tab: AppTab
     @AppStorage(SettingsKey.theme) private var theme = ThemeChoice.system.rawValue
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // If the app died mid-workout, its Live Activity is still on the
@@ -62,14 +53,20 @@ struct SwissTimeApp: App {
             .background(SchemeReporter())
             // nil follows the system; Day and Night pin it.
             .preferredColorScheme(ThemeChoice(rawValue: theme)?.colorScheme)
-            // swisstime://sets/start — the widget and Control Center door.
+            // swisstime://sets/start — the lock-screen widget door. The
+            // Control Center door is StartSetsIntent (Shared/DeepLink.swift),
+            // which performs in this process and posts the same request.
             .onOpenURL { url in
                 guard url.scheme == "swisstime", url.host == "sets" else { return }
+                if url.path == "/start" { DeepLink.requestSetsStart() } else { tab = .sets }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: DeepLink.startSets)) { _ in
                 tab = .sets
-                if url.path == "/start" {
-                    DeepLink.pendingSetsStart = true
-                    NotificationCenter.default.post(name: DeepLink.startSets, object: nil)
-                }
+            }
+            // Cold-launch net: if the request landed before this view was
+            // listening, the flag is still set when the scene activates.
+            .onChange(of: scenePhase, initial: true) { _, new in
+                if new == .active, DeepLink.pendingSetsStart { tab = .sets }
             }
         }
     }

@@ -117,16 +117,58 @@ struct WeekWidget: Widget {
         }
         .configurationDisplayName("This week")
         .description("The week's workouts, day by day, in their own colors.")
-        .supportedFamilies([.systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
 private struct WeekView: View {
+    @Environment(\.widgetFamily) private var family
     let entry: PoolTimelineEntry
 
     var body: some View {
         let days = weekDays(from: entry.entries, now: entry.date)
         let count = weekCount(entry.entries, now: entry.date)
+        if family == .systemSmall {
+            // The medium's left column plus a letterless strip — day
+            // letters need the medium's width to breathe.
+            VStack(alignment: .leading, spacing: 0) {
+                Text("This week")
+                    .font(.system(size: 11, weight: .semibold))
+                    .kerning(1.3)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.wInk.opacity(0.55))
+                Spacer(minLength: 0)
+                Text("\(count)")
+                    .font(.system(size: 46, weight: .light))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.wInk)
+                Text(count == 1 ? "workout" : "workouts")
+                    .font(.system(size: 11, weight: .semibold))
+                    .kerning(1.1)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.wInk.opacity(0.55))
+                    .padding(.bottom, 12)
+                HStack(spacing: 4) {
+                    ForEach(Array(days.enumerated()), id: \.offset) { _, day in
+                        RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                            .fill(day.fill ?? .clear)
+                            .overlay {
+                                if day.fill == nil {
+                                    RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                                        .strokeBorder(Color.wInk.opacity(0.16))
+                                }
+                            }
+                            .frame(width: 13, height: 13)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        } else {
+            mediumBody(days: days, count: count)
+        }
+    }
+
+    private func mediumBody(days: [WeekDay], count: Int) -> some View {
         HStack(alignment: .bottom, spacing: 22) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("This week")
@@ -135,10 +177,18 @@ private struct WeekView: View {
                     .textCase(.uppercase)
                     .foregroundStyle(Color.wInk.opacity(0.55))
                 Spacer(minLength: 0)
+                // The unit keeps the tally from reading as a date next to
+                // the calendar letters ("3" + JULY = the 3rd; "3 workouts"
+                // can only be a count).
                 Text("\(count)")
-                    .font(.system(size: 64, weight: .light))
+                    .font(.system(size: 58, weight: .light))
                     .monospacedDigit()
                     .foregroundStyle(Color.wInk)
+                Text(count == 1 ? "workout" : "workouts")
+                    .font(.system(size: 11, weight: .semibold))
+                    .kerning(1.1)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.wInk.opacity(0.55))
             }
             HStack(alignment: .bottom, spacing: 7) {
                 ForEach(Array(days.enumerated()), id: \.offset) { _, day in
@@ -173,7 +223,9 @@ struct PoolWidget: Widget {
         }
         .configurationDisplayName("The pool")
         .description("This month's pool — one toy afloat per finished workout.")
-        .supportedFamilies([.systemSmall])
+        // The medium is the hero card's proportions on the home screen;
+        // toy positions are relative, so the same view fills both.
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
@@ -226,10 +278,19 @@ private struct PoolView: View {
                         .textCase(.uppercase)
                         .foregroundStyle(Color.wInk.opacity(0.65))
                     Spacer(minLength: 0)
-                    Text("\(afloat.count)")
-                        .font(.system(size: 44, weight: .light))
-                        .monospacedDigit()
-                        .foregroundStyle(Color.wInk)
+                    // "3 afloat", same words as the hero card — a bare
+                    // numeral under a month name reads as a date.
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text("\(afloat.count)")
+                            .font(.system(size: 40, weight: .light))
+                            .monospacedDigit()
+                        Text("afloat")
+                            .font(.system(size: 11, weight: .semibold))
+                            .kerning(1.1)
+                            .textCase(.uppercase)
+                            .opacity(0.6)
+                    }
+                    .foregroundStyle(Color.wInk)
                 }
             }
         }
@@ -247,7 +308,9 @@ struct WeekAccessoryWidget: Widget {
         }
         .configurationDisplayName("This week")
         .description("The week's tally on the Lock Screen.")
-        .supportedFamilies([.accessoryRectangular, .accessoryInline, .accessoryCircular])
+        // No circular: a bare tally in a 72pt circle never explained
+        // itself ("3 what?") — the rectangular has room for the unit.
+        .supportedFamilies([.accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -260,28 +323,38 @@ private struct WeekAccessoryView: View {
         switch family {
         case .accessoryInline:
             Label("\(count) this week", systemImage: "figure.run")
-        case .accessoryCircular:
-            VStack(spacing: -2) {
-                Text("\(count)")
-                    .font(.system(size: 24, weight: .semibold))
-                    .monospacedDigit()
-                Text("WK")
-                    .font(.system(size: 9, weight: .semibold))
-                    .opacity(0.6)
-            }
         default:
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 4) {
+            // Poster numeral: the home widgets' grammar, miniaturized. The
+            // words are the unit ("3 workouts", never July 3rd); the strip
+            // carries the shape of the week. No app name — the system
+            // already attributes accessories.
+            // Numeral and words share the top row — fixedSize keeps the
+            // words at natural width so no cell size can wrap them
+            // mid-word (device cells came out narrower than the side
+            // column this once lived in). The strip owns the bottom row.
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 9) {
+                    Text("\(count)")
+                        .font(.system(size: 36, weight: .light))
+                        .monospacedDigit()
+                    Text(count == 1 ? "workout\nthis week" : "workouts\nthis week")
+                        .font(.system(size: 12, weight: .semibold))
+                        .kerning(1)
+                        .textCase(.uppercase)
+                        .lineSpacing(1)
+                        .fixedSize()
+                    Spacer(minLength: 0)
+                }
+                HStack(spacing: 4.5) {
                     ForEach(Array(weekDays(from: entry.entries, now: entry.date).enumerated()),
                             id: \.offset) { _, day in
-                        RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                            .fill(.primary.opacity(day.fill == nil ? 0.25 : 1))
-                            .frame(width: 10, height: 10)
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(.primary.opacity(day.fill == nil ? 0.28 : 1))
+                            .frame(width: 13, height: 13)
                     }
                 }
-                Text("\(count) this week").font(.system(size: 14, weight: .bold))
-                Text("SwissTime").font(.system(size: 11)).opacity(0.6)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 }
@@ -314,15 +387,23 @@ private struct SetsLauncherView: View {
         if family == .accessoryInline {
             Label("Start Sets", systemImage: "timer")
         } else {
-            VStack(spacing: -1) {
-                Image(systemName: "timer").font(.system(size: 22, weight: .medium))
-                Text("SETS").font(.system(size: 8, weight: .semibold)).opacity(0.6)
+            // Neighbor circulars (Voice Memos, AirPods) fill ~2/3 of the
+            // cell with glyph alone; the caption costs us some of that,
+            // so both run as large as the pair fits.
+            VStack(spacing: 1) {
+                Image(systemName: "timer").font(.system(size: 36, weight: .medium))
+                Text("SETS").font(.system(size: 11.5, weight: .bold)).kerning(1.2).opacity(0.7)
             }
         }
     }
 }
 
 /// Control Center / Action button door into the same place.
+///
+/// The action is StartSetsIntent from Shared/ — compiled into the APP as
+/// well as this extension, because controls resolve their intent against
+/// the parent app's App Intents metadata (extension-only intents fail with
+/// "Encountered action intent without linkAction"; see Shared/DeepLink.swift).
 struct StartSetsControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "com.brandonlukas.swisstime.startSets") {
@@ -331,15 +412,6 @@ struct StartSetsControl: ControlWidget {
             }
         }
         .displayName("Start Sets")
-        .description("Open SwissTime with the rest counter armed.")
-    }
-}
-
-struct StartSetsIntent: AppIntent {
-    static let title: LocalizedStringResource = "Start Sets"
-    static let openAppWhenRun = true
-
-    func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(startSetsURL))
+        .description("Open Lido with the rest counter armed.")
     }
 }
