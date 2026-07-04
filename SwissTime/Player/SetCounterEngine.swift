@@ -65,10 +65,11 @@ final class SetCounterEngine: ObservableObject {
         })
         // The audio keepalive holds the app out of suspension, so the beep
         // lands on time with the screen off; assumeIsolated as in the player.
-        ticker = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        let ticker = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
-        RunLoop.main.add(ticker!, forMode: .common)
+        RunLoop.main.add(ticker, forMode: .common)
+        self.ticker = ticker
     }
 
     /// Safe to call twice — the view tears down an engine that may have

@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import os
 
 /// Owns the lock screen / Dynamic Island Live Activity for a running workout.
 @MainActor
@@ -14,10 +15,19 @@ final class LiveActivityController {
         // Any activity alive right now belongs to a dead engine.
         Self.endOrphans()
         let attributes = WorkoutActivityAttributes(workoutTitle: workoutTitle)
-        activity = try? Activity.request(
-            attributes: attributes,
-            content: .init(state: state, staleDate: Self.staleDate(for: state))
-        )
+        do {
+            activity = try Activity.request(
+                attributes: attributes,
+                content: .init(state: state, staleDate: Self.staleDate(for: state))
+            )
+        } catch {
+            // Best-effort: a dropped Live Activity leaves the workout
+            // running with no lock-screen/Dynamic Island presence, but
+            // never blocks the workout itself. Logged so a recurring
+            // failure (e.g. racing endOrphans) is visible in Console.
+            Logger.liveActivity.error("Activity.request failed: \(error)")
+            activity = nil
+        }
     }
 
     func update(_ state: WorkoutActivityAttributes.ContentState) {
@@ -59,4 +69,8 @@ final class LiveActivityController {
         }
         return max(state.endDate, Date()).addingTimeInterval(60)
     }
+}
+
+private extension Logger {
+    static let liveActivity = Logger(subsystem: "SwissTime", category: "LiveActivity")
 }

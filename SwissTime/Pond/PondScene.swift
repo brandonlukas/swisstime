@@ -55,6 +55,16 @@ struct PondScene {
     /// Where the ladder hangs over the top edge, unit x in the water rect.
     let ladderX: CGFloat
 
+    /// The dry-deck grout grid never moves (unlike the underwater one, which
+    /// refracts with time) — a class box so this reference-semantics cache
+    /// survives across the many `draw` calls a memoized, value-type scene
+    /// receives over its lifetime, one per animation frame.
+    private final class DryGridCache {
+        var size: CGSize?
+        var path: Path?
+    }
+    private let dryGridCache = DryGridCache()
+
     init(monthKey: MonthKey, entries: [PondEntry], newIDs: Set<UUID> = []) {
         var monthRng = SeededRandom(seed: monthKey.seed)
 
@@ -140,11 +150,20 @@ struct PondScene {
         let crowd: CGFloat = floaters.count > 14 ? 0.8 : 1.0
         let toyScale = (detail == .hero ? 0.85 : 1.0) * crowd
 
-        // Dry deck: pale tile with straight grout, edge to edge.
+        // Dry deck: pale tile with straight grout, edge to edge. Static
+        // while the view is on screen, so the sampled path is cached rather
+        // than resampled at up to 24fps.
         context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.tileDry))
-        context.stroke(gridPath(over: CGRect(origin: .zero, size: size),
-                                spacing: tile, time: nil),
-                       with: .color(.tileGrout.opacity(0.75)), lineWidth: 1.2)
+        let dryGrid: Path
+        if let cached = dryGridCache.path, dryGridCache.size == size {
+            dryGrid = cached
+        } else {
+            dryGrid = gridPath(over: CGRect(origin: .zero, size: size),
+                               spacing: tile, time: nil)
+            dryGridCache.size = size
+            dryGridCache.path = dryGrid
+        }
+        context.stroke(dryGrid, with: .color(.tileGrout.opacity(0.75)), lineWidth: 1.2)
 
         // The pool cut into it, darker at the rim like depth falling away.
         context.fill(waterPath, with: .color(.poolWater))

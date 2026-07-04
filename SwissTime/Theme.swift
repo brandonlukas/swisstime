@@ -404,6 +404,15 @@ extension View {
             .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .shadow(color: Color.shade.opacity(0.10), radius: 6, y: 2)
     }
+
+    /// The text field focus stroke: ink while focused, a quiet hairline
+    /// otherwise. Shared by every bordered field in the app.
+    func fieldBorder(focused: Bool, radius: CGFloat = 10) -> some View {
+        overlay(
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .stroke(focused ? Color.ink : Color.fieldBorder, lineWidth: 1)
+        )
+    }
 }
 
 /// Primary-action feedback: the button visibly sinks the moment the touch

@@ -78,10 +78,7 @@ struct NoteField: View {
             .lineLimit(2...5)
             .focused($focused)
             .padding(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(focused ? Color.ink : Color.fieldBorder, lineWidth: 1)
-            )
+            .fieldBorder(focused: focused)
     }
 }
 
@@ -119,67 +116,80 @@ struct EarnedToyView: View {
     let colorIndex: Int?
     var shiny = false
     @State private var appearedAt = Date()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var power = PowerState.shared
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
-            Canvas { context, size in
-                let t = timeline.date.timeIntervalSince(appearedAt)
-                let kind = Palette.toy(for: colorIndex)
+        if reduceMotion {
+            // A frozen pose past the entrance — same still-pool treatment
+            // as the rest of the app under Reduce Motion.
+            toyCanvas(at: 3.0)
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / (power.lowPower ? 12 : 24),
+                                    paused: scenePhase != .active)) { timeline in
+                toyCanvas(at: timeline.date.timeIntervalSince(appearedAt))
+            }
+        }
+    }
 
-                // A little cut of pool to arrive in.
-                let poolRect = CGRect(x: 4, y: 4, width: size.width - 8,
-                                      height: size.height - 8)
-                let pool = Path(roundedRect: poolRect, cornerRadius: 12,
-                                style: .continuous)
-                context.fill(pool, with: .color(.poolWater))
-                var water = context
-                water.clip(to: pool)
-                var grid = Path()
-                var gx = poolRect.minX
-                while gx < poolRect.maxX {
-                    gx += 16
-                    grid.move(to: CGPoint(x: gx + 1.2 * sin(t * 0.5 + gx / 9),
-                                          y: poolRect.minY))
-                    grid.addLine(to: CGPoint(x: gx + 1.2 * sin(t * 0.5 + gx / 9 + 1.4),
-                                             y: poolRect.maxY))
+    private func toyCanvas(at t: Double) -> some View {
+        Canvas { context, size in
+            let kind = Palette.toy(for: colorIndex)
+
+            // A little cut of pool to arrive in.
+            let poolRect = CGRect(x: 4, y: 4, width: size.width - 8,
+                                  height: size.height - 8)
+            let pool = Path(roundedRect: poolRect, cornerRadius: 12,
+                            style: .continuous)
+            context.fill(pool, with: .color(.poolWater))
+            var water = context
+            water.clip(to: pool)
+            var grid = Path()
+            var gx = poolRect.minX
+            while gx < poolRect.maxX {
+                gx += 16
+                grid.move(to: CGPoint(x: gx + 1.2 * sin(t * 0.5 + gx / 9),
+                                      y: poolRect.minY))
+                grid.addLine(to: CGPoint(x: gx + 1.2 * sin(t * 0.5 + gx / 9 + 1.4),
+                                         y: poolRect.maxY))
+            }
+            grid.move(to: CGPoint(x: poolRect.minX, y: poolRect.midY))
+            grid.addLine(to: CGPoint(x: poolRect.maxX, y: poolRect.midY))
+            water.stroke(grid, with: .color(.white.opacity(0.13)), lineWidth: 1)
+            water.stroke(pool, with: .color(.poolWaterDeep.opacity(0.5)),
+                         lineWidth: 1.5)
+
+            let k = min(1, t / 2.5)
+            let ease = 1 - pow(1 - k, 3)
+            let x = -20 + (size.width / 2 + 20) * ease
+            let y = size.height / 2 + sin(t * 1.8) * 1.5
+            let pos = CGPoint(x: x, y: y)
+
+            if t > 2.4 {
+                let age = (t - 2.4).truncatingRemainder(dividingBy: 6)
+                if age < 2.2 {
+                    let fraction = age / 2.2
+                    let radius = 5 + 13 * fraction
+                    water.stroke(
+                        Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius,
+                                               width: radius * 2, height: radius * 2)),
+                        with: .color(.white.opacity(0.3 * (1 - fraction))),
+                        lineWidth: 1)
                 }
-                grid.move(to: CGPoint(x: poolRect.minX, y: poolRect.midY))
-                grid.addLine(to: CGPoint(x: poolRect.maxX, y: poolRect.midY))
-                water.stroke(grid, with: .color(.white.opacity(0.13)), lineWidth: 1)
-                water.stroke(pool, with: .color(.poolWaterDeep.opacity(0.5)),
-                             lineWidth: 1.5)
+            }
 
-                let k = min(1, t / 2.5)
-                let ease = 1 - pow(1 - k, 3)
-                let x = -20 + (size.width / 2 + 20) * ease
-                let y = size.height / 2 + sin(t * 1.8) * 1.5
-                let pos = CGPoint(x: x, y: y)
-
-                if t > 2.4 {
-                    let age = (t - 2.4).truncatingRemainder(dividingBy: 6)
-                    if age < 2.2 {
-                        let fraction = age / 2.2
-                        let radius = 5 + 13 * fraction
-                        water.stroke(
-                            Path(ellipseIn: CGRect(x: pos.x - radius, y: pos.y - radius,
-                                                   width: radius * 2, height: radius * 2)),
-                            with: .color(.white.opacity(0.3 * (1 - fraction))),
-                            lineWidth: 1)
-                    }
-                }
-
-                let rotation: Angle = PoolToyArt.isDirectional(kind)
-                    ? .zero : .radians(0.15 * t)
-                PoolToyArt.draw(kind, in: water, at: pos, rotation: rotation,
-                                wiggle: t * 2.0, scale: 0.8, shiny: shiny)
-                if shiny, t > 1.6 {
-                    PoolToyArt.drawGlint(in: water, at: pos, time: t + 5.6,
-                                         phase: 0, scale: 0.9)
-                    PoolToyArt.drawGlint(
-                        in: water,
-                        at: CGPoint(x: pos.x - 16, y: pos.y + 8),
-                        time: t + 2.4, phase: 0, scale: 0.65)
-                }
+            let rotation: Angle = PoolToyArt.isDirectional(kind)
+                ? .zero : .radians(0.15 * t)
+            PoolToyArt.draw(kind, in: water, at: pos, rotation: rotation,
+                            wiggle: t * 2.0, scale: 0.8, shiny: shiny)
+            if shiny, t > 1.6 {
+                PoolToyArt.drawGlint(in: water, at: pos, time: t + 5.6,
+                                     phase: 0, scale: 0.9)
+                PoolToyArt.drawGlint(
+                    in: water,
+                    at: CGPoint(x: pos.x - 16, y: pos.y + 8),
+                    time: t + 2.4, phase: 0, scale: 0.65)
             }
         }
         .frame(width: 150, height: 56)

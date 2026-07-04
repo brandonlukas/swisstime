@@ -10,6 +10,10 @@ struct PondView: View {
     @State private var dragOffset: CGFloat = 0
 
     var body: some View {
+        // Both are Set-building scans over every pond entry; hoisted so the
+        // ForEach evaluates them once instead of once per rendered page.
+        let pages = self.pages
+        let newIDs = pond.newEntryIDs
         VStack(spacing: 0) {
             HStack {
                 SheetCloseButton { dismiss() }
@@ -31,7 +35,7 @@ struct PondView: View {
                              isCurrent: month == .current,
                              hasHistory: pages.count > 1,
                              isVisible: month == page,
-                             newIDs: pond.newEntryIDs)
+                             newIDs: newIDs)
                         .tag(month)
                 }
             }

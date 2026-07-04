@@ -134,8 +134,17 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.haptics) private var haptics = true
     @AppStorage(SettingsKey.liveActivity) private var liveActivity = true
     @AppStorage(SettingsKey.voiceIdentifier) private var voiceIdentifier = ""
-    @State private var voices: [AVSpeechSynthesisVoice] = []
+    @State private var voices: [VoiceOption] = []
     @State private var preview = VoicePreview()
+
+    /// A voice plus its display line, resolved once when the list loads —
+    /// `detailLine` does a Locale lookup per voice, too slow to redo on
+    /// every unrelated re-render of this screen (toggling Haptics, etc).
+    private struct VoiceOption: Identifiable {
+        let voice: AVSpeechSynthesisVoice
+        let detail: String
+        var id: String { voice.identifier }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -222,13 +231,13 @@ struct SettingsView: View {
                 voiceIdentifier = ""
                 preview.speak(nil)
             }
-            ForEach(voices, id: \.identifier) { voice in
+            ForEach(voices) { option in
                 Rectangle().fill(Color.hairline).frame(height: 1)
-                voiceRow(name: voice.name,
-                         detail: detailLine(for: voice),
-                         selected: voiceIdentifier == voice.identifier) {
-                    voiceIdentifier = voice.identifier
-                    preview.speak(voice)
+                voiceRow(name: option.voice.name,
+                         detail: option.detail,
+                         selected: voiceIdentifier == option.voice.identifier) {
+                    voiceIdentifier = option.voice.identifier
+                    preview.speak(option.voice)
                 }
             }
             Text("More voices — including higher-quality ones — can be downloaded in Settings → Accessibility → Spoken Content → Voices.")
@@ -261,7 +270,7 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    private func detailLine(for voice: AVSpeechSynthesisVoice) -> String {
+    private static func detailLine(for voice: AVSpeechSynthesisVoice) -> String {
         let quality: String
         switch voice.quality {
         case .premium: quality = "Premium"
@@ -274,7 +283,8 @@ struct SettingsView: View {
     }
 
     /// Enumerating voices is slow — off the main thread, same filter as
-    /// the automatic pick so the list and the default agree.
+    /// the automatic pick so the list and the default agree. Each voice's
+    /// display line is resolved here too, once, instead of on every render.
     private func loadVoices() {
         DispatchQueue.global(qos: .userInitiated).async {
             let list = AVSpeechSynthesisVoice.speechVoices()
@@ -289,6 +299,7 @@ struct SettingsView: View {
                     }
                     return a.name < b.name
                 }
+                .map { VoiceOption(voice: $0, detail: Self.detailLine(for: $0)) }
             DispatchQueue.main.async { voices = list }
         }
     }

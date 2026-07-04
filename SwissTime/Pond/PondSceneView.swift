@@ -58,6 +58,11 @@ struct PondSceneView: View {
     }
 
     var body: some View {
+        // The cache-check inside `scene` (an equality scan over `entries`)
+        // only needs to run once per body evaluation — hoisted out of the
+        // Canvas closures below, which TimelineView invokes independently
+        // on every animation frame regardless of whether body re-evaluated.
+        let scene = self.scene
         if reduceMotion {
             // A single still pose, stable per month; no glints — a twinkle
             // frozen mid-pulse would stick to its toy.

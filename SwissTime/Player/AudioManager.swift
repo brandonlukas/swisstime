@@ -1,5 +1,6 @@
 import AVFoundation
 import UIKit
+import os
 
 /// The one policy for the spoken "5 seconds left": fire with a small lead
 /// (the synthesizer takes a beat to make sound — speech starting while the
@@ -37,7 +38,10 @@ final class AudioManager: NSObject {
     private var donePlayer: AVAudioPlayer?
     private var silencePlayer: AVAudioPlayer?
 
-    private var activeSounds = 0
+    /// Written from the main thread (speak/play) and from delegate callbacks
+    /// AVFoundation can deliver on an arbitrary thread — the lock keeps the
+    /// increment/decrement/read atomic so the duck count can't stick above 0.
+    private let activeSounds = OSAllocatedUnfairLock(initialState: 0)
     private var running = false
     private var keepAliveWanted = true
     private var inBackground = false
@@ -88,7 +92,7 @@ final class AudioManager: NSObject {
     /// ducking left over from cues played in the background.
     @objc private func willEnterForeground() {
         inBackground = false
-        guard running, activeSounds == 0 else { return }
+        guard running, activeSounds.withLock({ $0 == 0 }) else { return }
         releaseDuck(keepAlive: keepAliveWanted)
     }
 
@@ -121,7 +125,7 @@ final class AudioManager: NSObject {
 
     func stop() {
         running = false
-        activeSounds = 0
+        activeSounds.withLock { $0 = 0 }
         sessionQueue.async { [self] in
             synthesizer.stopSpeaking(at: .immediate)
             beepPlayer?.stop()
@@ -135,7 +139,7 @@ final class AudioManager: NSObject {
     func setKeepAlive(_ wanted: Bool) {
         keepAliveWanted = wanted
         guard running else { return }
-        let idle = activeSounds == 0
+        let idle = activeSounds.withLock { $0 == 0 }
         sessionQueue.async { [self] in
             if wanted {
                 silencePlayer?.play()
@@ -237,8 +241,8 @@ final class AudioManager: NSObject {
     }
 
     private func beginSound() {
-        activeSounds += 1
-        guard activeSounds == 1 else { return }
+        let count = activeSounds.withLock { $0 += 1; return $0 }
+        guard count == 1 else { return }
         sessionQueue.async { [self] in
             applyCategory(ducking: true)
             try? session.setActive(true)
@@ -246,10 +250,11 @@ final class AudioManager: NSObject {
     }
 
     private func endSound() {
-        activeSounds = max(0, activeSounds - 1)
-        guard activeSounds == 0 else { return }
+        let count = activeSounds.withLock { $0 = max(0, $0 - 1); return $0 }
+        guard count == 0 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            guard let self, self.running, self.activeSounds == 0 else { return }
+            guard let self, self.running,
+                  self.activeSounds.withLock({ $0 == 0 }) else { return }
             if self.inBackground {
                 // Best-effort duck release without dropping the session;
                 // the full cycle waits for willEnterForeground.

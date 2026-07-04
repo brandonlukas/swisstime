@@ -91,10 +91,7 @@ struct LabeledField: View {
                 .focused($focused)
                 .padding(.horizontal, 14)
                 .frame(height: 52)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(focused ? Color.ink : Color.fieldBorder, lineWidth: 1)
-                )
+                .fieldBorder(focused: focused)
                 .onChange(of: text) { _, newValue in
                     if let maxLength, newValue.count > maxLength {
                         text = String(newValue.prefix(maxLength))
@@ -132,10 +129,7 @@ struct PickerField<Value: Hashable>: View {
                 }
                 .padding(.horizontal, 14)
                 .frame(height: 52)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.fieldBorder, lineWidth: 1)
-                )
+                .fieldBorder(focused: false)
             }
             // Opening a picker over the keyboard reads as a mistake — drop it.
             // Simultaneous, so the menu itself opens untouched.
@@ -415,15 +409,15 @@ struct ExerciseFormView: View {
         editingExercise != nil
     }
 
+    private static let baseDurations: [TimeInterval] = [
+        5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180,
+        240, 300, 360, 420, 480, 540, 600, 720, 900,
+        1200, 1500, 1800,
+    ]
+
     private var durationOptions: [TimeInterval] {
-        var options: [TimeInterval] = [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180,
-                                       240, 300, 360, 420, 480, 540, 600, 720, 900,
-                                       1200, 1500, 1800]
-        if !options.contains(duration) {
-            options.append(duration)
-            options.sort()
-        }
-        return options
+        guard !Self.baseDurations.contains(duration) else { return Self.baseDurations }
+        return (Self.baseDurations + [duration]).sorted()
     }
 
     var body: some View {

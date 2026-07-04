@@ -71,12 +71,28 @@ final class PlayerEngine: ObservableObject {
     private var halfwayFired = false
     private var fiveSecondsFired = false
 
+    /// Sum of the timed steps — only meaningful for fully timed workouts.
+    let totalDuration: TimeInterval
+    /// `completedDurations[i]` is the summed duration of `steps[0..<i]` —
+    /// precomputed once so `overallFraction` (polled every water frame for
+    /// the whole workout) doesn't re-reduce the prefix from scratch.
+    private let completedDurations: [TimeInterval]
+
     init(workout: Workout) {
         self.workout = workout
         let steps = Self.makeSteps(workout)
         self.steps = steps
         hasUntimedSteps = steps.contains { $0.countsUp }
         exerciseCount = steps.last?.number ?? 0
+        var cumulative: [TimeInterval] = []
+        cumulative.reserveCapacity(steps.count)
+        var running: TimeInterval = 0
+        for step in steps {
+            cumulative.append(running)
+            running += step.countdownDuration ?? 0
+        }
+        completedDurations = cumulative
+        totalDuration = running
         // The water renders before onAppear calls start(); give the countdown
         // a truthful endDate so the pond opens full instead of empty.
         endDate = Date().addingTimeInterval(countdownDuration)
@@ -127,11 +143,6 @@ final class PlayerEngine: ObservableObject {
         return 0
     }
 
-    /// Sum of the timed steps — only meaningful for fully timed workouts.
-    var totalDuration: TimeInterval {
-        steps.reduce(0) { $0 + ($1.countdownDuration ?? 0) }
-    }
-
     /// Elapsed fraction of the whole workout — drives the thin black bar.
     /// Step-based once any step is untimed, since wall-clock is unknowable.
     func overallFraction(at date: Date) -> Double {
@@ -145,7 +156,7 @@ final class PlayerEngine: ObservableObject {
             return min(1, max(0, (Double(index) + inStep) / Double(steps.count)))
         }
         guard totalDuration > 0 else { return 0 }
-        let completed = steps.prefix(index).reduce(0) { $0 + ($1.countdownDuration ?? 0) }
+        let completed = completedDurations[index]
         let duration = currentCountdownDuration ?? 0
         let elapsed = completed + (duration - remaining(at: date))
         return min(1, max(0, elapsed / totalDuration))
@@ -171,10 +182,11 @@ final class PlayerEngine: ObservableObject {
         subscribeToIntents()
         // The timer fires on the main run loop; assumeIsolated calls tick()
         // directly instead of hopping through a Task every 50ms.
-        ticker = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        let ticker = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
-        RunLoop.main.add(ticker!, forMode: .common)
+        RunLoop.main.add(ticker, forMode: .common)
+        self.ticker = ticker
     }
 
     func stopAndTearDown() {
