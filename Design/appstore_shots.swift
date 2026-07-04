@@ -167,26 +167,26 @@ func render(_ frame: Frame) {
         ctx.restoreGState()
         return bounds.width * fit
     }
-    let indexFont = NSFont.monospacedSystemFont(ofSize: 44, weight: .semibold)
-    _ = drawLine("\(frame.index) — LIDO", font: indexFont, color: periwinklePale,
-                 kern: 10, x: margin, baseline: 200, maxWidth: 1128)
-    let headlineFont = posterFont(size: 116)
-    var baseline: CGFloat = 356
+    let headlineFont = posterFont(size: 128)
+    var baseline: CGFloat = 270
     for text in frame.lines {
-        _ = drawLine(text, font: headlineFont, color: sunShadow, kern: 116 * 0.02,
+        _ = drawLine(text, font: headlineFont, color: sunShadow, kern: 128 * 0.02,
                      x: margin + 8, baseline: baseline + 10, maxWidth: 1128)
-        _ = drawLine(text, font: headlineFont, color: vinylWhite, kern: 116 * 0.02,
+        _ = drawLine(text, font: headlineFont, color: vinylWhite, kern: 128 * 0.02,
                      x: margin, baseline: baseline, maxWidth: 1128)
-        baseline += 148
+        baseline += 164
     }
 
     // 5 · The capture, floated on the water: hard sun shadow, dark bezel,
-    // rounded clip, bottom edge bleeding off the frame (store idiom).
+    // rounded clip — the WHOLE device inside the frame, sized to fill
+    // everything below the headline.
     let capture = loadCapture(frame.capture)
-    let shotWidth: CGFloat = 1080
-    let shotHeight = shotWidth * CGFloat(capture.height) / CGFloat(capture.width)
+    let aspect = CGFloat(capture.height) / CGFloat(capture.width)
+    let shotY: CGFloat = frame.lines.count > 1 ? 520 : 380
+    var shotHeight = CGFloat(H) - margin - shotY
+    var shotWidth = shotHeight / aspect
+    if shotWidth > 1128 { shotWidth = 1128; shotHeight = shotWidth * aspect }
     let shotX = (CGFloat(W) - shotWidth) / 2
-    let shotY: CGFloat = frame.lines.count > 1 ? 700 : 560
     let shotRect = CGRect(x: shotX, y: shotY, width: shotWidth, height: shotHeight)
     let radius: CGFloat = 96
 
