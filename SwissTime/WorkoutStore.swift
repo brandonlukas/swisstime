@@ -129,27 +129,14 @@ final class WorkoutStore: ObservableObject {
         return [pushDay, core, abs]
     }
 
-    /// The untimed seed was "played" recently so it sorts first —
+    /// Debug seeds ARE the shipped starters (first two), so sim
+    /// verification always exercises the content real first-run users
+    /// adopt — tuned starters can't silently drift from what screenshots
+    /// test. The untimed one is "played" recently so it sorts first and
     /// `-autoOpenFirstWorkout` lands on the mark-as-done flow.
     private static func sampleWorkouts() -> [Workout] {
-        var pushDay = Workout(title: "Push day", details: "Chest, shoulders, triceps.")
-        pushDay.kind = .untimed
-        pushDay.colorIndex = 3
-        pushDay.lastPlayedAt = Date()
-        pushDay.exercises = [
-            setsExercise("Bench press", 4, 8, 120),
-            setsExercise("Overhead press", 3, 10, 90),
-            setsExercise("Incline dumbbell press", 3, 12, 90),
-            setsExercise("Triceps pushdown", 3, 12, 60),
-        ]
-        var core = Workout(title: "Core circuit", details: "Every minute, something new.")
-        core.kind = .timed
-        core.colorIndex = 0
-        core.exercises = [
-            intervalExercise("Plank", 60),
-            intervalExercise("Dead bug", 60),
-            intervalExercise("Side plank", 60),
-        ]
-        return [pushDay, core]
+        var seeds = Array(starterWorkouts().prefix(2))
+        seeds[0].lastPlayedAt = Date()
+        return seeds
     }
 }

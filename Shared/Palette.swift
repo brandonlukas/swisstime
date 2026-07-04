@@ -15,6 +15,30 @@ extension Color {
     }
 }
 
+extension Color {
+    // Surface tokens shared with the widget so the home screen can never
+    // drift from the app: the deck, the ink, the pool tile and grout,
+    // and the shiny gold. Retune here and both processes follow.
+
+    /// The deck behind every screen: natatorium off-white by day, the
+    /// blue-black deck of a night swim after dark.
+    static let paper = Color(light: Color(red: 0.914, green: 0.929, blue: 0.953),
+                             dark: Color(red: 0.063, green: 0.082, blue: 0.157))
+
+    /// Text and chrome — deep pool-water navy, pale in the dark.
+    static let ink = Color(light: Color(red: 0.075, green: 0.13, blue: 0.28),
+                           dark: Color(red: 0.902, green: 0.925, blue: 0.969))
+
+    /// The pool floor above the waterline.
+    static let tileDry = Color(light: Color(red: 0.76, green: 0.845, blue: 0.915),
+                               dark: Color(red: 0.122, green: 0.153, blue: 0.263))
+    static let tileGrout = Color(light: Color(red: 0.615, green: 0.72, blue: 0.83),
+                                 dark: Color(red: 0.196, green: 0.235, blue: 0.373))
+
+    /// The gilded-toy accent — fixed, like all toy vinyl.
+    static let gold = Color(red: 0.87, green: 0.70, blue: 0.33)
+}
+
 /// What floats in for a finished workout of this color.
 enum ToyKind {
     case duck, beachBall, ring, orca, flamingo, lilo

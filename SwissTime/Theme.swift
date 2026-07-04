@@ -4,17 +4,13 @@ import UIKit
 // Color(light:dark:) and the workout Palette live in Shared/Palette.swift —
 // the widget draws with the same swatches.
 
+// paper, ink, tileDry, tileGrout, and gold live in Shared/Palette.swift —
+// the widget renders with them, and the home screen must never drift.
+
 extension Color {
-    /// The deck behind every screen: natatorium off-white by day,
-    /// blue-black by night.
-    static let paper = Color(light: Color(red: 0.914, green: 0.929, blue: 0.953),
-                             dark: Color(red: 0.063, green: 0.082, blue: 0.157))
     /// Matte cards: brighter cool white / elevated navy.
     static let paperCardFill = Color(light: Color(red: 0.969, green: 0.978, blue: 0.992),
                                      dark: Color(red: 0.118, green: 0.145, blue: 0.259))
-    /// The app's "black" for text, buttons, rules — pale at night.
-    static let ink = Color(light: Color(red: 0.075, green: 0.13, blue: 0.28),
-                           dark: Color(red: 0.902, green: 0.925, blue: 0.969))
     /// Legible on an ink fill in either mode.
     static let onInk = Color(light: .white,
                              dark: Color(red: 0.063, green: 0.082, blue: 0.157))
@@ -37,11 +33,6 @@ extension Color {
                                  dark: Color(red: 0.10, green: 0.37, blue: 0.72))
     static let poolWaterDeep = Color(light: Color(red: 0.08, green: 0.27, blue: 0.57),
                                      dark: Color(red: 0.04, green: 0.20, blue: 0.45))
-    /// Dry tile on the deck around the water.
-    static let tileDry = Color(light: Color(red: 0.76, green: 0.845, blue: 0.915),
-                               dark: Color(red: 0.122, green: 0.153, blue: 0.263))
-    static let tileGrout = Color(light: Color(red: 0.615, green: 0.72, blue: 0.83),
-                                 dark: Color(red: 0.196, green: 0.235, blue: 0.373))
 
     /// Fixed dark for toy eyes, bills, and moldings — vinyl doesn't adapt.
     static let toyInk = Color(red: 0.075, green: 0.13, blue: 0.28)
@@ -57,8 +48,7 @@ extension Color {
     static let flamingoPink = Color(red: 0.96, green: 0.56, blue: 0.63)
     static let flamingoDeep = Color(red: 0.87, green: 0.42, blue: 0.52)
 
-    /// The gilded colorway — the rare pull.
-    static let gold = Color(red: 0.87, green: 0.70, blue: 0.33)
+    /// The gilded colorway — the rare pull. (`gold` itself is shared.)
     static let goldDeep = Color(red: 0.72, green: 0.55, blue: 0.22)
     static let pearl = Color(red: 0.97, green: 0.95, blue: 0.90)
     static let pearlShade = Color(red: 0.87, green: 0.84, blue: 0.76)

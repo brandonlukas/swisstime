@@ -9,19 +9,9 @@ import AppIntents
 // No widget ticks: state changes only when a workout lands (the stores
 // reload timelines on save) or a day boundary passes.
 
-// MARK: - Surfaces (mirrors of Theme.swift's paper and ink)
-
-private extension Color {
-    static let wPaper = Color(light: Color(red: 0.914, green: 0.929, blue: 0.953),
-                              dark: Color(red: 0.063, green: 0.082, blue: 0.157))
-    static let wInk = Color(light: Color(red: 0.075, green: 0.13, blue: 0.28),
-                            dark: Color(red: 0.902, green: 0.925, blue: 0.969))
-    static let wTile = Color(light: Color(red: 0.76, green: 0.845, blue: 0.915),
-                             dark: Color(red: 0.122, green: 0.153, blue: 0.263))
-    static let wGrout = Color(light: Color(red: 0.615, green: 0.72, blue: 0.83),
-                              dark: Color(red: 0.196, green: 0.235, blue: 0.373))
-    static let wGold = Color(red: 0.87, green: 0.70, blue: 0.33)
-}
+// Surfaces come from Shared/Palette.swift (paper, ink, tileDry,
+// tileGrout, gold) — one token set, so the home screen can't drift from
+// the app it sits next to.
 
 // MARK: - Timeline
 
@@ -113,7 +103,7 @@ struct WeekWidget: Widget {
         StaticConfiguration(kind: "com.brandonlukas.swisstime.week",
                             provider: PoolProvider()) { entry in
             WeekView(entry: entry)
-                .containerBackground(for: .widget) { Color.wPaper }
+                .containerBackground(for: .widget) { Color.paper }
         }
         .configurationDisplayName("This week")
         .description("The week's workouts, day by day, in their own colors.")
@@ -136,17 +126,17 @@ private struct WeekView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .kerning(1.3)
                     .textCase(.uppercase)
-                    .foregroundStyle(Color.wInk.opacity(0.55))
+                    .foregroundStyle(Color.ink.opacity(0.55))
                 Spacer(minLength: 0)
                 Text("\(count)")
                     .font(.system(size: 46, weight: .light))
                     .monospacedDigit()
-                    .foregroundStyle(Color.wInk)
+                    .foregroundStyle(Color.ink)
                 Text(count == 1 ? "workout" : "workouts")
                     .font(.system(size: 11, weight: .semibold))
                     .kerning(1.1)
                     .textCase(.uppercase)
-                    .foregroundStyle(Color.wInk.opacity(0.55))
+                    .foregroundStyle(Color.ink.opacity(0.55))
                     .padding(.bottom, 12)
                 HStack(spacing: 4) {
                     ForEach(Array(days.enumerated()), id: \.offset) { _, day in
@@ -155,7 +145,7 @@ private struct WeekView: View {
                             .overlay {
                                 if day.fill == nil {
                                     RoundedRectangle(cornerRadius: 3.5, style: .continuous)
-                                        .strokeBorder(Color.wInk.opacity(0.16))
+                                        .strokeBorder(Color.ink.opacity(0.16))
                                 }
                             }
                             .frame(width: 13, height: 13)
@@ -175,7 +165,7 @@ private struct WeekView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .kerning(1.3)
                     .textCase(.uppercase)
-                    .foregroundStyle(Color.wInk.opacity(0.55))
+                    .foregroundStyle(Color.ink.opacity(0.55))
                 Spacer(minLength: 0)
                 // The unit keeps the tally from reading as a date next to
                 // the calendar letters ("3" + JULY = the 3rd; "3 workouts"
@@ -183,12 +173,12 @@ private struct WeekView: View {
                 Text("\(count)")
                     .font(.system(size: 58, weight: .light))
                     .monospacedDigit()
-                    .foregroundStyle(Color.wInk)
+                    .foregroundStyle(Color.ink)
                 Text(count == 1 ? "workout" : "workouts")
                     .font(.system(size: 11, weight: .semibold))
                     .kerning(1.1)
                     .textCase(.uppercase)
-                    .foregroundStyle(Color.wInk.opacity(0.55))
+                    .foregroundStyle(Color.ink.opacity(0.55))
             }
             HStack(alignment: .bottom, spacing: 7) {
                 ForEach(Array(days.enumerated()), id: \.offset) { _, day in
@@ -198,13 +188,13 @@ private struct WeekView: View {
                             .overlay {
                                 if day.fill == nil {
                                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                        .strokeBorder(Color.wInk.opacity(0.16))
+                                        .strokeBorder(Color.ink.opacity(0.16))
                                 }
                             }
                             .aspectRatio(1, contentMode: .fit)
                         Text(day.letter)
                             .font(.system(size: 9, weight: day.isToday ? .bold : .medium))
-                            .foregroundStyle(Color.wInk.opacity(day.isToday ? 0.9 : 0.5))
+                            .foregroundStyle(Color.ink.opacity(day.isToday ? 0.9 : 0.5))
                     }
                 }
             }
@@ -235,7 +225,7 @@ private struct PoolTiles: View {
     var body: some View {
         Canvas { context, size in
             context.fill(Path(CGRect(origin: .zero, size: size)),
-                         with: .color(.wTile))
+                         with: .color(.tileDry))
             let step: CGFloat = 22
             var lines = Path()
             var x: CGFloat = step
@@ -244,7 +234,7 @@ private struct PoolTiles: View {
             var y: CGFloat = step
             while y < size.height { lines.move(to: CGPoint(x: 0, y: y))
                 lines.addLine(to: CGPoint(x: size.width, y: y)); y += step }
-            context.stroke(lines, with: .color(.wGrout), lineWidth: 1)
+            context.stroke(lines, with: .color(.tileGrout), lineWidth: 1)
         }
     }
 }
@@ -265,7 +255,7 @@ private struct PoolView: View {
                     let y = CGFloat.random(in: 0.18...0.78, using: &random)
                     let size = CGFloat.random(in: 13...20, using: &random)
                     Circle()
-                        .fill(toy.isShiny ? Color.wGold
+                        .fill(toy.isShiny ? Color.gold
                                           : Palette.color(toy.colorIndex).fill)
                         .frame(width: size, height: size)
                         .position(x: geo.size.width * x, y: geo.size.height * y)
@@ -276,7 +266,7 @@ private struct PoolView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .kerning(1.2)
                         .textCase(.uppercase)
-                        .foregroundStyle(Color.wInk.opacity(0.65))
+                        .foregroundStyle(Color.ink.opacity(0.65))
                     Spacer(minLength: 0)
                     // "3 afloat", same words as the hero card — a bare
                     // numeral under a month name reads as a date.
@@ -290,7 +280,7 @@ private struct PoolView: View {
                             .textCase(.uppercase)
                             .opacity(0.6)
                     }
-                    .foregroundStyle(Color.wInk)
+                    .foregroundStyle(Color.ink)
                 }
             }
         }
