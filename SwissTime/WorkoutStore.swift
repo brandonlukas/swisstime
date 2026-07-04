@@ -1,4 +1,5 @@
 import Foundation
+import WidgetKit
 
 @MainActor
 final class WorkoutStore: ObservableObject {
@@ -13,8 +14,8 @@ final class WorkoutStore: ObservableObject {
     private let fileURL: URL
 
     init() {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        fileURL = documents.appendingPathComponent("workouts.json")
+        // Shared with the widget process; migrates the old Documents file.
+        fileURL = AppGroup.dataFileURL("workouts.json")
         if let data = try? Data(contentsOf: fileURL),
            let decoded = try? JSONDecoder().decode([Workout].self, from: data) {
             workouts = decoded
@@ -57,6 +58,7 @@ final class WorkoutStore: ObservableObject {
     private func save() {
         guard !seeded, let data = try? JSONEncoder().encode(workouts) else { return }
         try? data.write(to: fileURL, options: .atomic)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// The untimed seed was "played" recently so it sorts first —

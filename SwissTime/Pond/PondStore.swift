@@ -1,4 +1,5 @@
 import Foundation
+import WidgetKit
 
 @MainActor
 final class PondStore: ObservableObject {
@@ -13,8 +14,8 @@ final class PondStore: ObservableObject {
     private let fileURL: URL
 
     init() {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        fileURL = documents.appendingPathComponent("pond.json")
+        // Shared with the widget process; migrates the old Documents file.
+        fileURL = AppGroup.dataFileURL("pond.json")
         if let data = try? Data(contentsOf: fileURL),
            let decoded = try? JSONDecoder().decode([PondEntry].self, from: data) {
             entries = decoded
@@ -98,6 +99,7 @@ final class PondStore: ObservableObject {
     private func save() {
         guard !seeded, let data = try? JSONEncoder().encode(entries) else { return }
         try? data.write(to: fileURL, options: .atomic)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Deterministic fakes: fixed IDs keep seeded pond layouts identical

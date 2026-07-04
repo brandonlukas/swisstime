@@ -28,7 +28,13 @@ struct SetCounterView: View {
             }
         }
         .background(PaperBackground())
+        // The launcher deep link: notification when this tab is live,
+        // latch when the cold launch builds it a beat after the URL.
+        .onReceive(NotificationCenter.default.publisher(for: DeepLink.startSets)) { _ in
+            consumePendingStart()
+        }
         .onAppear {
+            consumePendingStart()
             if ProcessInfo.processInfo.arguments.contains("-autoStartSets"),
                !DebugLaunch.didAutoStartSets {
                 DebugLaunch.didAutoStartSets = true
@@ -90,6 +96,16 @@ struct SetCounterView: View {
             .padding(20)
         }
         .scrollBounceBehavior(.basedOnSize)
+    }
+
+    /// A session launched from the lock screen or Control Center uses the
+    /// remembered numbers — the whole point is zero configuration. A
+    /// session already running is left alone; the link just lands here.
+    private func consumePendingStart() {
+        guard DeepLink.pendingSetsStart else { return }
+        DeepLink.pendingSetsStart = false
+        guard engine == nil else { return }
+        start(setCount: sets, restDuration: rest, fiveSecondsCue: fiveSeconds)
     }
 
     @discardableResult

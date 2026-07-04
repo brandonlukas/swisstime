@@ -5,5 +5,10 @@ import WidgetKit
 struct SwissTimeWidgetBundle: WidgetBundle {
     var body: some Widget {
         WorkoutLiveActivity()
+        WeekWidget()
+        PoolWidget()
+        WeekAccessoryWidget()
+        SetsLauncherWidget()
+        StartSetsControl()
     }
 }

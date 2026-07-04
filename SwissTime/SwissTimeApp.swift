@@ -1,6 +1,16 @@
 import SwiftUI
 import UIKit
 
+/// Cross-view latch for launcher deep links. The URL can arrive before its
+/// destination exists (cold launch from a lock-screen widget), so arrival
+/// both posts a notification (for a live Sets tab) and sets a flag (for one
+/// about to be built) — whoever gets there consumes it.
+@MainActor
+enum DeepLink {
+    static let startSets = Notification.Name("SwissTime.startSets")
+    static var pendingSetsStart = false
+}
+
 @main
 struct SwissTimeApp: App {
     enum AppTab {
@@ -52,6 +62,15 @@ struct SwissTimeApp: App {
             .background(SchemeReporter())
             // nil follows the system; Day and Night pin it.
             .preferredColorScheme(ThemeChoice(rawValue: theme)?.colorScheme)
+            // swisstime://sets/start — the widget and Control Center door.
+            .onOpenURL { url in
+                guard url.scheme == "swisstime", url.host == "sets" else { return }
+                tab = .sets
+                if url.path == "/start" {
+                    DeepLink.pendingSetsStart = true
+                    NotificationCenter.default.post(name: DeepLink.startSets, object: nil)
+                }
+            }
         }
     }
 }
