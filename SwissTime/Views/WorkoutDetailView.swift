@@ -73,13 +73,12 @@ struct WorkoutDetailView: View {
                 .overlay(alignment: .top) { Color.hairline.frame(height: 1) }
             }
         }
-        .navigationBarBackButtonHidden(true)
+        // The system back button (restyled to the Swiss arrow in
+        // SwissTimeApp) keeps the native edge-swipe. Hidden mid-edit so
+        // leaving always goes through Done — hiding it also disables the
+        // swipe, matching the lockout.
+        .navigationBarBackButtonHidden(editing)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: { Image(systemName: "arrow.left") }
-                    .disabled(editing)
-                    .opacity(editing ? 0.3 : 1)
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     withAnimation { editing.toggle() }
