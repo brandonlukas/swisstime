@@ -8,9 +8,11 @@ struct WorkoutListView: View {
     @State private var showingPond = false
     @State private var showingSettings = false
     @State private var playing: Workout?
-    /// The shelf's starters, built once per view lifetime so their IDs are
-    /// stable across renders (adopting one navigates by that ID).
-    @State private var starters = WorkoutStore.starterWorkouts()
+    /// The shelf's starters — built only when the empty state actually
+    /// appears (established users never pay for them), and rebuilt fresh
+    /// each time it does, so re-adopting after a delete-all never reuses
+    /// a dead workout's ID.
+    @State private var starters: [Workout] = []
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -125,7 +127,9 @@ struct WorkoutListView: View {
                 } else if arguments.contains("-autoAdoptFirstSample"),
                           !DebugLaunch.didAutoAdopt,
                           store.workouts.isEmpty,
-                          let first = starters.first {
+                          let first = WorkoutStore.starterWorkouts().first {
+                    // Built directly — the shelf's lazy @State may not have
+                    // populated yet at this point in the appear sequence.
                     DebugLaunch.didAutoAdopt = true
                     adopt(first)
                 }
@@ -163,6 +167,9 @@ struct WorkoutListView: View {
             }
         }
         .padding(.top, 8)
+        // Fresh starters each time the shelf surfaces: new IDs, so a
+        // re-adopt after delete-all never resurrects a dead workout's ID.
+        .onAppear { starters = WorkoutStore.starterWorkouts() }
     }
 
     /// A quiet, dashed outline — the one hint this isn't yours yet.
@@ -197,7 +204,11 @@ struct WorkoutListView: View {
     /// One tap: the sample becomes a real workout — same editing, same
     /// delete — and its detail opens so the structure is immediately
     /// visible. Adding ends the empty state, which retires the shelf.
+    /// The emptiness guard is also the reentry guard: the shelf only
+    /// exists while the library is empty, so a double-tap's second fire
+    /// (same UUID!) lands after the first append and no-ops.
     private func adopt(_ sample: Workout) {
+        guard store.workouts.isEmpty else { return }
         Haptics.impact()
         store.workouts.append(sample)
         path = [sample.id]

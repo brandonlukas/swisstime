@@ -69,7 +69,11 @@ enum Palette {
     ]
 
     static func color(_ index: Int?) -> PaletteColor {
-        all[(index ?? 0) % all.count]
+        // Positive modulo: Swift's % preserves sign, and a negative index
+        // from a corrupt/hand-edited file would otherwise trap BOTH
+        // processes (the widget renders raw decoded pond entries).
+        let count = all.count
+        return all[(((index ?? 0) % count) + count) % count]
     }
 
     static func toy(for index: Int?) -> ToyKind {

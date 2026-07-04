@@ -60,13 +60,31 @@ struct SwissTimeApp: App {
                 guard url.scheme == "swisstime", url.host == "sets" else { return }
                 if url.path == "/start" { DeepLink.requestSetsStart() } else { tab = .sets }
             }
+            // A running workout outranks the launchers: consume the ask
+            // and stay put rather than flipping tabs under the player.
             .onReceive(NotificationCenter.default.publisher(for: DeepLink.startSets)) { _ in
+                guard !PlayerEngine.isActive else {
+                    DeepLink.pendingSetsStart = false
+                    return
+                }
                 tab = .sets
             }
-            // Cold-launch net: if the request landed before this view was
-            // listening, the flag is still set when the scene activates.
+            // Activation net, catching both slow doors: a group-defaults
+            // flag from an extension-side control press, and a latch set
+            // before this view was listening (cold launch).
             .onChange(of: scenePhase, initial: true) { _, new in
-                if new == .active, DeepLink.pendingSetsStart { tab = .sets }
+                guard new == .active else { return }
+                if let defaults = UserDefaults(suiteName: AppGroup.id),
+                   defaults.bool(forKey: AppGroup.startSetsFlagKey) {
+                    defaults.removeObject(forKey: AppGroup.startSetsFlagKey)
+                    DeepLink.requestSetsStart()
+                } else if DeepLink.pendingSetsStart {
+                    if PlayerEngine.isActive {
+                        DeepLink.pendingSetsStart = false
+                    } else {
+                        tab = .sets
+                    }
+                }
             }
         }
     }

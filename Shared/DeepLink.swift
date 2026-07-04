@@ -30,7 +30,17 @@ struct StartSetsIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        DeepLink.requestSetsStart()
+        if Bundle.main.bundleIdentifier == "com.brandonlukas.swisstime" {
+            // Performing in the app (the resolution today's OS uses):
+            // the in-memory latch + notification path works directly.
+            DeepLink.requestSetsStart()
+        } else {
+            // Performing in the widget extension (possible under other OS
+            // resolutions): memory here is invisible to the app — leave
+            // the ask where the app will find it on activation.
+            UserDefaults(suiteName: AppGroup.id)?
+                .set(true, forKey: AppGroup.startSetsFlagKey)
+        }
         return .result()
     }
 }

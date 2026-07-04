@@ -139,6 +139,8 @@ struct SettingsView: View {
     /// The voice list is long enough to bury Haptics and Live Activity —
     /// it stays folded behind the current pick until asked for.
     @State private var voicesExpanded = false
+    /// Cached fold-row summary; see resolveSelectedVoiceName.
+    @State private var selectedVoiceName = ""
 
     /// A voice plus its display line, resolved once when the list loads —
     /// `detailLine` does a Locale lookup per voice, too slow to redo on
@@ -200,7 +202,9 @@ struct SettingsView: View {
         // Carrying the preference on the sheet's own content keeps the
         // very screen doing the switching honest about the result.
         .preferredColorScheme(sheetScheme)
+        .onChange(of: voiceIdentifier) { _, _ in resolveSelectedVoiceName() }
         .onAppear {
+            resolveSelectedVoiceName()
             // Debug: walk the theme through the reported repro sequence
             // (day → system → night) with the sheet up, for screenshots.
             if ProcessInfo.processInfo.arguments.contains("-autoCycleTheme") {
@@ -270,14 +274,20 @@ struct SettingsView: View {
         }
     }
 
-    /// The folded row's summary — the pick by name, resolved without
-    /// enumerating (the full list loads only when the section opens).
-    private var selectedVoiceName: String {
-        guard !voiceIdentifier.isEmpty else { return "Automatic" }
-        if let option = voices.first(where: { $0.voice.identifier == voiceIdentifier }) {
-            return option.voice.name
+    /// The folded row's summary, resolved OFF the main thread and cached:
+    /// AVSpeechSynthesisVoice(identifier:) is an XPC-backed registry
+    /// lookup, and body re-evaluates on every unrelated toggle — the
+    /// lookup must not run per render.
+    private func resolveSelectedVoiceName() {
+        let id = voiceIdentifier
+        guard !id.isEmpty else {
+            selectedVoiceName = "Automatic"
+            return
         }
-        return AVSpeechSynthesisVoice(identifier: voiceIdentifier)?.name ?? "Automatic"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let name = AVSpeechSynthesisVoice(identifier: id)?.name ?? "Automatic"
+            DispatchQueue.main.async { selectedVoiceName = name }
+        }
     }
 
     private func voiceRow(name: String, detail: String, selected: Bool,

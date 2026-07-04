@@ -1,5 +1,4 @@
 import Foundation
-import WidgetKit
 
 @MainActor
 final class WorkoutStore: ObservableObject {
@@ -55,10 +54,13 @@ final class WorkoutStore: ObservableObject {
         }.map(\.element)
     }
 
+    // No widget reload here: nothing on the home screen reads
+    // workouts.json — every widget renders the pool log, and PondStore
+    // reloads timelines at the only moment they can change. Reloading
+    // per edit would burn WidgetKit's daily budget on no-ops.
     private func save() {
         guard !seeded, let data = try? JSONEncoder().encode(workouts) else { return }
         try? data.write(to: fileURL, options: .atomic)
-        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: - Starters & seeds

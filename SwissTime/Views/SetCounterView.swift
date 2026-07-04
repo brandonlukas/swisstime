@@ -100,11 +100,13 @@ struct SetCounterView: View {
 
     /// A session launched from the lock screen or Control Center uses the
     /// remembered numbers — the whole point is zero configuration. A
-    /// session already running is left alone; the link just lands here.
+    /// session already running is left alone, and a running WORKOUT wins
+    /// outright: an accidental launcher press mid-workout must not beep
+    /// over the player. The latch is consumed either way.
     private func consumePendingStart() {
         guard DeepLink.pendingSetsStart else { return }
         DeepLink.pendingSetsStart = false
-        guard engine == nil else { return }
+        guard engine == nil, !PlayerEngine.isActive else { return }
         start(setCount: sets, restDuration: rest, fiveSecondsCue: fiveSeconds)
     }
 

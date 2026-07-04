@@ -167,7 +167,14 @@ final class PlayerEngine: ObservableObject {
         totalDuration * (1 - overallFraction(at: date))
     }
 
+    /// True from start() until teardown. The counter already yields when a
+    /// player starts; this is the reverse signal — the Sets launchers
+    /// consult it so an accidental Start Sets press can't beep over a
+    /// running workout.
+    static private(set) var isActive = false
+
     func start() {
+        Self.isActive = true
         NotificationCenter.default.post(name: .playerEngineDidStart, object: self)
         audio.start()
         stepFeedback.prepare()
@@ -190,6 +197,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     func stopAndTearDown() {
+        Self.isActive = false
         ticker?.invalidate()
         ticker = nil
         observers.forEach { NotificationCenter.default.removeObserver($0) }
