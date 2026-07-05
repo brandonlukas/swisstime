@@ -79,14 +79,17 @@ private struct ScaledFont: ViewModifier {
 
     init(size: CGFloat, weight: Font.Weight, relativeTo style: Font.TextStyle,
          expanded: Bool = false) {
-        _scale = ScaledMetric(wrappedValue: 1, relativeTo: style)
+        // Scale a 100 pt reference, not 1 pt: the metrics round to whole
+        // points, and at 1 pt that rounding flattens every size step
+        // within ±20% of the default back to no-op.
+        _scale = ScaledMetric(wrappedValue: 100, relativeTo: style)
         self.size = size
         self.weight = weight
         self.expanded = expanded
     }
 
     func body(content: Content) -> some View {
-        let font: Font = .system(size: size * scale, weight: weight)
+        let font: Font = .system(size: size * scale / 100, weight: weight)
         content.font(expanded ? font.width(.expanded) : font)
     }
 }
@@ -94,28 +97,28 @@ private struct ScaledFont: ViewModifier {
 /// Poster type: expanded, heavy, uppercase, tracked out — kerning scales
 /// with the glyphs so the tracking holds at every size.
 private struct DisplayType: ViewModifier {
-    @ScaledMetric(relativeTo: .largeTitle) private var scale: CGFloat = 1
+    @ScaledMetric(relativeTo: .largeTitle) private var scale: CGFloat = 100
     let size: CGFloat
     let weight: Font.Weight
 
     func body(content: Content) -> some View {
         content
-            .kerning(size * scale * 0.05)
-            .font(.system(size: size * scale, weight: weight).width(.expanded))
+            .kerning(size * scale / 100 * 0.05)
+            .font(.system(size: size * scale / 100, weight: weight).width(.expanded))
             .textCase(.uppercase)
     }
 }
 
 /// Small tracked tag — index numbers, month labels, section overlines.
 private struct OverlineType: ViewModifier {
-    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 100
     let size: CGFloat
     let weight: Font.Weight
 
     func body(content: Content) -> some View {
         content
-            .kerning(1.5 * scale)
-            .font(.system(size: size * scale, weight: weight))
+            .kerning(1.5 * scale / 100)
+            .font(.system(size: size * scale / 100, weight: weight))
             .monospacedDigit()
             .textCase(.uppercase)
     }
