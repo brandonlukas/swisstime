@@ -8,6 +8,7 @@ import UIKit
 enum SettingsKey {
     static let theme = "settings.theme"
     static let voiceCues = "settings.voiceCues"
+    static let sounds = "settings.sounds"
     static let haptics = "settings.haptics"
     static let liveActivity = "settings.liveActivity"
     static let voiceIdentifier = "settings.voiceIdentifier"
@@ -19,6 +20,9 @@ enum SettingsKey {
 enum AppSettings {
     static var voiceCues: Bool {
         UserDefaults.standard.object(forKey: SettingsKey.voiceCues) as? Bool ?? true
+    }
+    static var sounds: Bool {
+        UserDefaults.standard.object(forKey: SettingsKey.sounds) as? Bool ?? true
     }
     static var haptics: Bool {
         UserDefaults.standard.object(forKey: SettingsKey.haptics) as? Bool ?? true
@@ -180,6 +184,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(SettingsKey.theme) private var theme = ThemeChoice.system.rawValue
     @AppStorage(SettingsKey.voiceCues) private var voiceCues = true
+    @AppStorage(SettingsKey.sounds) private var sounds = true
     @AppStorage(SettingsKey.haptics) private var haptics = true
     @AppStorage(SettingsKey.liveActivity) private var liveActivity = true
     @AppStorage(SettingsKey.voiceIdentifier) private var voiceIdentifier = ""
@@ -230,15 +235,21 @@ struct SettingsView: View {
                                 .foregroundStyle(Color.signalRed)
                         }
                     }
-                    group("Voice") {
+                    group("Sound") {
                         VStack(alignment: .leading, spacing: 10) {
                             ToggleRow(title: "Voice cues", isOn: $voiceCues)
-                            Text("Spoken announcements like “5 seconds left.” Beeps and chimes always play.")
+                            Text("Spoken announcements like “5 seconds left.”")
                                 .appFont(14)
                                 .foregroundStyle(Color.inkSecondary)
                         }
                         if voiceCues {
                             voiceSection
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            ToggleRow(title: "Beeps and chimes", isOn: $sounds)
+                            Text("The beep as the clock hits zero, and the chime when a workout ends. Both rows off makes a visual timer.")
+                                .appFont(14)
+                                .foregroundStyle(Color.inkSecondary)
                         }
                     }
                     group("Session") {

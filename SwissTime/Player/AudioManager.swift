@@ -174,8 +174,11 @@ final class AudioManager: NSObject {
         }
     }
 
-    func playBeep() { play(beepPlayer) }
-    func playDone() { play(donePlayer) }
+    // Gated like speak() is on voiceCues: the visual timer works with
+    // every sound off, and the silence keepalive is untouched — background
+    // execution doesn't depend on anything audible.
+    func playBeep() { guard AppSettings.sounds else { return }; play(beepPlayer) }
+    func playDone() { guard AppSettings.sounds else { return }; play(donePlayer) }
 
     /// The user's chosen voice, or the best the device has.
     static func resolveVoice() -> AVSpeechSynthesisVoice? {
