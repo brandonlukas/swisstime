@@ -64,8 +64,6 @@ final class PlayerEngine: ObservableObject {
 
     private let audio = AudioManager()
     private let liveActivity = LiveActivityController()
-    private let stepFeedback = UIImpactFeedbackGenerator(style: .medium)
-    private let pauseFeedback = UIImpactFeedbackGenerator(style: .light)
     private var ticker: Timer?
     private var observers: [NSObjectProtocol] = []
     private var halfwayFired = false
@@ -177,8 +175,6 @@ final class PlayerEngine: ObservableObject {
         Self.isActive = true
         NotificationCenter.default.post(name: .playerEngineDidStart, object: self)
         audio.start()
-        stepFeedback.prepare()
-        pauseFeedback.prepare()
         phase = .countdown
         index = -1
         endDate = Date().addingTimeInterval(countdownDuration)
@@ -208,7 +204,7 @@ final class PlayerEngine: ObservableObject {
 
     func togglePause() {
         guard phase != .finished else { return }
-        pauseFeedback.impactOccurred()
+        Haptics.lightImpact()
         switch phase {
         case .running, .countdown:
             pausedRemaining = remaining(at: Date())
@@ -328,7 +324,9 @@ final class PlayerEngine: ObservableObject {
     }
 
     private func announce(_ step: Step) {
-        stepFeedback.impactOccurred()
+        // Through Haptics, not a raw generator — the Settings switch and
+        // Low Power Mode must reach the player's buzzes too.
+        Haptics.impact()
         audio.playBeep()
         var parts: [String] = []
         switch step.kind {
@@ -364,7 +362,7 @@ final class PlayerEngine: ObservableObject {
     private func finish() {
         phase = .finished
         index = steps.count - 1
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
         audio.setKeepAlive(false)
         audio.playDone()
         // The finish chime runs 0.74s; speak after it rings out.

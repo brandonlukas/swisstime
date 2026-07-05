@@ -101,6 +101,7 @@ enum ThemeChoice: String, CaseIterable {
 @MainActor
 enum Haptics {
     private static let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private static let lightGenerator = UIImpactFeedbackGenerator(style: .light)
     private static let notificationGenerator = UINotificationFeedbackGenerator()
     private static let selectionGenerator = UISelectionFeedbackGenerator()
 
@@ -112,6 +113,13 @@ enum Haptics {
         guard enabled else { return }
         impactGenerator.impactOccurred()
         impactGenerator.prepare()
+    }
+
+    /// The softer tap — pause/resume, nothing that marks progress.
+    static func lightImpact() {
+        guard enabled else { return }
+        lightGenerator.impactOccurred()
+        lightGenerator.prepare()
     }
 
     static func success() {
@@ -234,7 +242,12 @@ struct SettingsView: View {
                         }
                     }
                     group("Session") {
-                        ToggleRow(title: "Haptics", isOn: $haptics)
+                        VStack(alignment: .leading, spacing: 10) {
+                            ToggleRow(title: "Haptics", isOn: $haptics)
+                            Text("A tap as steps change, sets end, and workouts finish.")
+                                .appFont(14)
+                                .foregroundStyle(Color.inkSecondary)
+                        }
                         VStack(alignment: .leading, spacing: 10) {
                             ToggleRow(title: "Water tilt", isOn: $waterTilt)
                             Text("The waterline leans with your phone, like a carried glass.")
