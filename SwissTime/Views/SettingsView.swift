@@ -262,7 +262,22 @@ struct SettingsView: View {
         // very screen doing the switching honest about the result.
         .preferredColorScheme(sheetScheme)
         .onChange(of: appIcon) { _, new in
-            setIcon(AppIconChoice(rawValue: new) ?? .pool, retriesLeft: 2)
+            let choice = AppIconChoice(rawValue: new) ?? .pool
+            guard UIApplication.shared.alternateIconName != choice.alternateName
+            else { return }
+            // The device shows its own "You have changed the icon" alert —
+            // system-dispatched, not ours. Failures are simulator-only in
+            // practice (EAGAIN from a wedged SpringBoard; reboot clears
+            // it), but a failed switch must not leave the control lying
+            // about the home screen.
+            UIApplication.shared.setAlternateIconName(choice.alternateName) { error in
+                if let error {
+                    DispatchQueue.main.async {
+                        appIcon = AppIconChoice.current.rawValue
+                        iconError = "\(error)"
+                    }
+                }
+            }
         }
         .onChange(of: voiceIdentifier) { _, _ in resolveSelectedVoiceName() }
         .onAppear {
@@ -332,31 +347,6 @@ struct SettingsView: View {
                             .resizable()
                             .frame(width: 64, height: 64)
                     }
-                }
-            }
-        }
-    }
-
-    /// SpringBoard can answer EAGAIN ("resource temporarily unavailable")
-    /// when asked right after launch; a beat later the same call succeeds.
-    /// Anything else — or running out of retries — reverts the control, so
-    /// it never lies about the home screen.
-    private func setIcon(_ choice: AppIconChoice, retriesLeft: Int) {
-        guard appIcon == choice.rawValue,
-              UIApplication.shared.alternateIconName != choice.alternateName
-        else { return }
-        UIApplication.shared.setAlternateIconName(choice.alternateName) { error in
-            guard let error else { return }
-            DispatchQueue.main.async {
-                let posix = error as NSError
-                if retriesLeft > 0, posix.domain == NSPOSIXErrorDomain,
-                   posix.code == 35 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        setIcon(choice, retriesLeft: retriesLeft - 1)
-                    }
-                } else {
-                    appIcon = AppIconChoice.current.rawValue
-                    iconError = "\(error)"
                 }
             }
         }
