@@ -43,6 +43,15 @@ struct CompletionCeremonyView: View {
         .presentationDragIndicator(.visible)
         // Saving on the way out covers Done and a swipe-down alike.
         .onDisappear { pond.setNote(note, for: entryID) }
+        .onAppear {
+            // Debug: take the Done button's exact exit (environment dismiss,
+            // not item-nil), so a command-line run can film that path.
+            if ProcessInfo.processInfo.arguments.contains("-autoDismissCeremony"),
+               !DebugLaunch.didAutoDismissCeremony {
+                DebugLaunch.didAutoDismissCeremony = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { dismiss() }
+            }
+        }
     }
 }
 

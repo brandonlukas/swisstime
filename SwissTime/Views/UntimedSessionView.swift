@@ -8,8 +8,9 @@ import SwiftUI
 /// every tile is drained by hand.
 struct UntimedSessionView: View {
     let workout: Workout
-    /// Fired once the ceremony ends; the caller pops the whole stack home
-    /// in one mutation, same landing as every completion.
+    /// Fired once the ceremony ends; the list clears its path — one array
+    /// mutation popping session and detail together, same landing as every
+    /// completion.
     let onFinish: () -> Void
 
     @EnvironmentObject private var store: WorkoutStore
@@ -64,8 +65,14 @@ struct UntimedSessionView: View {
         .navigationBarTitleDisplayMode(.inline)
         // The ceremony floats right here, over the pool the session just
         // filled — celebrate where the work happened. Its dismissal hands
-        // the exit to the caller, which pops to the list atomically.
-        .sheet(item: $ceremony, onDismiss: onFinish) { ceremony in
+        // the exit to the caller, which pops to the list atomically — one
+        // runloop beat later: the Done button's environment dismiss fires
+        // onDismiss while the teardown transaction is still resolving, and
+        // popping the stack inside it strands a blank pushed screen (swipe
+        // and item-nil dismissals settle first and never hit this).
+        .sheet(item: $ceremony, onDismiss: {
+            DispatchQueue.main.async { onFinish() }
+        }) { ceremony in
             CompletionCeremonyView(workout: workout, entryID: ceremony.entryID)
         }
         .onAppear {
@@ -76,9 +83,11 @@ struct UntimedSessionView: View {
                 DebugLaunch.didAutoFinishUntimed = true
                 done = Set(workout.exercises.map(\.id))
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { finish() }
-                // ...and dismiss the ceremony too, so a command-line run can
-                // verify the pop-to-root landing without touch input.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5) { ceremony = nil }
+                // ...and dismiss the ceremony too (item-nil path), unless
+                // -autoDismissCeremony is driving the Done-button path.
+                if !ProcessInfo.processInfo.arguments.contains("-autoDismissCeremony") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) { ceremony = nil }
+                }
             }
         }
         .safeAreaInset(edge: .bottom) {

@@ -24,14 +24,13 @@ struct WorkoutDetailView: View {
     @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
     let workoutID: UUID
-    /// The list owns the navigation path; completions land on the list by
-    /// clearing it in one mutation.
-    var popToRoot: () -> Void = {}
+    /// The list owns the navigation path; Start workout pushes the untimed
+    /// session as a path element above this screen.
+    var startSession: () -> Void = {}
 
     @State private var editing = false
     @State private var sheet: DetailSheet?
     @State private var playing = false
-    @State private var sessionActive = false
     @State private var ceremony: CompletionCeremony?
     /// Set by the delete confirmation; acted on once its sheet is gone,
     /// so the pop-back never races the dismissing sheet.
@@ -82,7 +81,7 @@ struct WorkoutDetailView: View {
                                           fill: workout.palette.fill,
                                           textColor: workout.palette.onFill) {
                                 Haptics.impact()
-                                sessionActive = true
+                                startSession()
                             }
                         }
                     }
@@ -135,16 +134,6 @@ struct WorkoutDetailView: View {
         .fullScreenCover(isPresented: $playing) {
             PlayerView(workout: workout)
         }
-        // Pushed, not covered: the tab bar stays reachable, so the Sets tab
-        // can time rests while the session grid holds the map. When the
-        // ceremony ends, both pops happen in one transaction — no latch,
-        // no chained dismissals racing the navigation.
-        .navigationDestination(isPresented: $sessionActive) {
-            UntimedSessionView(workout: workout) {
-                sessionActive = false
-                popToRoot()
-            }
-        }
         // However the ceremony ends — Done or a swipe — the workout is
         // logged and this screen's job is over; return to the list.
         .sheet(item: $ceremony, onDismiss: { dismiss() }) { ceremony in
@@ -182,7 +171,7 @@ struct WorkoutDetailView: View {
                !DebugLaunch.didAutoStartUntimed,
                workout.kind == .untimed, !workout.exercises.isEmpty {
                 DebugLaunch.didAutoStartUntimed = true
-                sessionActive = true
+                startSession()
             }
         }
     }

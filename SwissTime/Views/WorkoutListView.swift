@@ -3,7 +3,16 @@ import SwiftUI
 struct WorkoutListView: View {
     @EnvironmentObject private var store: WorkoutStore
     @EnvironmentObject private var pond: PondStore
-    @State private var path: [UUID] = []
+    /// One flat path for everything pushed: the detail page and, above it,
+    /// an untimed session. A single array mutation pops any depth in one
+    /// transition — completions land on the list atomically, with no
+    /// isPresented destination left to orphan mid-pop.
+    enum Route: Hashable {
+        case detail(UUID)
+        case session(UUID)
+    }
+
+    @State private var path: [Route] = []
     @State private var showingCreate = false
     @State private var showingPond = false
     @State private var showingSettings = false
@@ -70,8 +79,16 @@ struct WorkoutListView: View {
                 .padding(20)
             }
             .background(PaperBackground())
-            .navigationDestination(for: UUID.self) { id in
-                WorkoutDetailView(workoutID: id, popToRoot: { path.removeAll() })
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .detail(let id):
+                    WorkoutDetailView(workoutID: id,
+                                      startSession: { path.append(.session(id)) })
+                case .session(let id):
+                    UntimedSessionView(workout: store.workout(id) ?? Workout(title: "")) {
+                        path.removeAll()
+                    }
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -94,7 +111,7 @@ struct WorkoutListView: View {
                 // the default swatch rotates through the palette.
                 WorkoutFormView(
                     defaultColorIndex: store.workouts.count % Palette.all.count,
-                    onCreated: { path = [$0] }
+                    onCreated: { path = [.detail($0)] }
                 )
             }
             .fullScreenCover(item: $playing) { workout in
@@ -123,7 +140,7 @@ struct WorkoutListView: View {
                           !DebugLaunch.didAutoOpen,
                           let first = store.sortedWorkouts.first {
                     DebugLaunch.didAutoOpen = true
-                    path = [first.id]
+                    path = [.detail(first.id)]
                 } else if arguments.contains("-autoAdoptFirstSample"),
                           !DebugLaunch.didAutoAdopt,
                           store.workouts.isEmpty,
@@ -211,7 +228,7 @@ struct WorkoutListView: View {
         guard store.workouts.isEmpty else { return }
         Haptics.impact()
         store.workouts.append(sample)
-        path = [sample.id]
+        path = [.detail(sample.id)]
     }
 }
 

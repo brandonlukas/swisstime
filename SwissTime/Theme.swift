@@ -445,6 +445,7 @@ enum DebugLaunch {
     static var didAutoPickIcon = false
     static var didAutoStartUntimed = false
     static var didAutoFinishUntimed = false
+    static var didAutoDismissCeremony = false
 }
 
 extension String {
