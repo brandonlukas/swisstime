@@ -37,6 +37,21 @@ extension Color {
 
     /// The gilded-toy accent — fixed, like all toy vinyl.
     static let gold = Color(red: 0.87, green: 0.70, blue: 0.33)
+
+    /// Ink at an opacity that answers the system's Increase Contrast
+    /// setting — the default look is untouched; users who flip the switch
+    /// get firmer text and borders. Shared so widget labels obey the same
+    /// contrast rules as the app. Components mirror `ink` above, which a
+    /// UIColor provider can't consume as a SwiftUI Color.
+    static func inkOpacity(_ normal: CGFloat, highContrast: CGFloat) -> Color {
+        Color(uiColor: UIColor { traits in
+            let ink = traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0.902, green: 0.925, blue: 0.969, alpha: 1)
+                : UIColor(red: 0.075, green: 0.13, blue: 0.28, alpha: 1)
+            return ink.withAlphaComponent(
+                traits.accessibilityContrast == .high ? highContrast : normal)
+        })
+    }
 }
 
 /// What floats in for a finished workout of this color.

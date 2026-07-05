@@ -66,20 +66,6 @@ extension Color {
     /// (60% fell just short at 4.05).
     static let inkSecondary = Color.inkOpacity(0.66, highContrast: 0.78)
 
-    /// Ink at an opacity that answers the system's Increase Contrast
-    /// setting — the default look is untouched; users who flip the switch
-    /// get real borders and darker captions. Ink components mirror
-    /// Shared/Palette.swift's `ink`, which UIColor providers can't consume
-    /// as a SwiftUI Color.
-    static func inkOpacity(_ normal: CGFloat, highContrast: CGFloat) -> Color {
-        Color(uiColor: UIColor { traits in
-            let ink = traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.902, green: 0.925, blue: 0.969, alpha: 1)
-                : UIColor(red: 0.075, green: 0.13, blue: 0.28, alpha: 1)
-            return ink.withAlphaComponent(
-                traits.accessibilityContrast == .high ? highContrast : normal)
-        })
-    }
 }
 
 extension Workout {

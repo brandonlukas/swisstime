@@ -266,7 +266,7 @@ private struct PoolView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .kerning(1.2)
                         .textCase(.uppercase)
-                        .foregroundStyle(Color.ink.opacity(0.65))
+                        .foregroundStyle(Color.inkOpacity(0.66, highContrast: 0.78))
                     Spacer(minLength: 0)
                     // "3 afloat", same words as the hero card — a bare
                     // numeral under a month name reads as a date.
@@ -278,7 +278,7 @@ private struct PoolView: View {
                             .font(.system(size: 11, weight: .semibold))
                             .kerning(1.1)
                             .textCase(.uppercase)
-                            .opacity(0.6)
+                            .foregroundStyle(Color.inkOpacity(0.66, highContrast: 0.78))
                     }
                     .foregroundStyle(Color.ink)
                 }
