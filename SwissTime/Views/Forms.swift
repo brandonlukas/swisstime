@@ -245,8 +245,11 @@ struct ToggleRow: View {
         Toggle(title, isOn: $isOn)
             .font(.app(17))
             .tint(Color.ink)
+            // No app-side haptic: the switch ticks on its own (device-
+            // verified), governed by the system's own haptics setting —
+            // ours added nothing a finger could tell apart and couldn't
+            // be silenced by the app's Haptics toggle anyway.
             .onChange(of: isOn) { _, _ in
-                Haptics.selection()
                 hideKeyboard()
             }
     }
