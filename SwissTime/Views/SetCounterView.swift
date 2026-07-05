@@ -64,22 +64,22 @@ struct SetCounterView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Count your sets and time your rest — company for workouts you run yourself.")
-                    .font(.app(15))
+                    .appFont(15)
                     .foregroundStyle(.secondary)
-                HStack(alignment: .top, spacing: 12) {
+                AdaptiveRow {
                     PickerField(label: "Sets", options: Array(1...12),
                                 display: { "\($0)" }, selection: $sets)
                     PickerField(label: "Rest between sets", options: Presets.restDurations,
                                 display: { Format.mmss($0) }, selection: $rest)
                 }
                 Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
-                    .font(.app(14))
+                    .appFont(14)
                     .foregroundStyle(.secondary)
                 // Same shape as the exercise form's alerts section, so the
                 // two places you pick cues read as one control.
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Alerts")
-                        .font(.app(17, .medium))
+                        .appFont(17, .medium)
                     Group {
                         ToggleRow(title: "Halfway done", isOn: $halfway)
                         ToggleRow(title: "5s left", isOn: $fiveSeconds)
@@ -90,7 +90,7 @@ struct SetCounterView: View {
                         // These route through the master Voice cues switch —
                         // a dead control must say who turned it off.
                         Text("Voice cues are off in Settings.")
-                            .font(.app(13))
+                            .appFont(13)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -152,6 +152,7 @@ private struct SetCounterRunView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var power = PowerState.shared
     @AppStorage(SettingsKey.waterTilt) private var waterTilt = true
+    @ScaledMetric(relativeTo: .largeTitle) private var buttonDiameter: CGFloat = 84
 
     private var waterPolicy: WaterPolicy {
         WaterPolicy(lowPower: power.lowPower, reduceMotion: reduceMotion,
@@ -248,14 +249,14 @@ private struct SetCounterRunView: View {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(sign + String(format: "%d:%02d",
                                    centiseconds / 6000, (centiseconds / 100) % 60))
-                    .font(.app(88, .light))
+                    .readoutFont(88, .light)
                 Text(String(format: ".%02d", centiseconds % 100))
-                    .font(.app(34, .light))
+                    .readoutFont(34, .light)
             }
             .monospacedDigit()
             CounterDots(total: engine.setCount, current: engine.currentSet)
             Text("Set \(engine.currentSet) of \(engine.setCount)")
-                .font(.app(15))
+                .appFont(15)
                 .opacity(0.6)
         }
         .offset(y: -56)
@@ -277,9 +278,11 @@ private struct SetCounterRunView: View {
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.app(filled ? 18 : 17, filled ? .medium : .regular))
+                // Label and circle grow together on the same damped curve
+                // as the readout, so the word never escapes its button.
+                .readoutFont(filled ? 18 : 17, filled ? .medium : .regular)
                 .foregroundStyle(filled ? Color.onInk : Color.ink)
-                .frame(width: 84, height: 84)
+                .frame(width: buttonDiameter, height: buttonDiameter)
                 .background(Circle().fill(filled ? Color.ink : Color.paperCardFill.opacity(0.92)))
                 .overlay(Circle().stroke(Color.ink.opacity(filled ? 0 : 0.1), lineWidth: 1))
                 .shadow(color: Color.shade.opacity(filled ? 0.15 : 0.08), radius: 8, y: 3)

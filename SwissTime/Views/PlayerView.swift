@@ -184,21 +184,21 @@ struct PlayerView: View {
     private var breadcrumb: some View {
         if engine.index < 0 {
             Text("Workout starting soon...")
-                .font(.app(16))
+                .appFont(16)
                 .frame(maxWidth: .infinity)
                 .frame(height: 76)
                 .paperCard(opacity: 0.92)
         } else if let step = engine.currentStep {
             HStack(spacing: 12) {
                 Text(step.label)
-                    .font(.app(15))
+                    .appFont(15)
                     .frame(minWidth: 30, alignment: .leading)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(step.exercise.name)
-                        .font(.app(16, .medium))
+                        .appFont(16, .medium)
                     if !step.exercise.instructions.isEmpty {
                         Text(step.exercise.instructions)
-                            .font(.app(15))
+                            .appFont(15)
                             .foregroundStyle(Color.ink.opacity(0.55))
                     }
                 }
@@ -213,7 +213,7 @@ struct PlayerView: View {
                         Text(Format.mmss(step.exercise.duration))
                     }
                 }
-                .font(.app(16))
+                .appFont(16)
                 .monospacedDigit()
             }
             .padding(.horizontal, 16)
@@ -294,10 +294,10 @@ struct PlayerView: View {
         return VStack(spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(String(format: "%d:%02d", minutes, seconds))
-                    .font(.app(64, .medium))
+                    .readoutFont(64, .medium)
                     .monospacedDigit()
                 Text(String(format: ".%02d", fraction))
-                    .font(.app(24, .medium))
+                    .readoutFont(24, .medium)
                     .monospacedDigit()
             }
             // Gated on the recorded entry, not just the phase: the entry
@@ -316,7 +316,7 @@ struct PlayerView: View {
                     } label: {
                         Text(pond.note(for: entryID).isEmpty
                              ? "Add a note" : "Edit note")
-                            .font(.app(13, .medium))
+                            .appFont(13, .medium)
                             .underline()
                             .foregroundStyle(Color.ink.opacity(0.55))
                     }
@@ -326,7 +326,7 @@ struct PlayerView: View {
                 VStack(spacing: 12) {
                     SetDots(step: step)
                     Text("Exercise \(step.number) of \(engine.exerciseCount)")
-                        .font(.app(13))
+                        .appFont(13)
                         .monospacedDigit()
                         .foregroundStyle(Color.ink.opacity(0.55))
                     if engine.phase == .paused {
@@ -339,7 +339,7 @@ struct PlayerView: View {
                 VStack(spacing: 10) {
                     if engine.steps.count > 1, !engine.hasUntimedSteps {
                         Text("\(Format.mmss(engine.totalRemaining(at: now))) left")
-                            .font(.app(14))
+                            .appFont(14)
                             .monospacedDigit()
                             .foregroundStyle(Color.ink.opacity(0.55))
                     }
@@ -353,7 +353,7 @@ struct PlayerView: View {
 
     private var pausedLabel: some View {
         Text("PAUSED")
-            .font(.app(13, .medium))
+            .appFont(13, .medium)
             .kerning(2.5)
             .foregroundStyle(Color.ink.opacity(0.55))
     }
@@ -364,7 +364,7 @@ struct PlayerView: View {
             engine.next()
         } label: {
             Text(step.kind == .work ? "End set \(step.set)" : "Start set \(step.set + 1)")
-                .font(.app(16, .medium))
+                .appFont(16, .medium)
                 .foregroundStyle(engine.workout.palette.onFill)
                 .padding(.horizontal, 28)
                 .frame(height: 46)

@@ -22,7 +22,7 @@ struct CompletionCeremonyView: View {
                 .padding(.top, 30)
                 .padding(.bottom, 6)
             Text(workout.title)
-                .font(.app(15))
+                .appFont(15)
                 .foregroundStyle(.secondary)
             let shiny = pond.isShiny(entryID)
             EarnedToyView(colorIndex: workout.colorIndex, shiny: shiny)
@@ -56,11 +56,11 @@ struct EarnedCaption: View {
     var body: some View {
         if shiny {
             Text("A gilded \(toy.displayName) — lucky you.")
-                .font(.app(13, .medium))
+                .appFont(13, .medium)
                 .foregroundStyle(Color.goldDeep)
         } else {
             Text("Afloat in your \(MonthKey.current.monthName) pool")
-                .font(.app(13))
+                .appFont(13)
                 .foregroundStyle(Color.ink.opacity(0.55))
         }
     }
@@ -74,7 +74,7 @@ struct NoteField: View {
 
     var body: some View {
         TextField(placeholder, text: $text, axis: .vertical)
-            .font(.app(16))
+            .appFont(16)
             .lineLimit(2...5)
             .focused($focused)
             .padding(12)
@@ -102,7 +102,7 @@ struct NoteFormView: View {
         ) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Note")
-                    .font(.app(17, .medium))
+                    .appFont(17, .medium)
                 NoteField(text: $text)
             }
         }

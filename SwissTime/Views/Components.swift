@@ -11,7 +11,7 @@ struct PrimaryButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.app(17, .medium))
+                .appFont(17, .medium)
                 .foregroundStyle(textColor)
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
@@ -64,13 +64,13 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
-                .font(.app(17, .medium))
+                .appFont(17, .medium)
             Text(message)
-                .font(.app(15))
+                .appFont(15)
                 .foregroundStyle(.secondary)
             Button(action: action) {
                 Text(buttonTitle)
-                    .font(.app(16, .medium))
+                    .appFont(16, .medium)
                     .foregroundStyle(Color.onInk)
                     .padding(.horizontal, 24)
                     .frame(height: 48)

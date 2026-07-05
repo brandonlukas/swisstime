@@ -180,9 +180,9 @@ struct WorkoutListView: View {
                 .frame(width: 11, height: 11)
             VStack(alignment: .leading, spacing: 2) {
                 Text(sample.title)
-                    .font(.app(15, .semibold))
+                    .appFont(15, .semibold)
                 Text("\(sample.kind == .timed ? "Timed" : "Sets") · \(sample.summaryLine)")
-                    .font(.app(12))
+                    .appFont(12)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -257,19 +257,19 @@ private struct WorkoutCard: View {
                     .fill(workout.palette.fill)
                     .frame(width: 14, height: 14)
                 Text(workout.title)
-                    .font(.app(18, .semibold))
+                    .appFont(18, .semibold)
             }
             if !workout.details.isEmpty {
                 Text(workout.details)
-                    .font(.app(15))
+                    .appFont(15)
                     .foregroundStyle(.secondary)
             }
             Text(workout.summaryLine)
-                .font(.app(15))
+                .appFont(15)
                 .padding(.top, 2)
             if let line = Format.withLine(workout.exerciseNames) {
                 Text(line)
-                    .font(.app(15))
+                    .appFont(15)
                     .foregroundStyle(.secondary)
             }
         }

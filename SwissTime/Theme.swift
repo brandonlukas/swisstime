@@ -66,32 +66,80 @@ extension Workout {
     }
 }
 
-extension Font {
-    /// SF Pro — body, controls, and timer numerals.
-    static func app(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight)
+/// Dynamic Type: all app text is set through these modifiers, whose
+/// @ScaledMetric tracks the user's text size. Body text rides the .body
+/// curve (up to ~3× at the top accessibility size); display faces — poster
+/// titles, timer numerals — ride .largeTitle's gentler curve (~1.6×), so a
+/// clock face grows meaningfully without swallowing its screen.
+private struct ScaledFont: ViewModifier {
+    @ScaledMetric private var scale: CGFloat
+    let size: CGFloat
+    let weight: Font.Weight
+    let expanded: Bool
+
+    init(size: CGFloat, weight: Font.Weight, relativeTo style: Font.TextStyle,
+         expanded: Bool = false) {
+        _scale = ScaledMetric(wrappedValue: 1, relativeTo: style)
+        self.size = size
+        self.weight = weight
+        self.expanded = expanded
     }
 
-    /// Expanded grotesque — the poster voice. Use through `Text.display`.
-    static func display(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> Font {
-        .system(size: size, weight: weight).width(.expanded)
+    func body(content: Content) -> some View {
+        let font: Font = .system(size: size * scale, weight: weight)
+        content.font(expanded ? font.width(.expanded) : font)
     }
 }
 
-extension Text {
+/// Poster type: expanded, heavy, uppercase, tracked out — kerning scales
+/// with the glyphs so the tracking holds at every size.
+private struct DisplayType: ViewModifier {
+    @ScaledMetric(relativeTo: .largeTitle) private var scale: CGFloat = 1
+    let size: CGFloat
+    let weight: Font.Weight
+
+    func body(content: Content) -> some View {
+        content
+            .kerning(size * scale * 0.05)
+            .font(.system(size: size * scale, weight: weight).width(.expanded))
+            .textCase(.uppercase)
+    }
+}
+
+/// Small tracked tag — index numbers, month labels, section overlines.
+private struct OverlineType: ViewModifier {
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
+    let size: CGFloat
+    let weight: Font.Weight
+
+    func body(content: Content) -> some View {
+        content
+            .kerning(1.5 * scale)
+            .font(.system(size: size * scale, weight: weight))
+            .monospacedDigit()
+            .textCase(.uppercase)
+    }
+}
+
+extension View {
+    /// SF Pro on the .body curve — text, controls, captions.
+    func appFont(_ size: CGFloat, _ weight: Font.Weight = .regular) -> some View {
+        modifier(ScaledFont(size: size, weight: weight, relativeTo: .body))
+    }
+
+    /// Big readouts (timer numerals) on the damped .largeTitle curve.
+    func readoutFont(_ size: CGFloat, _ weight: Font.Weight = .regular) -> some View {
+        modifier(ScaledFont(size: size, weight: weight, relativeTo: .largeTitle))
+    }
+
     /// Poster type: expanded, heavy, uppercase, tracked out.
     func display(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> some View {
-        kerning(size * 0.05)
-            .font(.display(size, weight))
-            .textCase(.uppercase)
+        modifier(DisplayType(size: size, weight: weight))
     }
 
     /// Small tracked tag — index numbers, month labels.
     func overline(_ size: CGFloat = 12, _ weight: Font.Weight = .semibold) -> some View {
-        kerning(1.5)
-            .font(.app(size, weight))
-            .monospacedDigit()
-            .textCase(.uppercase)
+        modifier(OverlineType(size: size, weight: weight))
     }
 }
 

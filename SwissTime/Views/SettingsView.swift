@@ -218,7 +218,7 @@ struct SettingsView: View {
                                $0.hasPrefix("-autoPick")
                            }) {
                             Text(verbatim: iconError)
-                                .font(.app(13, .bold))
+                                .appFont(13, .bold)
                                 .foregroundStyle(Color.signalRed)
                         }
                     }
@@ -226,7 +226,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             ToggleRow(title: "Voice cues", isOn: $voiceCues)
                             Text("Spoken announcements like “5 seconds left.” Beeps and chimes always play.")
-                                .font(.app(14))
+                                .appFont(14)
                                 .foregroundStyle(.secondary)
                         }
                         if voiceCues {
@@ -238,22 +238,22 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             ToggleRow(title: "Water tilt", isOn: $waterTilt)
                             Text("The waterline leans with your phone, like a carried glass.")
-                                .font(.app(14))
+                                .appFont(14)
                                 .foregroundStyle(.secondary)
                         }
                         VStack(alignment: .leading, spacing: 10) {
                             ToggleRow(title: "Live Activity", isOn: $liveActivity)
                             Text("The running timer on the Lock Screen and in the Dynamic Island.")
-                                .font(.app(14))
+                                .appFont(14)
                                 .foregroundStyle(.secondary)
                         }
                         Text("In Low Power Mode the water calms, the tilt stills, and haptics rest — automatically.")
-                            .font(.app(13))
+                            .appFont(13)
                             .foregroundStyle(.secondary)
                     }
                     if ProcessInfo.processInfo.arguments.contains("-debugScheme") {
                         Text(verbatim: "reported=\(systemScheme.scheme) sheet=\(sheetScheme)")
-                            .font(.app(13, .bold))
+                            .appFont(13, .bold)
                             .foregroundStyle(Color.signalRed)
                     }
                 }
@@ -334,8 +334,8 @@ struct SettingsView: View {
     private var themePicker: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Theme")
-                .font(.app(17, .medium))
-            HStack(alignment: .top, spacing: 12) {
+                .appFont(17, .medium)
+            AdaptiveRow {
                 ForEach(ThemeChoice.allCases, id: \.rawValue) { choice in
                     PreviewPick(title: choice.title,
                                 selected: theme == choice.rawValue) {
@@ -355,8 +355,8 @@ struct SettingsView: View {
     private var appIconPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("App icon")
-                .font(.app(17, .medium))
-            HStack(alignment: .top, spacing: 12) {
+                .appFont(17, .medium)
+            AdaptiveRow {
                 ForEach(AppIconChoice.allCases, id: \.rawValue) { choice in
                     PreviewPick(title: choice.title,
                                 selected: appIcon == choice.rawValue) {
@@ -389,10 +389,10 @@ struct SettingsView: View {
             } label: {
                 HStack(spacing: 10) {
                     Text("Voice")
-                        .font(.app(17, .medium))
+                        .appFont(17, .medium)
                     Spacer(minLength: 8)
                     Text(selectedVoiceName)
-                        .font(.app(15))
+                        .appFont(15)
                         .foregroundStyle(.secondary)
                     Image(systemName: "chevron.down")
                         .font(.system(size: 13, weight: .semibold))
@@ -420,7 +420,7 @@ struct SettingsView: View {
                     }
                 }
                 Text("More voices — including higher-quality ones — can be downloaded in Settings → Accessibility → Spoken Content → Voices.")
-                    .font(.app(13))
+                    .appFont(13)
                     .foregroundStyle(.secondary)
                     .padding(.top, 12)
             }
@@ -449,9 +449,9 @@ struct SettingsView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name)
-                        .font(.app(16, selected ? .medium : .regular))
+                        .appFont(16, selected ? .medium : .regular)
                     Text(detail)
-                        .font(.app(13))
+                        .appFont(13)
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
@@ -524,11 +524,14 @@ private struct PreviewPick<Preview: View>: View {
                             .strokeBorder(selected ? Color.ink : Color.fieldBorder,
                                           lineWidth: selected ? 2 : 1))
                 Text(title)
-                    .font(.app(14, selected ? .medium : .regular))
+                    .appFont(14, selected ? .medium : .regular)
                     .foregroundStyle(selected ? .primary : .secondary)
                     .lineLimit(1)
             }
-            .frame(maxWidth: .infinity)
+            // Fills a third of the row normally; when AdaptiveRow stacks
+            // the tiles at accessibility sizes, the cap keeps them cards
+            // instead of full-width planks.
+            .frame(maxWidth: 220)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

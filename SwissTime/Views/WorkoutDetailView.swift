@@ -84,7 +84,7 @@ struct WorkoutDetailView: View {
                     withAnimation { editing.toggle() }
                 } label: {
                     Text(editing ? "Done" : "Edit")
-                        .font(.app(17, editing ? .medium : .regular))
+                        .appFont(17, editing ? .medium : .regular)
                 }
             }
         }
@@ -167,12 +167,12 @@ struct WorkoutDetailView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if !workout.details.isEmpty {
                     Text(workout.details)
-                        .font(.app(15))
+                        .appFont(15)
                         .foregroundStyle(.secondary)
                         .padding(.bottom, 10)
                 }
                 Text(workout.summaryLine)
-                    .font(.app(15))
+                    .appFont(15)
                 if workout.exercises.isEmpty {
                     emptyState
                         .padding(.top, 24)
@@ -210,7 +210,7 @@ struct WorkoutDetailView: View {
                     .font(.system(size: 15))
                     .frame(minWidth: 30, alignment: .leading)
                 Text("Add exercise")
-                    .font(.app(16))
+                    .appFont(16)
                 Spacer()
             }
             .foregroundStyle(.secondary)
@@ -259,7 +259,7 @@ struct WorkoutDetailView: View {
                         Image(systemName: "plus")
                             .font(.system(size: 15))
                         Text("Add exercise")
-                            .font(.app(16))
+                            .appFont(16)
                     }
                     .foregroundStyle(.secondary)
                 }
@@ -270,13 +270,13 @@ struct WorkoutDetailView: View {
                     sheet = .editWorkout
                 } label: {
                     Text("Edit title & description")
-                        .font(.app(16))
+                        .appFont(16)
                 }
                 Button(role: .destructive) {
                     sheet = .confirmDelete
                 } label: {
                     Text("Delete workout")
-                        .font(.app(16))
+                        .appFont(16)
                 }
             }
             .listRowBackground(Color.clear)
@@ -291,16 +291,16 @@ struct WorkoutDetailView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(exercise.name)
-                    .font(.app(16, .medium))
+                    .appFont(16, .medium)
                 if !exercise.instructions.isEmpty {
                     Text(exercise.instructions)
-                        .font(.app(14))
+                        .appFont(14)
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
             Text(exercise.trailingSummary)
-                .font(.app(15))
+                .appFont(15)
                 .monospacedDigit()
         }
         .contentShape(Rectangle())
@@ -323,16 +323,16 @@ private struct ExerciseLine: View {
                 .frame(minWidth: 30, alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
                 Text(exercise.name)
-                    .font(.app(16, .medium))
+                    .appFont(16, .medium)
                 if !exercise.instructions.isEmpty {
                     Text(exercise.instructions)
-                        .font(.app(15))
+                        .appFont(15)
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
             Text(exercise.trailingSummary)
-                .font(.app(16))
+                .appFont(16)
                 .monospacedDigit()
         }
         .padding(.vertical, 18)

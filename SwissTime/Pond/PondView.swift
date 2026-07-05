@@ -83,7 +83,7 @@ private struct PondPage: View {
                 .display(28)
                 .padding(.bottom, 8)
             Text(subtitle)
-                .font(.app(14))
+                .appFont(14)
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
             PondSceneView(monthKey: month, entries: entries, mode: .live,
@@ -101,12 +101,12 @@ private struct PondPage: View {
                 }
             if isCurrent, entries.isEmpty {
                 Text("Flat water. Finish a workout and a toy floats in.")
-                    .font(.app(15))
+                    .appFont(15)
                     .foregroundStyle(.secondary)
                     .padding(.top, 20)
             } else if isCurrent, !hasHistory {
                 Text("Past months will collect here.")
-                    .font(.app(13))
+                    .appFont(13)
                     .foregroundStyle(.secondary.opacity(0.8))
                     .padding(.top, 20)
             }

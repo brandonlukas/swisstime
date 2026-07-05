@@ -19,7 +19,7 @@ struct PondLogView: View {
                     .display(26)
                     .padding(.bottom, 8)
                 Text("Every finished workout, on the record. Tap an entry to note how it went; swipe one away to strike it — its toy leaves the pool.")
-                    .font(.app(14))
+                    .appFont(14)
                     .foregroundStyle(.secondary)
                     .padding(.bottom, 14)
                 InkRule()
@@ -27,7 +27,7 @@ struct PondLogView: View {
             .padding(.horizontal, 20)
             if pond.entries.isEmpty {
                 Text("Nothing on the record yet.")
-                    .font(.app(15))
+                    .appFont(15)
                     .foregroundStyle(.secondary)
                     .padding(20)
                 Spacer(minLength: 0)
@@ -89,16 +89,16 @@ private struct LogRow: View {
                         }
                     }
                 Text(entry.workoutTitle)
-                    .font(.app(16, .medium))
+                    .appFont(16, .medium)
                 Spacer(minLength: 8)
                 Text(entry.completedAt.formatted(
                     .dateTime.month(.abbreviated).day().hour().minute()))
-                    .font(.app(14))
+                    .appFont(14)
                     .foregroundStyle(.secondary)
             }
             if let note = entry.note, !note.isEmpty {
                 Text(note)
-                    .font(.app(15))
+                    .appFont(15)
                     .italic()
                     .foregroundStyle(Color.ink.opacity(0.7))
                     .padding(.leading, 24)
