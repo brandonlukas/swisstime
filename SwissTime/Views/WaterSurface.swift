@@ -34,6 +34,7 @@ final class WaterMotion {
 /// player and the Sets tab so the two screens can never disagree about what
 /// calm means. Reduce Motion flattens the surface entirely; Low Power Mode
 /// halves the clock, slows the texture beat, and rests the tilt sensor.
+/// Tilt is also a plain setting — some people find the slosh distracting.
 struct WaterPolicy {
     let fps: Double
     let textureBeat: Double
@@ -41,11 +42,11 @@ struct WaterPolicy {
     let tiltEnabled: Bool
     let calm: Bool
 
-    init(lowPower: Bool, reduceMotion: Bool) {
+    init(lowPower: Bool, reduceMotion: Bool, tiltSetting: Bool = true) {
         fps = lowPower ? 15 : 30
         textureBeat = lowPower ? 1 : 4
         rippleAmp = reduceMotion ? 0 : 1.6
-        tiltEnabled = !reduceMotion && !lowPower
+        tiltEnabled = tiltSetting && !reduceMotion && !lowPower
         calm = reduceMotion
     }
 }

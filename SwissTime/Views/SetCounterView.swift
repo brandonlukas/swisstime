@@ -141,9 +141,11 @@ private struct SetCounterRunView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var power = PowerState.shared
+    @AppStorage(SettingsKey.waterTilt) private var waterTilt = true
 
     private var waterPolicy: WaterPolicy {
-        WaterPolicy(lowPower: power.lowPower, reduceMotion: reduceMotion)
+        WaterPolicy(lowPower: power.lowPower, reduceMotion: reduceMotion,
+                    tiltSetting: waterTilt)
     }
 
     var body: some View {
@@ -214,6 +216,7 @@ private struct SetCounterRunView: View {
         // The tilt sensor rests whenever nobody could see it move.
         .onChange(of: scenePhase) { updateMotionSensor() }
         .onChange(of: power.lowPower) { updateMotionSensor() }
+        .onChange(of: waterTilt) { updateMotionSensor() }
         .onChange(of: engine.finished) { _, finished in
             if finished { onDone() }
         }

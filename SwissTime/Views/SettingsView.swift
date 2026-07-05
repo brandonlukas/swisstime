@@ -11,6 +11,7 @@ enum SettingsKey {
     static let haptics = "settings.haptics"
     static let liveActivity = "settings.liveActivity"
     static let voiceIdentifier = "settings.voiceIdentifier"
+    static let waterTilt = "settings.waterTilt"
 }
 
 /// UserDefaults-backed switches, readable from engine code that has no
@@ -134,6 +135,7 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.haptics) private var haptics = true
     @AppStorage(SettingsKey.liveActivity) private var liveActivity = true
     @AppStorage(SettingsKey.voiceIdentifier) private var voiceIdentifier = ""
+    @AppStorage(SettingsKey.waterTilt) private var waterTilt = true
     @State private var voices: [VoiceOption] = []
     @State private var preview = VoicePreview()
     /// The voice list is long enough to bury Haptics and Live Activity —
@@ -175,6 +177,12 @@ struct SettingsView: View {
                         voiceSection
                     }
                     CheckboxRow(title: "Haptics", isOn: $haptics)
+                    VStack(alignment: .leading, spacing: 10) {
+                        CheckboxRow(title: "Water tilt", isOn: $waterTilt)
+                        Text("The waterline leans with your phone, like a carried glass.")
+                            .font(.app(14))
+                            .foregroundStyle(.secondary)
+                    }
                     VStack(alignment: .leading, spacing: 10) {
                         CheckboxRow(title: "Live Activity", isOn: $liveActivity)
                         Text("The running timer on the Lock Screen and in the Dynamic Island.")

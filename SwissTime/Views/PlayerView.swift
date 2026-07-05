@@ -18,9 +18,11 @@ struct PlayerView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var power = PowerState.shared
+    @AppStorage(SettingsKey.waterTilt) private var waterTilt = true
 
     private var waterPolicy: WaterPolicy {
-        WaterPolicy(lowPower: power.lowPower, reduceMotion: reduceMotion)
+        WaterPolicy(lowPower: power.lowPower, reduceMotion: reduceMotion,
+                    tiltSetting: waterTilt)
     }
 
     init(workout: Workout) {
@@ -116,6 +118,7 @@ struct PlayerView: View {
         .onChange(of: scenePhase) { updateMotionSensor() }
         .onChange(of: power.lowPower) { updateMotionSensor() }
         .onChange(of: engine.phase) { updateMotionSensor() }
+        .onChange(of: waterTilt) { updateMotionSensor() }
         // Finishing (not just starting) earns a toy in this month's pool.
         .onChange(of: engine.phase) { _, phase in
             guard phase == .finished, !recordedCompletion else { return }
