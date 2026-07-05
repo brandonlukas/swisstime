@@ -24,14 +24,14 @@ struct WorkoutDetailView: View {
     @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
     let workoutID: UUID
+    /// The list owns the navigation path; completions land on the list by
+    /// clearing it in one mutation.
+    var popToRoot: () -> Void = {}
 
     @State private var editing = false
     @State private var sheet: DetailSheet?
     @State private var playing = false
     @State private var sessionActive = false
-    /// Latched when the session's ceremony ends; this screen then bows out
-    /// too, so the pop lands on the list like every completion.
-    @State private var sessionFinished = false
     @State private var ceremony: CompletionCeremony?
     /// Set by the delete confirmation; acted on once its sheet is gone,
     /// so the pop-back never races the dismissing sheet.
@@ -70,10 +70,11 @@ struct WorkoutDetailView: View {
                             playing = true
                         }
                     } else {
-                        // Side by side: walking through the session is the
-                        // primary act; logging an off-book day stays one
-                        // quiet tap away.
-                        HStack(spacing: 12) {
+                        // Side by side — stacked at accessibility sizes,
+                        // where two half-width buttons can't hold their
+                        // words. Walking through the session is the primary
+                        // act; logging an off-book day stays one tap away.
+                        AdaptiveRow {
                             SecondaryButton(title: "Mark as done") {
                                 markDone()
                             }
@@ -135,16 +136,13 @@ struct WorkoutDetailView: View {
             PlayerView(workout: workout)
         }
         // Pushed, not covered: the tab bar stays reachable, so the Sets tab
-        // can time rests while the session grid holds the map.
+        // can time rests while the session grid holds the map. When the
+        // ceremony ends, both pops happen in one transaction — no latch,
+        // no chained dismissals racing the navigation.
         .navigationDestination(isPresented: $sessionActive) {
             UntimedSessionView(workout: workout) {
-                sessionFinished = true
-            }
-        }
-        .onChange(of: sessionActive) { _, active in
-            if !active, sessionFinished {
-                sessionFinished = false
-                dismiss()
+                sessionActive = false
+                popToRoot()
             }
         }
         // However the ceremony ends — Done or a swipe — the workout is
@@ -189,9 +187,12 @@ struct WorkoutDetailView: View {
         }
     }
 
-    /// The untimed completion: they said they did it — toy earned.
+    /// The untimed completion: they said they did it — toy earned. Any
+    /// half-ticked session state is spent by the completion too: the next
+    /// Start workout begins fresh.
     private func markDone() {
         Haptics.success()
+        UntimedProgress.clear(workoutID)
         store.markPlayed(workoutID)
         ceremony = CompletionCeremony(entryID: pond.record(workout: workout))
     }

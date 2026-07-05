@@ -37,6 +37,8 @@ final class WorkoutStore: ObservableObject {
 
     func delete(_ id: UUID) {
         workouts.removeAll { $0.id == id }
+        // A deleted workout's session progress has no other path to cleanup.
+        UntimedProgress.clear(id)
     }
 
     func markPlayed(_ id: UUID) {

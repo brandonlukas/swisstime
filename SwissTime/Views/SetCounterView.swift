@@ -75,17 +75,8 @@ struct SetCounterView: View {
                 Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
                     .appFont(14)
                     .foregroundStyle(Color.inkSecondary)
-                // Same shape as the exercise form's alerts section, so the
-                // two places you pick cues read as one control.
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Alerts")
-                        .appFont(17, .medium)
-                    Group {
-                        ToggleRow(title: "Halfway done", isOn: $halfway)
-                        ToggleRow(title: "5s left", isOn: $fiveSeconds)
-                    }
-                    .allowsHitTesting(voiceCues)
-                    .opacity(voiceCues ? 1 : 0.4)
+                AlertsSection(halfway: $halfway, fiveSeconds: $fiveSeconds,
+                              enabled: voiceCues) {
                     if !voiceCues {
                         // These route through the master Voice cues switch —
                         // a dead control must say who turned it off.

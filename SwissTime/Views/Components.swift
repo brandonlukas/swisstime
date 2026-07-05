@@ -14,7 +14,7 @@ struct PrimaryButton: View {
                 .appFont(17, .medium)
                 .foregroundStyle(textColor)
                 .frame(maxWidth: .infinity)
-                .frame(height: 56)
+                .frame(minHeight: 56)
                 .inkButton(fill)
         }
         .buttonStyle(PressableButtonStyle())
@@ -33,7 +33,7 @@ struct SecondaryButton: View {
                 .appFont(17, .medium)
                 .foregroundStyle(Color.ink)
                 .frame(maxWidth: .infinity)
-                .frame(height: 56)
+                .frame(minHeight: 56)
                 .background(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(Color.paperCardFill.opacity(0.6)))

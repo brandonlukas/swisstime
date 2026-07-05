@@ -71,7 +71,7 @@ struct WorkoutListView: View {
             }
             .background(PaperBackground())
             .navigationDestination(for: UUID.self) { id in
-                WorkoutDetailView(workoutID: id)
+                WorkoutDetailView(workoutID: id, popToRoot: { path.removeAll() })
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

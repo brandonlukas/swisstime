@@ -186,6 +186,31 @@ struct ColorPickerRow: View {
     }
 }
 
+/// The cue checklist — the exercise form and the Sets tab both present it,
+/// and sharing the shape is what keeps the two reading as one control.
+/// `enabled` uses .disabled, not hit-testing: a native Toggle stays
+/// operable by VoiceOver and Switch Control through allowsHitTesting.
+struct AlertsSection<Footnote: View>: View {
+    @Binding var halfway: Bool
+    @Binding var fiveSeconds: Bool
+    var enabled: Bool = true
+    @ViewBuilder var footnote: () -> Footnote
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Alerts")
+                .appFont(17, .medium)
+            Group {
+                ToggleRow(title: "Halfway done", isOn: $halfway)
+                ToggleRow(title: "5s left", isOn: $fiveSeconds)
+            }
+            .disabled(!enabled)
+            .opacity(enabled ? 1 : 0.4)
+            footnote()
+        }
+    }
+}
+
 /// A row of half-width fields or tiles — stacked at accessibility text
 /// sizes, where side-by-side columns can't hold their words.
 struct AdaptiveRow<Content: View>: View {
@@ -445,11 +470,7 @@ struct ExerciseFormView: View {
             case .timed:
                 PickerField(label: "Duration", options: durationOptions,
                             display: { Format.mmss($0) }, selection: $duration)
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Alerts")
-                        .appFont(17, .medium)
-                    ToggleRow(title: "Halfway done", isOn: $halfway)
-                    ToggleRow(title: "5s left", isOn: $fiveSeconds)
+                AlertsSection(halfway: $halfway, fiveSeconds: $fiveSeconds) {
                     // Matches the player's merged-cue rule for short steps —
                     // the user hears one thing, so the form promises one thing.
                     if duration <= VoiceCueRule.minimumSpan, halfway || fiveSeconds {

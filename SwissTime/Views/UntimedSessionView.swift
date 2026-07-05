@@ -8,22 +8,25 @@ import SwiftUI
 /// every tile is drained by hand.
 struct UntimedSessionView: View {
     let workout: Workout
-    /// Fired once the ceremony ends; the detail view dismisses itself so
-    /// the pop lands on the list, same as every completion.
+    /// Fired once the ceremony ends; the caller pops the whole stack home
+    /// in one mutation, same landing as every completion.
     let onFinish: () -> Void
 
     @EnvironmentObject private var store: WorkoutStore
     @EnvironmentObject private var pond: PondStore
     @State private var done: Set<UUID>
     @State private var ceremony: CompletionCeremony?
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(workout: Workout, onFinish: @escaping () -> Void) {
         self.workout = workout
         self.onFinish = onFinish
-        _done = State(initialValue: UntimedProgress.load(workout.id))
+        // Pruned against the CURRENT exercises: editing the workout between
+        // sessions can strand IDs in the saved set, and a stale ID would
+        // inflate the done count — enabling Finish with tiles still dry.
+        let saved = UntimedProgress.load(workout.id)
+        _done = State(initialValue: saved.intersection(workout.exercises.map(\.id)))
     }
 
     private var allDone: Bool {
@@ -60,12 +63,9 @@ struct UntimedSessionView: View {
         .navigationTitle(workout.title)
         .navigationBarTitleDisplayMode(.inline)
         // The ceremony floats right here, over the pool the session just
-        // filled — celebrate where the work happened. Its dismissal pops
-        // all the way home.
-        .sheet(item: $ceremony, onDismiss: {
-            onFinish()
-            dismiss()
-        }) { ceremony in
+        // filled — celebrate where the work happened. Its dismissal hands
+        // the exit to the caller, which pops to the list atomically.
+        .sheet(item: $ceremony, onDismiss: onFinish) { ceremony in
             CompletionCeremonyView(workout: workout, entryID: ceremony.entryID)
         }
         .onAppear {
@@ -76,6 +76,9 @@ struct UntimedSessionView: View {
                 DebugLaunch.didAutoFinishUntimed = true
                 done = Set(workout.exercises.map(\.id))
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { finish() }
+                // ...and dismiss the ceremony too, so a command-line run can
+                // verify the pop-to-root landing without touch input.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) { ceremony = nil }
             }
         }
         .safeAreaInset(edge: .bottom) {

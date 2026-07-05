@@ -355,8 +355,10 @@ final class PlayerEngine: ObservableObject {
             }
         }
         // Interrupt any queued speech so rapid skipping never stacks
-        // announcements; the delay clears the 0.15s step beep.
-        audio.speak(parts.joined(separator: " "), interrupting: true, delay: 0.4)
+        // announcements; the delay clears the 0.15s step beep — a beep the
+        // sounds setting may have silenced, in which case speak on time.
+        audio.speak(parts.joined(separator: " "), interrupting: true,
+                    delay: AppSettings.sounds ? 0.4 : 0)
     }
 
     private func finish() {
@@ -365,8 +367,10 @@ final class PlayerEngine: ObservableObject {
         Haptics.success()
         audio.setKeepAlive(false)
         audio.playDone()
-        // The finish chime runs 0.74s; speak after it rings out.
-        audio.speak("Workout complete.", interrupting: true, delay: 0.9)
+        // The finish chime runs 0.74s; speak after it rings out — or right
+        // away when the sounds setting silenced the chime.
+        audio.speak("Workout complete.", interrupting: true,
+                    delay: AppSettings.sounds ? 0.9 : 0)
         liveActivity.update(activityState())
     }
 

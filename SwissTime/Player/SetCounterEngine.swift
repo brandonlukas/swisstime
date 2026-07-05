@@ -31,6 +31,7 @@ final class SetCounterEngine: ObservableObject {
     private var cueFired = true
     private var halfwayFired = true
     private var lastEndSet = Date.distantPast
+    private var lastTickAt = Date()
 
     init(setCount: Int, rest: TimeInterval, halfwayCue: Bool = false,
          fiveSecondsCue: Bool = false) {
@@ -115,7 +116,17 @@ final class SetCounterEngine: ObservableObject {
 
     private func tick() {
         guard !finished else { return }
-        let remaining = remaining(at: Date())
+        let now = Date()
+        let remaining = remaining(at: now)
+        // A stalled ticker (audio interruption, suspension) can jump the
+        // clock past a cue's moment; latch those before the guards run, so
+        // a resume never speaks a burst of stale cues — the player's
+        // wake rule ("don't fire alerts whose moment already passed").
+        if now.timeIntervalSince(lastTickAt) > 1 {
+            if remaining <= rest / 2 { halfwayFired = true }
+            if remaining <= VoiceCueRule.lead { cueFired = true }
+        }
+        lastTickAt = now
         // Same rule as the player's halfway cue; the rest picker starts at
         // 0:15, so the player's short-span merge case can't arise here.
         if halfwayCue, !halfwayFired, !beepFired,
