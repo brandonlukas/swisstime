@@ -81,13 +81,13 @@ struct SetCounterView: View {
                     Text("Alerts")
                         .font(.app(17, .medium))
                     Group {
-                        CheckboxRow(title: "Halfway done", isOn: $halfway)
-                        CheckboxRow(title: "5s left", isOn: $fiveSeconds)
+                        ToggleRow(title: "Halfway done", isOn: $halfway)
+                        ToggleRow(title: "5s left", isOn: $fiveSeconds)
                     }
                     .allowsHitTesting(voiceCues)
                     .opacity(voiceCues ? 1 : 0.4)
                     if !voiceCues {
-                        // The checkboxes route through the master switch —
+                        // These route through the master Voice cues switch —
                         // a dead control must say who turned it off.
                         Text("Voice cues are off in Settings.")
                             .font(.app(13))

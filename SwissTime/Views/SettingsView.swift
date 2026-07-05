@@ -224,7 +224,7 @@ struct SettingsView: View {
                     }
                     group("Voice") {
                         VStack(alignment: .leading, spacing: 10) {
-                            CheckboxRow(title: "Voice cues", isOn: $voiceCues)
+                            ToggleRow(title: "Voice cues", isOn: $voiceCues)
                             Text("Spoken announcements like “5 seconds left.” Beeps and chimes always play.")
                                 .font(.app(14))
                                 .foregroundStyle(.secondary)
@@ -234,15 +234,15 @@ struct SettingsView: View {
                         }
                     }
                     group("Session") {
-                        CheckboxRow(title: "Haptics", isOn: $haptics)
+                        ToggleRow(title: "Haptics", isOn: $haptics)
                         VStack(alignment: .leading, spacing: 10) {
-                            CheckboxRow(title: "Water tilt", isOn: $waterTilt)
+                            ToggleRow(title: "Water tilt", isOn: $waterTilt)
                             Text("The waterline leans with your phone, like a carried glass.")
                                 .font(.app(14))
                                 .foregroundStyle(.secondary)
                         }
                         VStack(alignment: .leading, spacing: 10) {
-                            CheckboxRow(title: "Live Activity", isOn: $liveActivity)
+                            ToggleRow(title: "Live Activity", isOn: $liveActivity)
                             Text("The running timer on the Lock Screen and in the Dynamic Island.")
                                 .font(.app(14))
                                 .foregroundStyle(.secondary)

@@ -232,39 +232,23 @@ struct SegmentRow<Value: Hashable>: View {
     }
 }
 
-/// Flips on touch-DOWN, not finger-up — a checkbox should feel like a
-/// physical switch, and waiting out a full tap in a scroll view reads as
-/// lag. A zero-distance drag is the touch-down hook SwiftUI doesn't offer.
-struct CheckboxRow: View {
+/// The system switch, ink-tinted. It replaced a hand-drawn printed
+/// checkbox (Brandon's call, 2026-07-05): the native control brings its
+/// whole platform contract free — VoiceOver, Voice Control, Switch
+/// Control, the flick gesture, Dynamic Type, RTL — where the checkbox
+/// needed custom gesture code and an accessibility shim to approximate it.
+struct ToggleRow: View {
     let title: String
     @Binding var isOn: Bool
-    @State private var touchDown = false
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: isOn ? "checkmark.square" : "square")
-                .font(.system(size: 22, weight: .light))
-            Text(title)
-                .font(.app(17))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    guard !touchDown else { return }
-                    touchDown = true
-                    isOn.toggle()
-                    Haptics.selection()
-                    hideKeyboard()
-                }
-                .onEnded { _ in touchDown = false }
-        )
-        // The bare gesture is invisible to VoiceOver — expose the row as
-        // the switch it behaves like, even though it's drawn as a checkbox.
-        .accessibilityRepresentation {
-            Toggle(title, isOn: $isOn)
-        }
+        Toggle(title, isOn: $isOn)
+            .font(.app(17))
+            .tint(Color.ink)
+            .onChange(of: isOn) { _, _ in
+                Haptics.selection()
+                hideKeyboard()
+            }
     }
 }
 
@@ -446,8 +430,8 @@ struct ExerciseFormView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Alerts")
                         .font(.app(17, .medium))
-                    CheckboxRow(title: "Halfway done", isOn: $halfway)
-                    CheckboxRow(title: "5s left", isOn: $fiveSeconds)
+                    ToggleRow(title: "Halfway done", isOn: $halfway)
+                    ToggleRow(title: "5s left", isOn: $fiveSeconds)
                     // Matches the player's merged-cue rule for short steps —
                     // the user hears one thing, so the form promises one thing.
                     if duration <= VoiceCueRule.minimumSpan, halfway || fiveSeconds {
