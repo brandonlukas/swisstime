@@ -443,6 +443,7 @@ enum DebugLaunch {
     static var didAutoAdvance = false
     static var didAutoAdopt = false
     static var didAutoPickIcon = false
+    static var didAutoStartUntimed = false
 }
 
 extension String {

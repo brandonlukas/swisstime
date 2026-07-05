@@ -44,11 +44,16 @@ final class WorkoutStore: ObservableObject {
         workouts[index].lastPlayedAt = Date()
     }
 
-    /// Recently played first; never-played keep creation order after those.
+    /// Most recently touched first — finishing or creating a workout both
+    /// surface it (Brandon's call: a new workout is a statement of intent;
+    /// editing deliberately does NOT reorder — maintenance shouldn't
+    /// reshuffle the list). Never-touched keep file order after those.
     var sortedWorkouts: [Workout] {
         workouts.enumerated().sorted { a, b in
-            let dateA = a.element.lastPlayedAt ?? .distantPast
-            let dateB = b.element.lastPlayedAt ?? .distantPast
+            let dateA = max(a.element.lastPlayedAt ?? .distantPast,
+                            a.element.createdAt ?? .distantPast)
+            let dateB = max(b.element.lastPlayedAt ?? .distantPast,
+                            b.element.createdAt ?? .distantPast)
             if dateA != dateB { return dateA > dateB }
             return a.offset < b.offset
         }.map(\.element)

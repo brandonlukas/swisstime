@@ -28,6 +28,10 @@ struct WorkoutDetailView: View {
     @State private var editing = false
     @State private var sheet: DetailSheet?
     @State private var playing = false
+    @State private var sessionActive = false
+    /// Latched by the session's Finish; the ceremony runs once the pushed
+    /// screen has popped, so the sheet never races the navigation.
+    @State private var sessionFinished = false
     @State private var ceremony: CompletionCeremony?
     /// Set by the delete confirmation; acted on once its sheet is gone,
     /// so the pop-back never races the dismissing sheet.
@@ -57,14 +61,29 @@ struct WorkoutDetailView: View {
         .background(PaperBackground())
         .safeAreaInset(edge: .bottom) {
             if !editing && !workout.exercises.isEmpty {
-                PrimaryButton(title: workout.kind == .timed ? "Play workout" : "Mark as done",
-                              fill: workout.palette.fill,
-                              textColor: workout.palette.onFill) {
+                Group {
                     if workout.kind == .timed {
-                        Haptics.impact()
-                        playing = true
+                        PrimaryButton(title: "Play workout",
+                                      fill: workout.palette.fill,
+                                      textColor: workout.palette.onFill) {
+                            Haptics.impact()
+                            playing = true
+                        }
                     } else {
-                        markDone()
+                        // Side by side: walking through the session is the
+                        // primary act; logging an off-book day stays one
+                        // quiet tap away.
+                        HStack(spacing: 12) {
+                            SecondaryButton(title: "Mark as done") {
+                                markDone()
+                            }
+                            PrimaryButton(title: "Start workout",
+                                          fill: workout.palette.fill,
+                                          textColor: workout.palette.onFill) {
+                                Haptics.impact()
+                                sessionActive = true
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -115,6 +134,19 @@ struct WorkoutDetailView: View {
         .fullScreenCover(isPresented: $playing) {
             PlayerView(workout: workout)
         }
+        // Pushed, not covered: the tab bar stays reachable, so the Sets tab
+        // can time rests while the session grid holds the map.
+        .navigationDestination(isPresented: $sessionActive) {
+            UntimedSessionView(workout: workout) {
+                sessionFinished = true
+            }
+        }
+        .onChange(of: sessionActive) { _, active in
+            if !active, sessionFinished {
+                sessionFinished = false
+                markDone()
+            }
+        }
         // However the ceremony ends — Done or a swipe — the workout is
         // logged and this screen's job is over; return to the list.
         .sheet(item: $ceremony, onDismiss: { dismiss() }) { ceremony in
@@ -147,6 +179,12 @@ struct WorkoutDetailView: View {
                workout.kind == .untimed, !workout.exercises.isEmpty {
                 DebugLaunch.didAutoMarkDone = true
                 markDone()
+            }
+            if ProcessInfo.processInfo.arguments.contains("-autoStartUntimed"),
+               !DebugLaunch.didAutoStartUntimed,
+               workout.kind == .untimed, !workout.exercises.isEmpty {
+                DebugLaunch.didAutoStartUntimed = true
+                sessionActive = true
             }
         }
     }

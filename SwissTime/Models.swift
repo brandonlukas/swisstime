@@ -14,6 +14,9 @@ struct Workout: Identifiable, Codable, Equatable {
     var kind: WorkoutKind = .timed
     var exercises: [Exercise] = []
     var lastPlayedAt: Date?
+    /// New workouts surface at the top of the list; optional so files from
+    /// before the field keep their standing (they sort as never-created).
+    var createdAt: Date? = Date()
     /// Index into `Palette.all`; optional so pre-palette files decode.
     var colorIndex: Int?
 
@@ -52,7 +55,7 @@ struct Workout: Identifiable, Codable, Equatable {
 
 extension Workout {
     enum CodingKeys: String, CodingKey {
-        case id, title, details, kind, lastPlayedAt, colorIndex
+        case id, title, details, kind, lastPlayedAt, createdAt, colorIndex
         // The key predates the rename; files on disk keep it.
         case exercises = "items"
     }
@@ -66,6 +69,7 @@ extension Workout {
         title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
         details = try container.decodeIfPresent(String.self, forKey: .details) ?? ""
         lastPlayedAt = try container.decodeIfPresent(Date.self, forKey: .lastPlayedAt)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
         colorIndex = try container.decodeIfPresent(Int.self, forKey: .colorIndex)
         // Probe for the legacy shape FIRST: Exercise decodes leniently
         // (every field defaulted), so a legacy enum-shaped item would

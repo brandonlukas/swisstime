@@ -21,6 +21,31 @@ struct PrimaryButton: View {
     }
 }
 
+/// The quieter sibling beside a PrimaryButton — outlined, ink text, same
+/// height and radius so a side-by-side pair reads as one control row.
+struct SecondaryButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .appFont(17, .medium)
+                .foregroundStyle(Color.ink)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.paperCardFill.opacity(0.6)))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.fieldBorder, lineWidth: 1))
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+}
+
 /// The poster-caps page title over its rule — every screen's masthead.
 struct PageHeader: View {
     let title: String
