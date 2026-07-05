@@ -122,12 +122,9 @@ let tinted = Palette(
     ring: true,
     glints: false, glintColor: gray(1.0))
 
-func render(_ p: Palette) -> CGImage {
-    let ctx = makeContext(S)
-    // Flip to top-left origin so the mockup's coordinates read straight across.
-    ctx.translateBy(x: 0, y: CGFloat(S))
-    ctx.scaleBy(x: scale, y: -scale)
-
+/// Steps 1–3 of the pool mark: the water, its grout, and the day caustics
+/// or night glow. Shared by the duck icon and the Pool Type wordmark icon.
+func drawWater(_ ctx: CGContext, _ p: Palette) {
     // 1 · Water — flat day blue, or the night field with its pool light.
     ctx.setFillColor(p.pool)
     ctx.fill(CGRect(x: 0, y: 0, width: 1024, height: 1024))
@@ -194,6 +191,15 @@ func render(_ p: Palette) -> CGImage {
         blob(cx: 290, cy: 250, rx: 440, ry: 290, color: blobs.deep)
         blob(cx: 770, cy: 810, rx: 400, ry: 260, color: blobs.glow)
     }
+}
+
+func render(_ p: Palette) -> CGImage {
+    let ctx = makeContext(S)
+    // Flip to top-left origin so the mockup's coordinates read straight across.
+    ctx.translateBy(x: 0, y: CGFloat(S))
+    ctx.scaleBy(x: scale, y: -scale)
+
+    drawWater(ctx, p)
 
     // 4 · A quiet ripple ring around the duck.
     if p.ring {
@@ -298,6 +304,43 @@ func render(_ p: Palette) -> CGImage {
         glint(cx: 788, cy: 268, s: 1.0, alpha: 0.95)
         glint(cx: 250, cy: 748, s: 0.55, alpha: 0.6)
     }
+
+    return ctx.makeImage()!
+}
+
+// =========================================================== Pool Type ===
+// The wordmark alternate (naming-artifact concept W5b): LIDO in the app's
+// own poster caps — SF expanded heavy, the Text.display voice — printed
+// flat on the same water as the duck icon. No duck, no ring, no shadow:
+// the letters read as painted on the pool floor.
+
+func renderPoolType(_ p: Palette, textColor: CGColor) -> CGImage {
+    let ctx = makeContext(S)
+    ctx.translateBy(x: 0, y: CGFloat(S))
+    ctx.scaleBy(x: scale, y: -scale)
+
+    drawWater(ctx, p)
+
+    // The artifact's metrics: ~880 wide on the 1024 canvas, baseline 622.
+    let size: CGFloat = 330
+    let font = NSFont.systemFont(ofSize: size, weight: .heavy, width: .expanded)
+    let text = NSAttributedString(string: "LIDO", attributes: [
+        .font: font,
+        .foregroundColor: NSColor(cgColor: textColor)!,
+        .kern: size * 0.05,   // Text.display's tracking
+    ])
+    let line = CTLineCreateWithAttributedString(text)
+    // The trailing kern pads the typographic width; trim it so the
+    // wordmark centers on what's visible.
+    let visual = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)) - size * 0.05
+    let squeeze = min(1, 880 / visual)
+    ctx.saveGState()
+    ctx.translateBy(x: 512 - visual * squeeze / 2, y: 622)
+    // Our space is y-down; CoreText draws y-up.
+    ctx.scaleBy(x: squeeze, y: -1)
+    ctx.textPosition = .zero
+    CTLineDraw(line, ctx)
+    ctx.restoreGState()
 
     return ctx.makeImage()!
 }
@@ -512,7 +555,18 @@ write(full, side: 180, to: "\(dir)/lido-180.png")
 write(full, side: 120, to: "\(dir)/lido-120.png")
 write(render(night), side: 1024, to: "\(dir)/lido-1024-dark.png")
 write(render(tinted), side: 1024, to: "\(dir)/lido-1024-tinted.png")
-write(renderDeepEnd(deepDay), side: 1024, to: "\(dir)/lido-deep-1024.png")
+let deepFull = renderDeepEnd(deepDay)
+write(deepFull, side: 1024, to: "\(dir)/lido-deep-1024.png")
 write(renderDeepEnd(deepNight), side: 1024, to: "\(dir)/lido-deep-1024-dark.png")
 write(renderDeepEnd(deepTinted), side: 1024, to: "\(dir)/lido-deep-1024-tinted.png")
+let typeFull = renderPoolType(day, textColor: rgb(0.957, 0.969, 0.984))   // #F4F7FB
+write(typeFull, side: 1024, to: "\(dir)/lido-type-1024.png")
+write(renderPoolType(night, textColor: rgb(0.957, 0.969, 0.984)),
+      side: 1024, to: "\(dir)/lido-type-1024-dark.png")
+write(renderPoolType(tinted, textColor: gray(1.0)),
+      side: 1024, to: "\(dir)/lido-type-1024-tinted.png")
+// Small day renders for the Settings icon-picker tiles.
+write(full, side: 256, to: "\(dir)/lido-preview-pool.png")
+write(deepFull, side: 256, to: "\(dir)/lido-preview-deep.png")
+write(typeFull, side: 256, to: "\(dir)/lido-preview-type.png")
 print("done")

@@ -32,26 +32,43 @@ enum AppSettings {
     }
 }
 
-/// The home-screen mark: The Pool (default) or Deep End, both from the
-/// naming artifact. iOS itself remembers the pick — no UserDefaults key.
+/// The home-screen mark: The Pool (default), Deep End, or the Pool Type
+/// wordmark — all from the naming artifact. iOS itself remembers the
+/// pick — no UserDefaults key.
 enum AppIconChoice: String, CaseIterable {
-    case pool, deepEnd
+    case pool, deepEnd, poolType
 
     var title: String {
         switch self {
         case .pool: return "The Pool"
         case .deepEnd: return "Deep End"
+        case .poolType: return "Pool Type"
         }
     }
 
     /// setAlternateIconName's argument — nil means the primary icon.
     var alternateName: String? {
-        self == .deepEnd ? "AppIconDeepEnd" : nil
+        switch self {
+        case .pool: return nil
+        case .deepEnd: return "AppIconDeepEnd"
+        case .poolType: return "AppIconPoolType"
+        }
+    }
+
+    /// The picker tile's art — appiconsets aren't loadable by name, so the
+    /// day renders ship again as small imagesets.
+    var previewImage: String {
+        switch self {
+        case .pool: return "IconPreviewPool"
+        case .deepEnd: return "IconPreviewDeepEnd"
+        case .poolType: return "IconPreviewPoolType"
+        }
     }
 
     @MainActor static var current: AppIconChoice {
-        UIApplication.shared.alternateIconName == AppIconChoice.deepEnd.alternateName
-            ? .deepEnd : .pool
+        allCases.first {
+            $0.alternateName == UIApplication.shared.alternateIconName
+        } ?? .pool
     }
 }
 
@@ -161,6 +178,9 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.waterTilt) private var waterTilt = true
     /// Mirrors iOS's own memory of the icon; not persisted here.
     @State private var appIcon = AppIconChoice.current.rawValue
+    /// Debug only: the last setAlternateIconName error, shown on screen —
+    /// sim print/NSLog don't reliably reach `log show`.
+    @State private var iconError = ""
     @State private var voices: [VoiceOption] = []
     @State private var preview = VoicePreview()
     /// The voice list is long enough to bury Haptics and Live Activity —
@@ -188,14 +208,16 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     PageHeader(title: "Settings")
-                    SegmentRow(label: "Theme",
-                               options: ThemeChoice.allCases.map(\.rawValue),
-                               display: { ThemeChoice(rawValue: $0)?.title ?? $0 },
-                               selection: $theme)
-                    SegmentRow(label: "App icon",
-                               options: AppIconChoice.allCases.map(\.rawValue),
-                               display: { AppIconChoice(rawValue: $0)?.title ?? $0 },
-                               selection: $appIcon)
+                    themePicker
+                    appIconPicker
+                    if !iconError.isEmpty,
+                       ProcessInfo.processInfo.arguments.contains(where: {
+                           $0.hasPrefix("-autoPick")
+                       }) {
+                        Text(verbatim: iconError)
+                            .font(.app(13, .bold))
+                            .foregroundStyle(Color.signalRed)
+                    }
                     VStack(alignment: .leading, spacing: 10) {
                         CheckboxRow(title: "Voice cues", isOn: $voiceCues)
                         Text("Spoken announcements like “5 seconds left.” Beeps and chimes always play.")
@@ -240,18 +262,7 @@ struct SettingsView: View {
         // very screen doing the switching honest about the result.
         .preferredColorScheme(sheetScheme)
         .onChange(of: appIcon) { _, new in
-            let choice = AppIconChoice(rawValue: new) ?? .pool
-            guard UIApplication.shared.alternateIconName != choice.alternateName
-            else { return }
-            UIApplication.shared.setAlternateIconName(choice.alternateName) { error in
-                // A failed switch (never seen in practice) must not leave
-                // the control lying about the home screen.
-                if error != nil {
-                    DispatchQueue.main.async {
-                        appIcon = AppIconChoice.current.rawValue
-                    }
-                }
-            }
+            setIcon(AppIconChoice(rawValue: new) ?? .pool, retriesLeft: 2)
         }
         .onChange(of: voiceIdentifier) { _, _ in resolveSelectedVoiceName() }
         .onAppear {
@@ -261,7 +272,8 @@ struct SettingsView: View {
             if !DebugLaunch.didAutoPickIcon {
                 let arguments = ProcessInfo.processInfo.arguments
                 let pick: AppIconChoice? = arguments.contains("-autoPickDeepEndIcon")
-                    ? .deepEnd : arguments.contains("-autoPickPoolIcon") ? .pool : nil
+                    ? .deepEnd : arguments.contains("-autoPickPoolTypeIcon")
+                    ? .poolType : arguments.contains("-autoPickPoolIcon") ? .pool : nil
                 if let pick {
                     DebugLaunch.didAutoPickIcon = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -277,6 +289,74 @@ struct SettingsView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                         theme = choice.rawValue
                     }
+                }
+            }
+        }
+    }
+
+    /// Both pickers show the choice itself — a theme as a miniature page,
+    /// an icon as its own art — because "Night" or "Deep End" shouldn't
+    /// have to be tried to be understood.
+    private var themePicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Theme")
+                .font(.app(17, .medium))
+            HStack(alignment: .top, spacing: 12) {
+                ForEach(ThemeChoice.allCases, id: \.rawValue) { choice in
+                    PreviewPick(title: choice.title,
+                                selected: theme == choice.rawValue) {
+                        // Eased, so the pick blends into the window-wide
+                        // restyle instead of snapping a beat ahead of it.
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            theme = choice.rawValue
+                        }
+                    } preview: {
+                        ThemeSwatch(scheme: choice.colorScheme)
+                    }
+                }
+            }
+        }
+    }
+
+    private var appIconPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("App icon")
+                .font(.app(17, .medium))
+            HStack(alignment: .top, spacing: 12) {
+                ForEach(AppIconChoice.allCases, id: \.rawValue) { choice in
+                    PreviewPick(title: choice.title,
+                                selected: appIcon == choice.rawValue) {
+                        appIcon = choice.rawValue
+                    } preview: {
+                        Image(choice.previewImage)
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                    }
+                }
+            }
+        }
+    }
+
+    /// SpringBoard can answer EAGAIN ("resource temporarily unavailable")
+    /// when asked right after launch; a beat later the same call succeeds.
+    /// Anything else — or running out of retries — reverts the control, so
+    /// it never lies about the home screen.
+    private func setIcon(_ choice: AppIconChoice, retriesLeft: Int) {
+        guard appIcon == choice.rawValue,
+              UIApplication.shared.alternateIconName != choice.alternateName
+        else { return }
+        UIApplication.shared.setAlternateIconName(choice.alternateName) { error in
+            guard let error else { return }
+            DispatchQueue.main.async {
+                let posix = error as NSError
+                if retriesLeft > 0, posix.domain == NSPOSIXErrorDomain,
+                   posix.code == 35 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        setIcon(choice, retriesLeft: retriesLeft - 1)
+                    }
+                } else {
+                    appIcon = AppIconChoice.current.rawValue
+                    iconError = "\(error)"
                 }
             }
         }
@@ -409,5 +489,87 @@ struct SettingsView: View {
                 .map { VoiceOption(voice: $0, detail: Self.detailLine(for: $0)) }
             DispatchQueue.main.async { voices = list }
         }
+    }
+}
+
+/// A labeled preview tile — the theme and icon pickers share it so the two
+/// rows read as one control family. Fixed width so the columns line up
+/// across rows; the border hugs the preview, not the label.
+private struct PreviewPick<Preview: View>: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+    @ViewBuilder var preview: () -> Preview
+
+    var body: some View {
+        Button {
+            Haptics.selection()
+            action()
+            hideKeyboard()
+        } label: {
+            VStack(spacing: 8) {
+                preview()
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(selected ? Color.ink : Color.fieldBorder,
+                                          lineWidth: selected ? 2 : 1))
+                Text(title)
+                    .font(.app(14, selected ? .medium : .regular))
+                    .foregroundStyle(selected ? .primary : .secondary)
+                    .lineLimit(1)
+            }
+            .frame(width: 96)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// A miniature of the app's page in the given scheme: paper, two lines of
+/// ink, the water accent. System shows day and night split on the diagonal,
+/// like the hours it follows.
+private struct ThemeSwatch: View {
+    let scheme: ColorScheme?   // nil = system
+
+    var body: some View {
+        if let scheme {
+            page.environment(\.colorScheme, scheme)
+        } else {
+            page.environment(\.colorScheme, .light)
+                .overlay(
+                    page.environment(\.colorScheme, .dark)
+                        .clipShape(DiagonalSplit()))
+        }
+    }
+
+    private var page: some View {
+        ZStack(alignment: .topLeading) {
+            Color.paper
+            VStack(alignment: .leading, spacing: 4) {
+                Capsule().fill(Color.ink.opacity(0.6)).frame(width: 32, height: 5)
+                Capsule().fill(Color.ink.opacity(0.3)).frame(width: 20, height: 5)
+            }
+            .padding(10)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Circle()
+                .fill(Color.poolWater)
+                .frame(width: 14, height: 14)
+                .padding(8)
+        }
+        .frame(width: 96, height: 64)
+    }
+}
+
+/// The lower-right triangle — night's half of the System swatch.
+private struct DiagonalSplit: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
