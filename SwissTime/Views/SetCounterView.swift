@@ -75,15 +75,19 @@ struct SetCounterView: View {
                 Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
                     .font(.app(14))
                     .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 10) {
-                    CheckboxRow(title: "Announce halfway", isOn: $halfway)
-                        .allowsHitTesting(voiceCues)
-                        .opacity(voiceCues ? 1 : 0.4)
-                    CheckboxRow(title: "Announce 5s left", isOn: $fiveSeconds)
-                        .allowsHitTesting(voiceCues)
-                        .opacity(voiceCues ? 1 : 0.4)
+                // Same shape as the exercise form's alerts section, so the
+                // two places you pick cues read as one control.
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Alerts")
+                        .font(.app(17, .medium))
+                    Group {
+                        CheckboxRow(title: "Halfway done", isOn: $halfway)
+                        CheckboxRow(title: "5s left", isOn: $fiveSeconds)
+                    }
+                    .allowsHitTesting(voiceCues)
+                    .opacity(voiceCues ? 1 : 0.4)
                     if !voiceCues {
-                        // The checkbox routes through the master switch —
+                        // The checkboxes route through the master switch —
                         // a dead control must say who turned it off.
                         Text("Voice cues are off in Settings.")
                             .font(.app(13))

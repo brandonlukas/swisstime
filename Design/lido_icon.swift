@@ -5,10 +5,13 @@
 //
 // Three renders share the drawing, only the palette changes:
 //   lido-1024.png         the day pool (Any appearance)
-//   lido-1024-dark.png    night swim — moonlit navy water, same duck
-//   lido-1024-tinted.png  grayscale for the system tint: luminance is the
-//                         message, so the water goes near-black and the
-//                         duck near-white
+//   lido-1024-dark.png    Night Swim (naming-artifact concept 05): the
+//                         gilded duck under a pool light — radial glow on
+//                         near-black navy, sparkle glints — but with the
+//                         day icon's duck placement, ripple ring, and grout
+//   lido-1024-tinted.png  the night composition in grayscale: the system
+//                         maps luminance onto the user's tint, so contrast
+//                         is pushed hard — near-black field, white duck
 // Run:  swift lido_icon.swift <output-dir>
 import AppKit
 
@@ -29,12 +32,21 @@ func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor 
 
 func gray(_ w: CGFloat, _ a: CGFloat = 1) -> CGColor { rgb(w, w, w, a) }
 
+/// The night pool light: a radial gradient disc, alpha baked into the stops.
+struct Glow {
+    let cx: CGFloat, cy: CGFloat, r: CGFloat
+    let colors: [CGColor]
+    let locations: [CGFloat]
+}
+
 struct Palette {
     let pool: CGColor
+    /// Day caustics — two soft blobs (shade upper-left, light lower-right).
+    let blobs: (deep: CGColor, glow: CGColor)?
+    /// Night pool light; drawn instead of the blobs.
+    let glow: Glow?
     let groutDark: CGColor
     let groutLight: CGColor
-    let deepBlob: CGColor        // caustic shade, upper left
-    let glowBlob: CGColor        // caustic light, lower right (alpha in color)
     let ripple: CGColor
     let duckBody: CGColor
     let duckShade: CGColor
@@ -42,53 +54,68 @@ struct Palette {
     let ink: CGColor
     let castShadow: CGColor      // the duck's sun (or moon) shadow
     let catchLight: CGColor
+    /// Night sparkles (the artifact's #glint crosses).
+    let glints: Bool
+    let glintColor: CGColor
 }
 
 let day = Palette(
     pool: rgb(0.169, 0.451, 0.788),          // #2B73C9
+    blobs: (deep: rgb(0.078, 0.271, 0.561, 0.5),   // #14458F
+            glow: rgb(1, 1, 1, 0.14)),
+    glow: nil,
     groutDark: rgb(0.055, 0.243, 0.494, 0.34),
     groutLight: rgb(1, 1, 1, 0.26),
-    deepBlob: rgb(0.078, 0.271, 0.561, 0.5), // #14458F
-    glowBlob: rgb(1, 1, 1, 0.14),
     ripple: rgb(1, 1, 1, 0.15),
     duckBody: rgb(1.0, 0.796, 0.20),         // #FFCB33
     duckShade: rgb(0.89, 0.659, 0.11),       // #E3A81C
     duckBeak: rgb(0.941, 0.455, 0.165),      // #F0742A
     ink: rgb(0.075, 0.13, 0.28),
     castShadow: rgb(0.031, 0.129, 0.29, 0.28),
-    catchLight: rgb(1, 1, 1, 0.55))
+    catchLight: rgb(1, 1, 1, 0.55),
+    glints: false, glintColor: rgb(1, 1, 1))
 
-// Night swim: the pool after close, moonlit. The duck keeps its vinyl
-// yellow — the one warm thing on the dark water is the whole idea.
+// Night Swim, colors straight from the naming artifact's concept 05:
+// #20264C water, the #3B82D9→#2B66BC pool-light glow, the gilded duck
+// (#F5EFDF / #D9CDAF / #D9A94E), #060B22 shadow.
 let night = Palette(
-    pool: rgb(0.051, 0.141, 0.318),          // #0D2451
-    groutDark: rgb(0.016, 0.075, 0.196, 0.45),
-    groutLight: rgb(0.62, 0.78, 1.0, 0.14),
-    deepBlob: rgb(0.016, 0.063, 0.176, 0.55),
-    glowBlob: rgb(0.85, 0.92, 1.0, 0.10),
-    ripple: rgb(1, 1, 1, 0.10),
-    duckBody: rgb(1.0, 0.796, 0.20),
-    duckShade: rgb(0.85, 0.62, 0.10),
-    duckBeak: rgb(0.90, 0.42, 0.15),
-    ink: rgb(0.05, 0.09, 0.20),
-    castShadow: rgb(0.0, 0.031, 0.11, 0.5),
-    catchLight: rgb(1, 1, 1, 0.65))
+    pool: rgb(0.125, 0.149, 0.298),          // #20264C
+    blobs: nil,
+    glow: Glow(cx: 512, cy: 700, r: 620,
+               colors: [rgb(0.231, 0.510, 0.851, 0.95),   // #3B82D9
+                        rgb(0.169, 0.400, 0.737, 0.45),   // #2B66BC
+                        rgb(0.169, 0.400, 0.737, 0.0)],
+               locations: [0, 0.55, 1]),
+    groutDark: rgb(0.024, 0.043, 0.133, 0.30),            // #060B22
+    groutLight: rgb(1, 1, 1, 0.08),
+    ripple: rgb(1, 1, 1, 0.12),
+    duckBody: rgb(0.961, 0.937, 0.875),      // #F5EFDF
+    duckShade: rgb(0.851, 0.804, 0.686),     // #D9CDAF
+    duckBeak: rgb(0.851, 0.663, 0.306),      // #D9A94E
+    ink: rgb(0.075, 0.13, 0.28),             // #13213F
+    castShadow: rgb(0.024, 0.043, 0.133, 0.4),            // #060B22
+    catchLight: rgb(1, 1, 1, 0.55),
+    glints: true, glintColor: rgb(1, 1, 1))
 
-// Tinted: the system maps luminance onto its tint gradient, so this is the
-// composition restated in grayscale — dark water, bright duck.
+// Tinted: night swim restated in grayscale, contrast pushed hard — the
+// system maps luminance onto the tint color, so the near-black field and
+// white duck give it the full range to travel.
 let tinted = Palette(
-    pool: gray(0.17),
-    groutDark: gray(0.05, 0.5),
-    groutLight: gray(1.0, 0.14),
-    deepBlob: gray(0.06, 0.5),
-    glowBlob: gray(1.0, 0.10),
+    pool: gray(0.08),
+    blobs: nil,
+    glow: Glow(cx: 512, cy: 700, r: 620,
+               colors: [gray(0.40, 0.95), gray(0.28, 0.45), gray(0.28, 0.0)],
+               locations: [0, 0.55, 1]),
+    groutDark: gray(0.0, 0.30),
+    groutLight: gray(1.0, 0.10),
     ripple: gray(1.0, 0.12),
-    duckBody: gray(0.92),
-    duckShade: gray(0.60),
-    duckBeak: gray(0.52),
-    ink: gray(0.04),
-    castShadow: gray(0.0, 0.38),
-    catchLight: gray(1.0, 0.7))
+    duckBody: gray(1.0),
+    duckShade: gray(0.68),
+    duckBeak: gray(0.55),
+    ink: gray(0.02),
+    castShadow: gray(0.0, 0.45),
+    catchLight: gray(1.0, 0.7),
+    glints: true, glintColor: gray(1.0))
 
 func render(_ p: Palette) -> CGImage {
     let ctx = makeContext(S)
@@ -96,9 +123,19 @@ func render(_ p: Palette) -> CGImage {
     ctx.translateBy(x: 0, y: CGFloat(S))
     ctx.scaleBy(x: scale, y: -scale)
 
-    // 1 · Water.
+    // 1 · Water — flat day blue, or the night field with its pool light.
     ctx.setFillColor(p.pool)
     ctx.fill(CGRect(x: 0, y: 0, width: 1024, height: 1024))
+    if let glow = p.glow {
+        let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                              colors: glow.colors as CFArray,
+                              locations: glow.locations)!
+        ctx.drawRadialGradient(grad,
+                               startCenter: CGPoint(x: glow.cx, y: glow.cy),
+                               startRadius: 0,
+                               endCenter: CGPoint(x: glow.cx, y: glow.cy),
+                               endRadius: glow.r, options: [])
+    }
 
     // 2 · Grout: 3×3 cells, each line a long sine — period 682, amplitude 9.
     // The dark pass sits offset below-right, embossing the joints.
@@ -136,20 +173,22 @@ func render(_ p: Palette) -> CGImage {
         ctx.restoreGState()
     }
 
-    // 3 · Caustic light: soft radial blobs, gradient-faded so no blur needed.
-    func blob(cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat, color: CGColor) {
-        ctx.saveGState()
-        ctx.translateBy(x: cx, y: cy)
-        ctx.scaleBy(x: rx, y: ry)
-        let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
-                              colors: [color, color.copy(alpha: 0)!] as CFArray,
-                              locations: [0, 1])!
-        ctx.drawRadialGradient(grad, startCenter: .zero, startRadius: 0,
-                               endCenter: .zero, endRadius: 1, options: [])
-        ctx.restoreGState()
+    // 3 · Day caustics: soft radial blobs, gradient-faded so no blur needed.
+    if let blobs = p.blobs {
+        func blob(cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat, color: CGColor) {
+            ctx.saveGState()
+            ctx.translateBy(x: cx, y: cy)
+            ctx.scaleBy(x: rx, y: ry)
+            let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  colors: [color, color.copy(alpha: 0)!] as CFArray,
+                                  locations: [0, 1])!
+            ctx.drawRadialGradient(grad, startCenter: .zero, startRadius: 0,
+                                   endCenter: .zero, endRadius: 1, options: [])
+            ctx.restoreGState()
+        }
+        blob(cx: 290, cy: 250, rx: 440, ry: 290, color: blobs.deep)
+        blob(cx: 770, cy: 810, rx: 400, ry: 260, color: blobs.glow)
     }
-    blob(cx: 290, cy: 250, rx: 440, ry: 290, color: p.deepBlob)
-    blob(cx: 770, cy: 810, rx: 400, ry: 260, color: p.glowBlob)
 
     // 4 · A quiet ripple ring around the duck.
     ctx.setStrokeColor(p.ripple)
@@ -227,10 +266,36 @@ func render(_ p: Palette) -> CGImage {
         ctx.fillEllipse(in: CGRect(x: 102, y: -54, width: 52, height: 32))
     }
 
+    // 6 · Night sparkles — the artifact's #glint cross, nudged out of the
+    // ripple ring (the duck sits off-center here, unlike concept 05's).
+    if p.glints {
+        func glint(cx: CGFloat, cy: CGFloat, s: CGFloat, alpha: CGFloat) {
+            ctx.saveGState()
+            ctx.translateBy(x: cx, y: cy)
+            ctx.scaleBy(x: s, y: s)
+            ctx.setStrokeColor(p.glintColor.copy(alpha: alpha)!)
+            ctx.setLineCap(.round)
+            ctx.setLineWidth(17)
+            ctx.beginPath()
+            ctx.move(to: CGPoint(x: -62, y: 0)); ctx.addLine(to: CGPoint(x: 62, y: 0))
+            ctx.move(to: CGPoint(x: 0, y: -62)); ctx.addLine(to: CGPoint(x: 0, y: 62))
+            ctx.strokePath()
+            ctx.setLineWidth(11)
+            ctx.setStrokeColor(p.glintColor.copy(alpha: alpha * 0.8)!)
+            ctx.beginPath()
+            ctx.move(to: CGPoint(x: -24, y: -24)); ctx.addLine(to: CGPoint(x: 24, y: 24))
+            ctx.move(to: CGPoint(x: -24, y: 24)); ctx.addLine(to: CGPoint(x: 24, y: -24))
+            ctx.strokePath()
+            ctx.restoreGState()
+        }
+        glint(cx: 856, cy: 176, s: 1.0, alpha: 0.95)
+        glint(cx: 186, cy: 812, s: 0.55, alpha: 0.6)
+    }
+
     return ctx.makeImage()!
 }
 
-// 6 · Downsample and write.
+// 7 · Downsample and write.
 func write(_ image: CGImage, side: Int, to path: String) {
     let out = makeContext(side)
     out.interpolationQuality = .high
