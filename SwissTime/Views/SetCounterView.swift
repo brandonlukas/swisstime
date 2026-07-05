@@ -10,6 +10,7 @@ import UIKit
 struct SetCounterView: View {
     @AppStorage("setCounter.sets") private var sets = 4
     @AppStorage("setCounter.rest") private var rest: TimeInterval = 90
+    @AppStorage("setCounter.halfway") private var halfway = false
     @AppStorage("setCounter.fiveSeconds") private var fiveSeconds = true
     @AppStorage(SettingsKey.voiceCues) private var voiceCues = true
     /// Held in plain @State — the running child observes it; this view only
@@ -41,7 +42,7 @@ struct SetCounterView: View {
                 // Explicit values, so the debug run doesn't overwrite the
                 // remembered settings.
                 let engine = start(setCount: 3, restDuration: 15,
-                                   fiveSecondsCue: true)
+                                   halfwayCue: true, fiveSecondsCue: true)
                 // End the first set a few seconds in, so command-line
                 // verification can screenshot the rest countdown without
                 // touch input. Scoped to THIS auto-started session — wired
@@ -75,6 +76,9 @@ struct SetCounterView: View {
                     .font(.app(14))
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 10) {
+                    CheckboxRow(title: "Announce halfway", isOn: $halfway)
+                        .allowsHitTesting(voiceCues)
+                        .opacity(voiceCues ? 1 : 0.4)
                     CheckboxRow(title: "Announce 5s left", isOn: $fiveSeconds)
                         .allowsHitTesting(voiceCues)
                         .opacity(voiceCues ? 1 : 0.4)
@@ -88,7 +92,7 @@ struct SetCounterView: View {
                 }
                 PrimaryButton(title: "Start") {
                     start(setCount: sets, restDuration: rest,
-                          fiveSecondsCue: fiveSeconds)
+                          halfwayCue: halfway, fiveSecondsCue: fiveSeconds)
                 }
                 .padding(.top, 8)
             }
@@ -107,14 +111,16 @@ struct SetCounterView: View {
         guard DeepLink.pendingSetsStart else { return }
         DeepLink.pendingSetsStart = false
         guard engine == nil, !PlayerEngine.isActive else { return }
-        start(setCount: sets, restDuration: rest, fiveSecondsCue: fiveSeconds)
+        start(setCount: sets, restDuration: rest,
+              halfwayCue: halfway, fiveSecondsCue: fiveSeconds)
     }
 
     @discardableResult
     private func start(setCount: Int, restDuration: TimeInterval,
-                       fiveSecondsCue: Bool) -> SetCounterEngine {
+                       halfwayCue: Bool, fiveSecondsCue: Bool) -> SetCounterEngine {
         Haptics.impact()
         let engine = SetCounterEngine(setCount: setCount, rest: restDuration,
+                                      halfwayCue: halfwayCue,
                                       fiveSecondsCue: fiveSecondsCue)
         engine.start()
         ScreenSleep.hold()

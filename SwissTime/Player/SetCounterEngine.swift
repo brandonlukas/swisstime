@@ -6,13 +6,14 @@ import UIKit
 /// down to it, beeps once as it passes, and keeps counting into the
 /// negative — how deep into the next set (or past due) you already are.
 /// No pause, no auto-advance: the only input is "End set", and ending the
-/// last one finishes the session outright. The one optional voice is a
-/// "5 seconds left" heads-up before the beep, off-screen warning enough
-/// to get back under the bar.
+/// last one finishes the session outright. The optional voices are a
+/// "Halfway done" and a "5 seconds left" heads-up before the beep,
+/// off-screen warning enough to get back under the bar.
 @MainActor
 final class SetCounterEngine: ObservableObject {
     let setCount: Int
     let rest: TimeInterval
+    let halfwayCue: Bool
     let fiveSecondsCue: Bool
 
     /// 1-based set underway — during the rest before it, too.
@@ -28,11 +29,14 @@ final class SetCounterEngine: ObservableObject {
     /// The opening stretch has no rest to ring out.
     private var beepFired = true
     private var cueFired = true
+    private var halfwayFired = true
     private var lastEndSet = Date.distantPast
 
-    init(setCount: Int, rest: TimeInterval, fiveSecondsCue: Bool = false) {
+    init(setCount: Int, rest: TimeInterval, halfwayCue: Bool = false,
+         fiveSecondsCue: Bool = false) {
         self.setCount = max(1, setCount)
         self.rest = max(1, rest)
+        self.halfwayCue = halfwayCue
         self.fiveSecondsCue = fiveSecondsCue
     }
 
@@ -105,12 +109,20 @@ final class SetCounterEngine: ObservableObject {
         zeroDate = now.addingTimeInterval(rest)
         beepFired = false
         cueFired = false
+        halfwayFired = false
         liveActivity.update(activityState())
     }
 
     private func tick() {
         guard !finished else { return }
         let remaining = remaining(at: Date())
+        // Same rule as the player's halfway cue; the rest picker starts at
+        // 0:15, so the player's short-span merge case can't arise here.
+        if halfwayCue, !halfwayFired, !beepFired,
+           remaining <= rest / 2, rest > VoiceCueRule.minimumSpan {
+            halfwayFired = true
+            audio.speak("Halfway done.", interrupting: true)
+        }
         // The heads-up, on the same shared rule as the player's.
         if fiveSecondsCue, !cueFired, !beepFired,
            remaining <= VoiceCueRule.lead, rest > VoiceCueRule.minimumSpan {
