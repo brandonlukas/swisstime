@@ -247,7 +247,7 @@ struct SettingsView: View {
                         }
                         VStack(alignment: .leading, spacing: 10) {
                             ToggleRow(title: "Beeps and chimes", isOn: $sounds)
-                            Text("The beep as the clock hits zero, and the chime when a workout ends. Both rows off makes a visual timer.")
+                            Text("The beep as the clock hits zero, and the chime when a workout ends.")
                                 .appFont(14)
                                 .foregroundStyle(Color.inkSecondary)
                         }
