@@ -78,9 +78,10 @@ let day = Palette(
     ring: true,
     glints: false, glintColor: rgb(1, 1, 1))
 
-// Night Swim, colors straight from the naming artifact's concept 05:
-// #20264C water, the #3B82D9→#2B66BC pool-light glow, the gilded duck
-// (#F5EFDF / #D9CDAF / #D9A94E), #060B22 shadow.
+// Night Swim, water straight from the naming artifact's concept 05 —
+// #20264C, the #3B82D9→#2B66BC pool-light glow, #060B22 shadow — but the
+// day icon's own vinyl-yellow duck and ripple ring, no sparkles: the same
+// duck, the pool after close.
 let night = Palette(
     pool: rgb(0.125, 0.149, 0.298),          // #20264C
     blobs: nil,
@@ -92,14 +93,14 @@ let night = Palette(
     groutDark: rgb(0.024, 0.043, 0.133, 0.30),            // #060B22
     groutLight: rgb(1, 1, 1, 0.08),
     ripple: rgb(1, 1, 1, 0.12),
-    duckBody: rgb(0.961, 0.937, 0.875),      // #F5EFDF
-    duckShade: rgb(0.851, 0.804, 0.686),     // #D9CDAF
-    duckBeak: rgb(0.851, 0.663, 0.306),      // #D9A94E
+    duckBody: rgb(1.0, 0.796, 0.20),         // #FFCB33
+    duckShade: rgb(0.89, 0.659, 0.11),       // #E3A81C
+    duckBeak: rgb(0.941, 0.455, 0.165),      // #F0742A
     ink: rgb(0.075, 0.13, 0.28),             // #13213F
     castShadow: rgb(0.024, 0.043, 0.133, 0.4),            // #060B22
     catchLight: rgb(1, 1, 1, 0.55),
-    ring: false,                              // concept 05 has no ring
-    glints: true, glintColor: rgb(1, 1, 1))
+    ring: true,
+    glints: false, glintColor: rgb(1, 1, 1))
 
 // Tinted: the composition at maximum luminance contrast — flat near-black
 // field, pure white duck, no glow or sparkles. The system maps luminance
