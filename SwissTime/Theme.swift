@@ -20,11 +20,14 @@ extension Color {
     /// The ambient light pooled on the page behind content.
     static let pageLight = Color(light: Color.white.opacity(0.38),
                                  dark: Color.white.opacity(0.05))
-    /// Lifeguard red, destructive actions only.
-    static let signalRed = Color(light: Color(red: 0.82, green: 0.26, blue: 0.24),
+    /// Lifeguard red, destructive actions only. One shade deeper in the
+    /// light than it once was — 4.8:1, legible at any size.
+    static let signalRed = Color(light: Color(red: 0.75, green: 0.20, blue: 0.19),
                                  dark: Color(red: 0.93, green: 0.43, blue: 0.41))
-    /// The poster accent: airy periwinkle for index numbers and tags.
-    static let periwinkle = Color(light: Color(red: 0.52, green: 0.57, blue: 0.90),
+    /// The poster accent for index numbers and tags: an accessible indigo
+    /// by day (4.6:1 on paper — the airy original read at only 2.5:1),
+    /// still the airy periwinkle after dark, where it clears 8:1.
+    static let periwinkle = Color(light: Color(red: 0.333, green: 0.376, blue: 0.769),
                                   dark: Color(red: 0.64, green: 0.69, blue: 0.98))
 
     /// Pool scene colors. At night the water dims only a little — a lit
@@ -56,8 +59,27 @@ extension Color {
     /// Cool fill for plain sheet rows.
     static let card = Color(light: Color(red: 0.878, green: 0.902, blue: 0.933),
                             dark: Color(red: 0.145, green: 0.176, blue: 0.298))
-    static let fieldBorder = Color.ink.opacity(0.22)
-    static let hairline = Color.ink.opacity(0.10)
+    static let fieldBorder = Color.inkOpacity(0.22, highContrast: 0.50)
+    static let hairline = Color.inkOpacity(0.10, highContrast: 0.25)
+    /// Captions and supporting text — replaces SwiftUI's .secondary so the
+    /// opacity is ours to guarantee: 66% ink clears 4.5:1 on light paper
+    /// (60% fell just short at 4.05).
+    static let inkSecondary = Color.inkOpacity(0.66, highContrast: 0.78)
+
+    /// Ink at an opacity that answers the system's Increase Contrast
+    /// setting — the default look is untouched; users who flip the switch
+    /// get real borders and darker captions. Ink components mirror
+    /// Shared/Palette.swift's `ink`, which UIColor providers can't consume
+    /// as a SwiftUI Color.
+    static func inkOpacity(_ normal: CGFloat, highContrast: CGFloat) -> Color {
+        Color(uiColor: UIColor { traits in
+            let ink = traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0.902, green: 0.925, blue: 0.969, alpha: 1)
+                : UIColor(red: 0.075, green: 0.13, blue: 0.28, alpha: 1)
+            return ink.withAlphaComponent(
+                traits.accessibilityContrast == .high ? highContrast : normal)
+        })
+    }
 }
 
 extension Workout {

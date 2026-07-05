@@ -65,7 +65,7 @@ struct SetCounterView: View {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Count your sets and time your rest — company for workouts you run yourself.")
                     .appFont(15)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
                 AdaptiveRow {
                     PickerField(label: "Sets", options: Array(1...12),
                                 display: { "\($0)" }, selection: $sets)
@@ -74,7 +74,7 @@ struct SetCounterView: View {
                 }
                 Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
                     .appFont(14)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
                 // Same shape as the exercise form's alerts section, so the
                 // two places you pick cues read as one control.
                 VStack(alignment: .leading, spacing: 20) {
@@ -91,7 +91,7 @@ struct SetCounterView: View {
                         // a dead control must say who turned it off.
                         Text("Voice cues are off in Settings.")
                             .appFont(13)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
                 PrimaryButton(title: "Start") {
@@ -257,7 +257,7 @@ private struct SetCounterRunView: View {
             CounterDots(total: engine.setCount, current: engine.currentSet)
             Text("Set \(engine.currentSet) of \(engine.setCount)")
                 .appFont(15)
-                .opacity(0.6)
+                .opacity(0.66)
         }
         .offset(y: -56)
     }

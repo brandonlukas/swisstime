@@ -23,7 +23,7 @@ struct CompletionCeremonyView: View {
                 .padding(.bottom, 6)
             Text(workout.title)
                 .appFont(15)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
             let shiny = pond.isShiny(entryID)
             EarnedToyView(colorIndex: workout.colorIndex, shiny: shiny)
                 .padding(.vertical, 10)

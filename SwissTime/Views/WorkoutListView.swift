@@ -152,7 +152,7 @@ struct WorkoutListView: View {
             }
             Text("Or start from a sample")
                 .overline()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
                 .padding(.top, 28)
                 .padding(.bottom, 12)
             VStack(spacing: 10) {
@@ -183,12 +183,12 @@ struct WorkoutListView: View {
                     .appFont(15, .semibold)
                 Text("\(sample.kind == .timed ? "Timed" : "Sets") · \(sample.summaryLine)")
                     .appFont(12)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
             Spacer(minLength: 8)
             Image(systemName: "plus")
                 .font(.system(size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -262,7 +262,7 @@ private struct WorkoutCard: View {
             if !workout.details.isEmpty {
                 Text(workout.details)
                     .appFont(15)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
             Text(workout.summaryLine)
                 .appFont(15)
@@ -270,7 +270,7 @@ private struct WorkoutCard: View {
             if let line = Format.withLine(workout.exerciseNames) {
                 Text(line)
                     .appFont(15)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
         // Clears the play button that overlays the card's trailing edge.

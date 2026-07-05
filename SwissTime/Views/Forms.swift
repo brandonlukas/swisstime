@@ -82,7 +82,7 @@ struct LabeledField: View {
                         .appFont(13)
                         .monospacedDigit()
                         .foregroundStyle(text.count >= maxLength
-                                         ? Color.signalRed : .secondary)
+                                         ? Color.signalRed : Color.inkSecondary)
                 }
             }
             TextField(placeholder, text: $text)
@@ -125,7 +125,7 @@ struct PickerField<Value: Hashable>: View {
                     Spacer()
                     Image(systemName: "chevron.down")
                         .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 .padding(.horizontal, 14)
                 .frame(minHeight: 52)
@@ -176,7 +176,7 @@ struct ColorPickerRow: View {
                         .appFont(16, .medium)
                     Text(Palette.color(selection).toy.pickerLine)
                         .appFont(15)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 Spacer(minLength: 0)
             }
@@ -310,7 +310,7 @@ struct WorkoutFormView: View {
                      ? "Plays step by step, with a timer and voice cues."
                      : "Done at your own pace, logged with a tap — the Sets tab can count sets and time rest.")
                     .appFont(14)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
             }
             ColorPickerRow(selection: $colorIndex)
         }
@@ -455,7 +455,7 @@ struct ExerciseFormView: View {
                     if duration <= VoiceCueRule.minimumSpan, halfway || fiveSeconds {
                         Text("At \(Format.mmss(duration)), halfway is the 5-second mark — one “5 seconds left” plays.")
                             .appFont(13)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
             case .untimed:

@@ -168,7 +168,7 @@ struct WorkoutDetailView: View {
                 if !workout.details.isEmpty {
                     Text(workout.details)
                         .appFont(15)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                         .padding(.bottom, 10)
                 }
                 Text(workout.summaryLine)
@@ -213,7 +213,7 @@ struct WorkoutDetailView: View {
                     .appFont(16)
                 Spacer()
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.inkSecondary)
             .padding(.vertical, 18)
             .contentShape(Rectangle())
         }
@@ -261,7 +261,7 @@ struct WorkoutDetailView: View {
                         Text("Add exercise")
                             .appFont(16)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
                 }
                 .listRowBackground(Color.paperCardFill.opacity(0.7))
             }
@@ -295,7 +295,7 @@ struct WorkoutDetailView: View {
                 if !exercise.instructions.isEmpty {
                     Text(exercise.instructions)
                         .appFont(14)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
             Spacer(minLength: 8)
@@ -327,7 +327,7 @@ private struct ExerciseLine: View {
                 if !exercise.instructions.isEmpty {
                     Text(exercise.instructions)
                         .appFont(15)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
             Spacer(minLength: 8)

@@ -227,7 +227,7 @@ struct SettingsView: View {
                             ToggleRow(title: "Voice cues", isOn: $voiceCues)
                             Text("Spoken announcements like “5 seconds left.” Beeps and chimes always play.")
                                 .appFont(14)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         if voiceCues {
                             voiceSection
@@ -239,17 +239,17 @@ struct SettingsView: View {
                             ToggleRow(title: "Water tilt", isOn: $waterTilt)
                             Text("The waterline leans with your phone, like a carried glass.")
                                 .appFont(14)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         VStack(alignment: .leading, spacing: 10) {
                             ToggleRow(title: "Live Activity", isOn: $liveActivity)
                             Text("The running timer on the Lock Screen and in the Dynamic Island.")
                                 .appFont(14)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.inkSecondary)
                         }
                         Text("In Low Power Mode the water calms, the tilt stills, and haptics rest — automatically.")
                             .appFont(13)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.inkSecondary)
                     }
                     if ProcessInfo.processInfo.arguments.contains("-debugScheme") {
                         Text(verbatim: "reported=\(systemScheme.scheme) sheet=\(sheetScheme)")
@@ -323,7 +323,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 24) {
             Text(title)
                 .overline()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
             content()
         }
     }
@@ -393,10 +393,10 @@ struct SettingsView: View {
                     Spacer(minLength: 8)
                     Text(selectedVoiceName)
                         .appFont(15)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                     Image(systemName: "chevron.down")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                         .rotationEffect(.degrees(voicesExpanded ? 180 : 0))
                 }
                 .padding(.vertical, 6)
@@ -421,7 +421,7 @@ struct SettingsView: View {
                 }
                 Text("More voices — including higher-quality ones — can be downloaded in Settings → Accessibility → Spoken Content → Voices.")
                     .appFont(13)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
                     .padding(.top, 12)
             }
         }
@@ -452,7 +452,7 @@ struct SettingsView: View {
                         .appFont(16, selected ? .medium : .regular)
                     Text(detail)
                         .appFont(13)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 Spacer(minLength: 8)
                 if selected {
@@ -525,7 +525,7 @@ private struct PreviewPick<Preview: View>: View {
                                           lineWidth: selected ? 2 : 1))
                 Text(title)
                     .appFont(14, selected ? .medium : .regular)
-                    .foregroundStyle(selected ? .primary : .secondary)
+                    .foregroundStyle(selected ? Color.ink : Color.inkSecondary)
                     .lineLimit(1)
             }
             // Fills a third of the row normally; when AdaptiveRow stacks

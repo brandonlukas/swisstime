@@ -67,7 +67,7 @@ struct EmptyStateView: View {
                 .appFont(17, .medium)
             Text(message)
                 .appFont(15)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
             Button(action: action) {
                 Text(buttonTitle)
                     .appFont(16, .medium)
