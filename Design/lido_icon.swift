@@ -54,6 +54,8 @@ struct Palette {
     let ink: CGColor
     let castShadow: CGColor      // the duck's sun (or moon) shadow
     let catchLight: CGColor
+    /// The quiet ripple ring around the duck.
+    let ring: Bool
     /// Night sparkles (the artifact's #glint crosses).
     let glints: Bool
     let glintColor: CGColor
@@ -73,6 +75,7 @@ let day = Palette(
     ink: rgb(0.075, 0.13, 0.28),
     castShadow: rgb(0.031, 0.129, 0.29, 0.28),
     catchLight: rgb(1, 1, 1, 0.55),
+    ring: true,
     glints: false, glintColor: rgb(1, 1, 1))
 
 // Night Swim, colors straight from the naming artifact's concept 05:
@@ -95,27 +98,28 @@ let night = Palette(
     ink: rgb(0.075, 0.13, 0.28),             // #13213F
     castShadow: rgb(0.024, 0.043, 0.133, 0.4),            // #060B22
     catchLight: rgb(1, 1, 1, 0.55),
+    ring: false,                              // concept 05 has no ring
     glints: true, glintColor: rgb(1, 1, 1))
 
-// Tinted: night swim restated in grayscale, contrast pushed hard — the
-// system maps luminance onto the tint color, so the near-black field and
-// white duck give it the full range to travel.
+// Tinted: the composition at maximum luminance contrast — flat near-black
+// field, pure white duck, no glow or sparkles. The system maps luminance
+// onto the tint color, so the duck carries the whole tint and the field
+// stays dark whatever color the user picks.
 let tinted = Palette(
-    pool: gray(0.08),
+    pool: gray(0.04),
     blobs: nil,
-    glow: Glow(cx: 512, cy: 700, r: 620,
-               colors: [gray(0.40, 0.95), gray(0.28, 0.45), gray(0.28, 0.0)],
-               locations: [0, 0.55, 1]),
+    glow: nil,
     groutDark: gray(0.0, 0.30),
-    groutLight: gray(1.0, 0.10),
-    ripple: gray(1.0, 0.12),
+    groutLight: gray(1.0, 0.11),
+    ripple: gray(1.0, 0.13),
     duckBody: gray(1.0),
-    duckShade: gray(0.68),
-    duckBeak: gray(0.55),
-    ink: gray(0.02),
-    castShadow: gray(0.0, 0.45),
+    duckShade: gray(0.62),
+    duckBeak: gray(0.50),
+    ink: gray(0.0),
+    castShadow: gray(0.0, 0.5),
     catchLight: gray(1.0, 0.7),
-    glints: true, glintColor: gray(1.0))
+    ring: true,
+    glints: false, glintColor: gray(1.0))
 
 func render(_ p: Palette) -> CGImage {
     let ctx = makeContext(S)
@@ -191,9 +195,11 @@ func render(_ p: Palette) -> CGImage {
     }
 
     // 4 · A quiet ripple ring around the duck.
-    ctx.setStrokeColor(p.ripple)
-    ctx.setLineWidth(9)
-    ctx.strokeEllipse(in: CGRect(x: 565 - 320, y: 470 - 320, width: 640, height: 640))
+    if p.ring {
+        ctx.setStrokeColor(p.ripple)
+        ctx.setLineWidth(9)
+        ctx.strokeEllipse(in: CGRect(x: 565 - 320, y: 470 - 320, width: 640, height: 640))
+    }
 
     // 5 · The duck, twice: cast-shadow silhouette first, then the vinyl.
     // Local space: +x forward, ~518 units nose to tail (PoolToyArt × 14).
@@ -266,8 +272,8 @@ func render(_ p: Palette) -> CGImage {
         ctx.fillEllipse(in: CGRect(x: 102, y: -54, width: 52, height: 32))
     }
 
-    // 6 · Night sparkles — the artifact's #glint cross, nudged out of the
-    // ripple ring (the duck sits off-center here, unlike concept 05's).
+    // 6 · Night sparkles — the artifact's #glint crosses, at concept 05's
+    // own positions (no ring to clear here).
     if p.glints {
         func glint(cx: CGFloat, cy: CGFloat, s: CGFloat, alpha: CGFloat) {
             ctx.saveGState()
@@ -288,8 +294,8 @@ func render(_ p: Palette) -> CGImage {
             ctx.strokePath()
             ctx.restoreGState()
         }
-        glint(cx: 856, cy: 176, s: 1.0, alpha: 0.95)
-        glint(cx: 186, cy: 812, s: 0.55, alpha: 0.6)
+        glint(cx: 788, cy: 268, s: 1.0, alpha: 0.95)
+        glint(cx: 250, cy: 748, s: 0.55, alpha: 0.6)
     }
 
     return ctx.makeImage()!
