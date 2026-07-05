@@ -8,11 +8,14 @@ import SwiftUI
 /// every tile is drained by hand.
 struct UntimedSessionView: View {
     let workout: Workout
-    /// Fired on Finish; the detail view runs the completion ceremony after
-    /// this screen pops.
+    /// Fired once the ceremony ends; the detail view dismisses itself so
+    /// the pop lands on the list, same as every completion.
     let onFinish: () -> Void
 
+    @EnvironmentObject private var store: WorkoutStore
+    @EnvironmentObject private var pond: PondStore
     @State private var done: Set<UUID>
+    @State private var ceremony: CompletionCeremony?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -55,15 +58,32 @@ struct UntimedSessionView: View {
         .background(PaperBackground())
         .navigationTitle(workout.title)
         .navigationBarTitleDisplayMode(.inline)
+        // The ceremony floats right here, over the pool the session just
+        // filled — celebrate where the work happened. Its dismissal pops
+        // all the way home.
+        .sheet(item: $ceremony, onDismiss: {
+            onFinish()
+            dismiss()
+        }) { ceremony in
+            CompletionCeremonyView(workout: workout, entryID: ceremony.entryID)
+        }
+        .onAppear {
+            // Debug: flood the grid and take the finish, so a command-line
+            // run can screenshot the ceremony over the filled pool.
+            if ProcessInfo.processInfo.arguments.contains("-autoFinishUntimed"),
+               !DebugLaunch.didAutoFinishUntimed {
+                DebugLaunch.didAutoFinishUntimed = true
+                done = Set(workout.exercises.map(\.id))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { finish() }
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             // Wakes with the last tile but never fires itself — the finish
             // is the user's moment to take.
             PrimaryButton(title: "Finish workout",
                           fill: allDone ? workout.palette.fill : Color.ink.opacity(0.25),
                           textColor: allDone ? workout.palette.onFill : Color.onInk) {
-                UntimedProgress.clear(workout.id)
-                onFinish()
-                dismiss()
+                finish()
             }
             .disabled(!allDone)
             .padding(.horizontal, 20)
@@ -78,6 +98,16 @@ struct UntimedSessionView: View {
     private var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 12),
               count: typeSize.isAccessibilitySize ? 1 : 2)
+    }
+
+    /// The untimed completion, on the spot: toy earned, pool logged,
+    /// progress cleared so next time starts fresh.
+    private func finish() {
+        UntimedProgress.clear(workout.id)
+        done = Set(workout.exercises.map(\.id))
+        Haptics.success()
+        store.markPlayed(workout.id)
+        ceremony = CompletionCeremony(entryID: pond.record(workout: workout))
     }
 
     private func toggle(_ id: UUID) {

@@ -29,8 +29,8 @@ struct WorkoutDetailView: View {
     @State private var sheet: DetailSheet?
     @State private var playing = false
     @State private var sessionActive = false
-    /// Latched by the session's Finish; the ceremony runs once the pushed
-    /// screen has popped, so the sheet never races the navigation.
+    /// Latched when the session's ceremony ends; this screen then bows out
+    /// too, so the pop lands on the list like every completion.
     @State private var sessionFinished = false
     @State private var ceremony: CompletionCeremony?
     /// Set by the delete confirmation; acted on once its sheet is gone,
@@ -144,7 +144,7 @@ struct WorkoutDetailView: View {
         .onChange(of: sessionActive) { _, active in
             if !active, sessionFinished {
                 sessionFinished = false
-                markDone()
+                dismiss()
             }
         }
         // However the ceremony ends — Done or a swipe — the workout is
