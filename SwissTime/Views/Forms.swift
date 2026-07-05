@@ -260,6 +260,11 @@ struct CheckboxRow: View {
                 }
                 .onEnded { _ in touchDown = false }
         )
+        // The bare gesture is invisible to VoiceOver — expose the row as
+        // the switch it behaves like, even though it's drawn as a checkbox.
+        .accessibilityRepresentation {
+            Toggle(title, isOn: $isOn)
+        }
     }
 }
 

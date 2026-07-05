@@ -206,44 +206,51 @@ struct SettingsView: View {
             }
             .padding(20)
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                // Groups separated by whitespace and an overline label —
+                // typography does the sectioning, not dividers.
+                VStack(alignment: .leading, spacing: 40) {
                     PageHeader(title: "Settings")
-                    themePicker
-                    appIconPicker
-                    if !iconError.isEmpty,
-                       ProcessInfo.processInfo.arguments.contains(where: {
-                           $0.hasPrefix("-autoPick")
-                       }) {
-                        Text(verbatim: iconError)
-                            .font(.app(13, .bold))
-                            .foregroundStyle(Color.signalRed)
+                    group("Appearance") {
+                        themePicker
+                        appIconPicker
+                        if !iconError.isEmpty,
+                           ProcessInfo.processInfo.arguments.contains(where: {
+                               $0.hasPrefix("-autoPick")
+                           }) {
+                            Text(verbatim: iconError)
+                                .font(.app(13, .bold))
+                                .foregroundStyle(Color.signalRed)
+                        }
                     }
-                    VStack(alignment: .leading, spacing: 10) {
-                        CheckboxRow(title: "Voice cues", isOn: $voiceCues)
-                        Text("Spoken announcements like “5 seconds left.” Beeps and chimes always play.")
-                            .font(.app(14))
+                    group("Voice") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            CheckboxRow(title: "Voice cues", isOn: $voiceCues)
+                            Text("Spoken announcements like “5 seconds left.” Beeps and chimes always play.")
+                                .font(.app(14))
+                                .foregroundStyle(.secondary)
+                        }
+                        if voiceCues {
+                            voiceSection
+                        }
+                    }
+                    group("Session") {
+                        CheckboxRow(title: "Haptics", isOn: $haptics)
+                        VStack(alignment: .leading, spacing: 10) {
+                            CheckboxRow(title: "Water tilt", isOn: $waterTilt)
+                            Text("The waterline leans with your phone, like a carried glass.")
+                                .font(.app(14))
+                                .foregroundStyle(.secondary)
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            CheckboxRow(title: "Live Activity", isOn: $liveActivity)
+                            Text("The running timer on the Lock Screen and in the Dynamic Island.")
+                                .font(.app(14))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("In Low Power Mode the water calms, the tilt stills, and haptics rest — automatically.")
+                            .font(.app(13))
                             .foregroundStyle(.secondary)
                     }
-                    if voiceCues {
-                        voiceSection
-                    }
-                    CheckboxRow(title: "Haptics", isOn: $haptics)
-                    VStack(alignment: .leading, spacing: 10) {
-                        CheckboxRow(title: "Water tilt", isOn: $waterTilt)
-                        Text("The waterline leans with your phone, like a carried glass.")
-                            .font(.app(14))
-                            .foregroundStyle(.secondary)
-                    }
-                    VStack(alignment: .leading, spacing: 10) {
-                        CheckboxRow(title: "Live Activity", isOn: $liveActivity)
-                        Text("The running timer on the Lock Screen and in the Dynamic Island.")
-                            .font(.app(14))
-                            .foregroundStyle(.secondary)
-                    }
-                    Text("In Low Power Mode the water calms, the tilt stills, and haptics rest — automatically.")
-                        .font(.app(13))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 4)
                     if ProcessInfo.processInfo.arguments.contains("-debugScheme") {
                         Text(verbatim: "reported=\(systemScheme.scheme) sheet=\(sheetScheme)")
                             .font(.app(13, .bold))
@@ -306,6 +313,18 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// A settings group: a quiet tracked label, then its rows.
+    private func group<Content: View>(
+        _ title: String, @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text(title)
+                .overline()
+                .foregroundStyle(.secondary)
+            content()
         }
     }
 
@@ -483,8 +502,8 @@ struct SettingsView: View {
 }
 
 /// A labeled preview tile — the theme and icon pickers share it so the two
-/// rows read as one control family. Fixed width so the columns line up
-/// across rows; the border hugs the preview, not the label.
+/// rows read as one control family. Flexes to a third of the measure, like
+/// every other control row; the border hugs the preview, not the label.
 private struct PreviewPick<Preview: View>: View {
     let title: String
     let selected: Bool
@@ -509,7 +528,7 @@ private struct PreviewPick<Preview: View>: View {
                     .foregroundStyle(selected ? .primary : .secondary)
                     .lineLimit(1)
             }
-            .frame(width: 96)
+            .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -548,7 +567,7 @@ private struct ThemeSwatch: View {
                 .frame(width: 14, height: 14)
                 .padding(8)
         }
-        .frame(width: 96, height: 64)
+        .frame(height: 64)
     }
 }
 
