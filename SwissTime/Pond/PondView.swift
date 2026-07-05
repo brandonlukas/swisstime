@@ -76,6 +76,10 @@ private struct PondPage: View {
     let hasHistory: Bool
     let isVisible: Bool
     let newIDs: Set<UUID>
+    /// The pool card is a postcard: the month's ledger is written on the
+    /// back. Tap anywhere on the water to turn it over.
+    @State private var flipped = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -86,19 +90,7 @@ private struct PondPage: View {
                 .appFont(14)
                 .foregroundStyle(Color.inkSecondary)
                 .padding(.bottom, 20)
-            PondSceneView(monthKey: month, entries: entries, mode: .live,
-                          paused: !isVisible, newIDs: newIDs)
-                .aspectRatio(0.8, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                .paperCard(26)
-                .overlay {
-                    if !isCurrent {
-                        // A quiet frame marks the kept months.
-                        RoundedRectangle(cornerRadius: 26, style: .continuous)
-                            .stroke(Color.ink.opacity(0.16), lineWidth: 1)
-                    }
-                }
+            flipCard
             if isCurrent, entries.isEmpty {
                 Text("Flat water. Finish a workout and a toy floats in.")
                     .appFont(15)
@@ -114,6 +106,82 @@ private struct PondPage: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 8)
+    }
+
+    /// Front: the pool, toys afloat. Back: the month's calendar, pre-turned
+    /// so the container's 180° lands it upright. Reduce Motion swaps the 3D
+    /// turn for a plain cross-fade (and skips the pre-turn, which would
+    /// otherwise mirror the ledger).
+    private var flipCard: some View {
+        ZStack {
+            card {
+                PoolCalendarView(month: month, entries: entries)
+            }
+            .overlay(alignment: .topTrailing) {
+                flipHint(onWater: false)
+            }
+            .rotation3DEffect(.degrees(reduceMotion ? 0 : 180),
+                              axis: (x: 0, y: 1, z: 0))
+            .opacity(flipped ? 1 : 0)
+            .accessibilityHidden(!flipped)
+            card {
+                PondSceneView(monthKey: month, entries: entries, mode: .live,
+                              paused: !isVisible || flipped, newIDs: newIDs)
+            }
+            .overlay(alignment: .topTrailing) {
+                flipHint(onWater: true)
+            }
+            .opacity(flipped ? 0 : 1)
+            .accessibilityHidden(flipped)
+        }
+        .aspectRatio(0.8, contentMode: .fit)
+        .frame(maxWidth: .infinity)
+        .rotation3DEffect(.degrees(!reduceMotion && flipped ? 180 : 0),
+                          axis: (x: 0, y: 1, z: 0), perspective: 0.3)
+        .animation(reduceMotion ? .easeInOut(duration: 0.25)
+                                : .spring(response: 0.7, dampingFraction: 0.85),
+                   value: flipped)
+        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .onTapGesture {
+            Haptics.selection()
+            flipped.toggle()
+        }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(flipped ? "\(month.monthName) calendar" : "\(month.monthName) pool")
+        .accessibilityHint("Double tap to flip the pool over.")
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-pondFlip"),
+               isCurrent, !DebugLaunch.didPondFlip {
+                DebugLaunch.didPondFlip = true
+                flipped = true
+            }
+        }
+    }
+
+    /// Both sides share the card chrome, so the flip reads as one object.
+    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .paperCard(26)
+            .overlay {
+                if !isCurrent {
+                    // A quiet frame marks the kept months.
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .stroke(Color.ink.opacity(0.16), lineWidth: 1)
+                }
+            }
+    }
+
+    /// The whisper that the card has a back.
+    private func flipHint(onWater: Bool) -> some View {
+        Image(systemName: "arrow.triangle.2.circlepath")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(onWater ? Color.white.opacity(0.85)
+                                     : Color.ink.opacity(0.5))
+            .frame(width: 26, height: 26)
+            .background(onWater ? Color.white.opacity(0.16) : Color.ink.opacity(0.07),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .padding(10)
     }
 
     private var subtitle: String {

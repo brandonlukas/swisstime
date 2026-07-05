@@ -446,6 +446,7 @@ enum DebugLaunch {
     static var didAutoStartUntimed = false
     static var didAutoFinishUntimed = false
     static var didAutoDismissCeremony = false
+    static var didPondFlip = false
 }
 
 extension String {
