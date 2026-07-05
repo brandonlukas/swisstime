@@ -51,7 +51,7 @@ struct WorkoutListView: View {
                             // wait out gesture disambiguation, which made
                             // starting a workout feel laggy.
                             ForEach(store.sortedWorkouts) { workout in
-                                NavigationLink(value: workout.id) {
+                                NavigationLink(value: Route.detail(workout.id)) {
                                     WorkoutCard(workout: workout)
                                 }
                                 .buttonStyle(.plain)
