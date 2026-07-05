@@ -302,6 +302,200 @@ func render(_ p: Palette) -> CGImage {
     return ctx.makeImage()!
 }
 
+// ============================================================ Deep End ===
+// The alternate icon (naming-artifact concept 03): the pool corner with its
+// ladder — deck tiles, one rounded corner of wavy-grouted water, coping,
+// and the three-pass ladder (cast shadow, drowned rails, dry top). The most
+// liminal and architectural of the marks; user-selectable in Settings.
+
+struct DeepPalette {
+    let deck: CGColor
+    let deckLine: CGColor
+    let pool: CGColor
+    /// Day caustics inside the water (deep shade + light), or nil.
+    let blobs: (deep: CGColor, light: CGColor)?
+    /// Night pool light inside the water, or nil.
+    let glow: Glow?
+    let groutDark: CGColor
+    let groutLight: CGColor
+    let coping: CGColor
+    let ladderShadow: CGColor
+    let ladderWet: CGColor       // the drowned rails, refracted pale
+    let ladderDry: CGColor       // above the waterline
+}
+
+let deepDay = DeepPalette(
+    deck: rgb(0.761, 0.843, 0.914),          // #C2D7E9
+    deckLine: rgb(0.624, 0.733, 0.839, 0.85),// #9FBBD6
+    pool: rgb(0.169, 0.451, 0.788),          // #2B73C9
+    blobs: (deep: rgb(0.078, 0.271, 0.561, 0.55),   // #14458F
+            light: rgb(1, 1, 1, 0.12)),
+    glow: nil,
+    groutDark: rgb(0.055, 0.243, 0.494, 0.30),      // #0E3E7E
+    groutLight: rgb(1, 1, 1, 0.16),
+    coping: rgb(1, 1, 1, 0.55),
+    ladderShadow: rgb(0.039, 0.173, 0.361, 0.18),   // #0A2C5C
+    ladderWet: rgb(0.863, 0.914, 0.961, 0.55),      // #DCE9F5
+    ladderDry: rgb(0.937, 0.961, 0.984))            // #EFF5FB
+
+// The deck after close: near-black slate, the water lit from within by the
+// same pool light as the night swim mark.
+let deepNight = DeepPalette(
+    deck: rgb(0.075, 0.086, 0.157),          // #131628
+    deckLine: rgb(1, 1, 1, 0.07),
+    pool: rgb(0.125, 0.149, 0.298),          // #20264C
+    blobs: nil,
+    glow: Glow(cx: 680, cy: 760, r: 600,
+               colors: [rgb(0.231, 0.510, 0.851, 0.95),   // #3B82D9
+                        rgb(0.169, 0.400, 0.737, 0.45),   // #2B66BC
+                        rgb(0.169, 0.400, 0.737, 0.0)],
+               locations: [0, 0.55, 1]),
+    groutDark: rgb(0.024, 0.043, 0.133, 0.30),      // #060B22
+    groutLight: rgb(1, 1, 1, 0.08),
+    coping: rgb(1, 1, 1, 0.40),
+    ladderShadow: rgb(0.024, 0.043, 0.133, 0.40),   // #060B22
+    ladderWet: rgb(0.863, 0.914, 0.961, 0.35),
+    ladderDry: rgb(0.937, 0.961, 0.984))
+
+// Tinted: flat and extreme, like the duck's — the dry ladder and coping
+// carry the tint, the field stays near-black.
+let deepTinted = DeepPalette(
+    deck: gray(0.04),
+    deckLine: gray(1.0, 0.10),
+    pool: gray(0.11),
+    blobs: nil,
+    glow: nil,
+    groutDark: gray(0.0, 0.30),
+    groutLight: gray(1.0, 0.10),
+    coping: gray(1.0, 0.55),
+    ladderShadow: gray(0.0, 0.5),
+    ladderWet: gray(1.0, 0.40),
+    ladderDry: gray(1.0))
+
+func renderDeepEnd(_ p: DeepPalette) -> CGImage {
+    let ctx = makeContext(S)
+    ctx.translateBy(x: 0, y: CGFloat(S))
+    ctx.scaleBy(x: scale, y: -scale)
+
+    // 1 · The deck: straight tile lines, a finer 6×6 grid.
+    ctx.setFillColor(p.deck)
+    ctx.fill(CGRect(x: 0, y: 0, width: 1024, height: 1024))
+    ctx.setStrokeColor(p.deckLine)
+    ctx.setLineWidth(8)
+    ctx.beginPath()
+    for line in [172.0, 342, 512, 682, 852] {
+        ctx.move(to: CGPoint(x: line, y: 0)); ctx.addLine(to: CGPoint(x: line, y: 1024))
+        ctx.move(to: CGPoint(x: 0, y: line)); ctx.addLine(to: CGPoint(x: 1024, y: line))
+    }
+    ctx.strokePath()
+
+    // 2 · The water: one rounded corner, running off the right and bottom.
+    let poolRect = CGRect(x: 240, y: 330, width: 1000, height: 900)
+    let poolPath = CGPath(roundedRect: poolRect, cornerWidth: 110,
+                          cornerHeight: 110, transform: nil)
+    ctx.saveGState()
+    ctx.addPath(poolPath)
+    ctx.clip()
+    ctx.setFillColor(p.pool)
+    ctx.fill(poolRect)
+    if let glow = p.glow {
+        let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                              colors: glow.colors as CFArray,
+                              locations: glow.locations)!
+        ctx.drawRadialGradient(grad,
+                               startCenter: CGPoint(x: glow.cx, y: glow.cy),
+                               startRadius: 0,
+                               endCenter: CGPoint(x: glow.cx, y: glow.cy),
+                               endRadius: glow.r, options: [])
+    }
+
+    // Wavy grout under the water, offset so it never lines up with the
+    // deck's grid — the artifact's translate(70 40), sine period 340.
+    func wavyLine(vertical: Bool, at position: CGFloat, flip: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        var along: CGFloat = 0
+        let wob = { (t: CGFloat) in 6 * flip * sin(2 * .pi * t / 340) }
+        if vertical {
+            path.move(to: CGPoint(x: position + wob(0), y: 0))
+            while along < 1300 { along += 8
+                path.addLine(to: CGPoint(x: position + wob(along), y: along)) }
+        } else {
+            path.move(to: CGPoint(x: 0, y: position + wob(0)))
+            while along < 1300 { along += 8
+                path.addLine(to: CGPoint(x: along, y: position + wob(along))) }
+        }
+        return path
+    }
+    ctx.setLineCap(.round)
+    for pass in 0..<2 {
+        ctx.saveGState()
+        if pass == 0 {
+            ctx.translateBy(x: 77, y: 47)
+            ctx.setStrokeColor(p.groutDark); ctx.setLineWidth(11)
+        } else {
+            ctx.translateBy(x: 70, y: 40)
+            ctx.setStrokeColor(p.groutLight); ctx.setLineWidth(9)
+        }
+        var flip: CGFloat = 1
+        for line in [172.0, 342, 512, 682, 852] {
+            ctx.addPath(wavyLine(vertical: true, at: line, flip: flip))
+            ctx.addPath(wavyLine(vertical: false, at: line, flip: -flip))
+            flip = -flip
+        }
+        ctx.strokePath()
+        ctx.restoreGState()
+    }
+
+    if let blobs = p.blobs {
+        func blob(cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat, color: CGColor) {
+            ctx.saveGState()
+            ctx.translateBy(x: cx, y: cy)
+            ctx.scaleBy(x: rx, y: ry)
+            let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  colors: [color, color.copy(alpha: 0)!] as CFArray,
+                                  locations: [0, 1])!
+            ctx.drawRadialGradient(grad, startCenter: .zero, startRadius: 0,
+                                   endCenter: .zero, endRadius: 1, options: [])
+            ctx.restoreGState()
+        }
+        blob(cx: 850, cy: 900, rx: 520, ry: 340, color: blobs.deep)
+        blob(cx: 420, cy: 480, rx: 300, ry: 180, color: blobs.light)
+    }
+    ctx.restoreGState()
+
+    // 3 · The coping: a pale lip just proud of the waterline.
+    ctx.setStrokeColor(p.coping)
+    ctx.setLineWidth(10)
+    ctx.addPath(CGPath(roundedRect: CGRect(x: 228, y: 318, width: 1024, height: 924),
+                       cornerWidth: 118, cornerHeight: 118, transform: nil))
+    ctx.strokePath()
+
+    // 4 · The ladder, three passes: cast shadow on the water, the drowned
+    // rails refracted pale, and the dry top with its one rung.
+    func rails(_ segments: [(CGPoint, CGPoint)], color: CGColor, width: CGFloat) {
+        ctx.setStrokeColor(color)
+        ctx.setLineWidth(width)
+        ctx.beginPath()
+        for (a, b) in segments { ctx.move(to: a); ctx.addLine(to: b) }
+        ctx.strokePath()
+    }
+    ctx.saveGState()
+    ctx.translateBy(x: 12, y: 14)
+    rails([(CGPoint(x: 520, y: 208), CGPoint(x: 520, y: 560)),
+           (CGPoint(x: 614, y: 208), CGPoint(x: 614, y: 560))],
+          color: p.ladderShadow, width: 26)
+    ctx.restoreGState()
+    rails([(CGPoint(x: 520, y: 330), CGPoint(x: 520, y: 560)),
+           (CGPoint(x: 614, y: 330), CGPoint(x: 614, y: 560))],
+          color: p.ladderWet, width: 24)
+    rails([(CGPoint(x: 520, y: 208), CGPoint(x: 520, y: 336)),
+           (CGPoint(x: 614, y: 208), CGPoint(x: 614, y: 336)),
+           (CGPoint(x: 520, y: 250), CGPoint(x: 614, y: 250))],
+          color: p.ladderDry, width: 24)
+
+    return ctx.makeImage()!
+}
+
 // 7 · Downsample and write.
 func write(_ image: CGImage, side: Int, to path: String) {
     let out = makeContext(side)
@@ -318,4 +512,7 @@ write(full, side: 180, to: "\(dir)/lido-180.png")
 write(full, side: 120, to: "\(dir)/lido-120.png")
 write(render(night), side: 1024, to: "\(dir)/lido-1024-dark.png")
 write(render(tinted), side: 1024, to: "\(dir)/lido-1024-tinted.png")
+write(renderDeepEnd(deepDay), side: 1024, to: "\(dir)/lido-deep-1024.png")
+write(renderDeepEnd(deepNight), side: 1024, to: "\(dir)/lido-deep-1024-dark.png")
+write(renderDeepEnd(deepTinted), side: 1024, to: "\(dir)/lido-deep-1024-tinted.png")
 print("done")

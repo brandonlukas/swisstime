@@ -32,6 +32,29 @@ enum AppSettings {
     }
 }
 
+/// The home-screen mark: The Pool (default) or Deep End, both from the
+/// naming artifact. iOS itself remembers the pick — no UserDefaults key.
+enum AppIconChoice: String, CaseIterable {
+    case pool, deepEnd
+
+    var title: String {
+        switch self {
+        case .pool: return "The Pool"
+        case .deepEnd: return "Deep End"
+        }
+    }
+
+    /// setAlternateIconName's argument — nil means the primary icon.
+    var alternateName: String? {
+        self == .deepEnd ? "AppIconDeepEnd" : nil
+    }
+
+    @MainActor static var current: AppIconChoice {
+        UIApplication.shared.alternateIconName == AppIconChoice.deepEnd.alternateName
+            ? .deepEnd : .pool
+    }
+}
+
 /// System / day / night swim. `system` follows iOS.
 enum ThemeChoice: String, CaseIterable {
     case system, day, night
@@ -136,6 +159,8 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.liveActivity) private var liveActivity = true
     @AppStorage(SettingsKey.voiceIdentifier) private var voiceIdentifier = ""
     @AppStorage(SettingsKey.waterTilt) private var waterTilt = true
+    /// Mirrors iOS's own memory of the icon; not persisted here.
+    @State private var appIcon = AppIconChoice.current.rawValue
     @State private var voices: [VoiceOption] = []
     @State private var preview = VoicePreview()
     /// The voice list is long enough to bury Haptics and Live Activity —
@@ -167,6 +192,10 @@ struct SettingsView: View {
                                options: ThemeChoice.allCases.map(\.rawValue),
                                display: { ThemeChoice(rawValue: $0)?.title ?? $0 },
                                selection: $theme)
+                    SegmentRow(label: "App icon",
+                               options: AppIconChoice.allCases.map(\.rawValue),
+                               display: { AppIconChoice(rawValue: $0)?.title ?? $0 },
+                               selection: $appIcon)
                     VStack(alignment: .leading, spacing: 10) {
                         CheckboxRow(title: "Voice cues", isOn: $voiceCues)
                         Text("Spoken announcements like “5 seconds left.” Beeps and chimes always play.")
@@ -210,9 +239,36 @@ struct SettingsView: View {
         // Carrying the preference on the sheet's own content keeps the
         // very screen doing the switching honest about the result.
         .preferredColorScheme(sheetScheme)
+        .onChange(of: appIcon) { _, new in
+            let choice = AppIconChoice(rawValue: new) ?? .pool
+            guard UIApplication.shared.alternateIconName != choice.alternateName
+            else { return }
+            UIApplication.shared.setAlternateIconName(choice.alternateName) { error in
+                // A failed switch (never seen in practice) must not leave
+                // the control lying about the home screen.
+                if error != nil {
+                    DispatchQueue.main.async {
+                        appIcon = AppIconChoice.current.rawValue
+                    }
+                }
+            }
+        }
         .onChange(of: voiceIdentifier) { _, _ in resolveSelectedVoiceName() }
         .onAppear {
             resolveSelectedVoiceName()
+            // Debug: flip to the Deep End icon (or back with pool), so a
+            // command-line run can verify the OS-level switch end to end.
+            if !DebugLaunch.didAutoPickIcon {
+                let arguments = ProcessInfo.processInfo.arguments
+                let pick: AppIconChoice? = arguments.contains("-autoPickDeepEndIcon")
+                    ? .deepEnd : arguments.contains("-autoPickPoolIcon") ? .pool : nil
+                if let pick {
+                    DebugLaunch.didAutoPickIcon = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        appIcon = pick.rawValue
+                    }
+                }
+            }
             // Debug: walk the theme through the reported repro sequence
             // (day → system → night) with the sheet up, for screenshots.
             if ProcessInfo.processInfo.arguments.contains("-autoCycleTheme") {
