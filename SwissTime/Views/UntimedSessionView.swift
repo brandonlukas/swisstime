@@ -39,6 +39,7 @@ struct UntimedSessionView: View {
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(workout.exercises) { exercise in
                         ExerciseTile(exercise: exercise,
+                                     palette: workout.palette,
                                      done: done.contains(exercise.id),
                                      reduceMotion: reduceMotion) {
                             toggle(exercise.id)
@@ -124,9 +125,13 @@ struct UntimedSessionView: View {
 
 /// One exercise as a card: name and sets × reps on paper, and the water
 /// rising to submerge it when done — the same physics as the player's
-/// clock, no flip to hide the name behind.
+/// clock, no flip to hide the name behind. The water is the WORKOUT's
+/// color, not the universal pool blue: color is data here (green means
+/// shoulders because the user said so), where the Sets tab is an unlinked
+/// utility and keeps the pool's own blue.
 private struct ExerciseTile: View {
     let exercise: Exercise
+    let palette: PaletteColor
     let done: Bool
     let reduceMotion: Bool
     let action: () -> Void
@@ -146,7 +151,7 @@ private struct ExerciseTile: View {
                 }
                 Spacer(minLength: 10)
             }
-            .foregroundStyle(done ? Color.white : Color.ink)
+            .foregroundStyle(done ? palette.onFill : Color.ink)
             .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
             .padding(13)
             .background {
@@ -158,7 +163,7 @@ private struct ExerciseTile: View {
                                 .fill(Color.white.opacity(0.55))
                                 .frame(height: 2.5)
                             Rectangle()
-                                .fill(Color.poolWater)
+                                .fill(palette.fill)
                         }
                         .frame(height: done ? geo.size.height + 3 : 0)
                     }
