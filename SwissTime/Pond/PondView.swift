@@ -69,6 +69,37 @@ struct PondView: View {
     }
 }
 
+/// One face of the turning card. Animatable, so `angle` interpolates per
+/// frame and each face can decide its visibility from the card's ACTUAL
+/// rotation: a hard swap at 90°, when the card is edge-on and either face
+/// is a sliver — never a fade that leaks the other side early. With
+/// `rotates` off (Reduce Motion) the same angle drives a plain cross-fade.
+private struct FlipFace: ViewModifier, Animatable {
+    var angle: Double
+    let isBack: Bool
+    let rotates: Bool
+
+    var animatableData: Double {
+        get { angle }
+        set { angle = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            // The back is pre-turned so it lands upright at 180.
+            .rotation3DEffect(.degrees(rotates ? angle + (isBack ? 180 : 0) : 0),
+                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
+            .opacity(faceOpacity)
+    }
+
+    private var faceOpacity: Double {
+        if rotates {
+            return (angle >= 90) == isBack ? 1 : 0
+        }
+        return isBack ? angle / 180 : 1 - angle / 180
+    }
+}
+
 private struct PondPage: View {
     let month: MonthKey
     let entries: [PondEntry]
@@ -108,36 +139,28 @@ private struct PondPage: View {
         .padding(.top, 8)
     }
 
-    /// Front: the pool, toys afloat. Back: the month's calendar, pre-turned
-    /// so the container's 180° lands it upright. Reduce Motion swaps the 3D
-    /// turn for a plain cross-fade (and skips the pre-turn, which would
-    /// otherwise mirror the ledger).
+    /// Front: the pool, toys afloat. Back: the month's calendar. The faces
+    /// trade places in a hard switch at the card's edge-on moment — a fade
+    /// would show the new face before the turn. No hint glyph: the pool's
+    /// calm is the feature, and the back can afford to be a secret.
     private var flipCard: some View {
         ZStack {
             card {
                 PoolCalendarView(month: month, entries: entries)
             }
-            .overlay(alignment: .topTrailing) {
-                flipHint(onWater: false)
-            }
-            .rotation3DEffect(.degrees(reduceMotion ? 0 : 180),
-                              axis: (x: 0, y: 1, z: 0))
-            .opacity(flipped ? 1 : 0)
+            .modifier(FlipFace(angle: flipped ? 180 : 0, isBack: true,
+                               rotates: !reduceMotion))
             .accessibilityHidden(!flipped)
             card {
                 PondSceneView(monthKey: month, entries: entries, mode: .live,
                               paused: !isVisible || flipped, newIDs: newIDs)
             }
-            .overlay(alignment: .topTrailing) {
-                flipHint(onWater: true)
-            }
-            .opacity(flipped ? 0 : 1)
+            .modifier(FlipFace(angle: flipped ? 180 : 0, isBack: false,
+                               rotates: !reduceMotion))
             .accessibilityHidden(flipped)
         }
         .aspectRatio(0.8, contentMode: .fit)
         .frame(maxWidth: .infinity)
-        .rotation3DEffect(.degrees(!reduceMotion && flipped ? 180 : 0),
-                          axis: (x: 0, y: 1, z: 0), perspective: 0.3)
         .animation(reduceMotion ? .easeInOut(duration: 0.25)
                                 : .spring(response: 0.7, dampingFraction: 0.85),
                    value: flipped)
@@ -153,7 +176,10 @@ private struct PondPage: View {
             if ProcessInfo.processInfo.arguments.contains("-pondFlip"),
                isCurrent, !DebugLaunch.didPondFlip {
                 DebugLaunch.didPondFlip = true
-                flipped = true
+                // Delayed, so a command-line run films the flip itself.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    flipped = true
+                }
             }
         }
     }
@@ -170,18 +196,6 @@ private struct PondPage: View {
                         .stroke(Color.ink.opacity(0.16), lineWidth: 1)
                 }
             }
-    }
-
-    /// The whisper that the card has a back.
-    private func flipHint(onWater: Bool) -> some View {
-        Image(systemName: "arrow.triangle.2.circlepath")
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(onWater ? Color.white.opacity(0.85)
-                                     : Color.ink.opacity(0.5))
-            .frame(width: 26, height: 26)
-            .background(onWater ? Color.white.opacity(0.16) : Color.ink.opacity(0.07),
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .padding(10)
     }
 
     private var subtitle: String {
