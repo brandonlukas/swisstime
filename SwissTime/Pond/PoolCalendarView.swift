@@ -68,18 +68,20 @@ struct PoolCalendarView: View {
         return cells
     }
 
-    /// The colors of each finished workout, by day of the month, in the
-    /// order they were finished.
-    private var dayColors: [Int: [Color]] {
-        var byDay: [Int: [PondEntry]] = [:]
-        for entry in entries {
-            byDay[calendar.component(.day, from: entry.completedAt), default: []]
-                .append(entry)
+    /// Each day's workout swatches, in finish order, via the same grouping
+    /// the widget's week strip reads — one source of truth for what a day
+    /// held. Whole PaletteColors, not bare fills: the numeral needs each
+    /// swatch's onFill to stay legible.
+    private var dayColors: [Int: [PaletteColor]] {
+        var byDay: [Int: [PaletteColor]] = [:]
+        for day in 1...dayCount {
+            guard let date = calendar.date(byAdding: .day, value: day - 1,
+                                           to: monthStart) else { continue }
+            let colors = entries.finished(on: date, calendar: calendar)
+                .map { Palette.color($0.colorIndex) }
+            if !colors.isEmpty { byDay[day] = colors }
         }
-        return byDay.mapValues { day in
-            day.sorted { $0.completedAt < $1.completedAt }
-               .map { Palette.color($0.colorIndex).fill }
-        }
+        return byDay
     }
 
     /// Today's day number, only when this page is the current month —
@@ -112,7 +114,7 @@ struct PoolCalendarView: View {
 /// One day: quiet deck tile until a workout colors it in.
 private struct DayCell: View {
     let day: Int
-    let colors: [Color]
+    let colors: [PaletteColor]
     let isToday: Bool
     let isFuture: Bool
 
@@ -130,7 +132,7 @@ private struct DayCell: View {
                 if isToday {
                     Capsule()
                         .fill(colors.isEmpty ? Color.ink.opacity(0.5)
-                                             : Color.white.opacity(0.8))
+                                             : numeralColor.opacity(0.8))
                         .frame(width: 12, height: 2)
                         .padding(.bottom, 3)
                 }
@@ -138,9 +140,17 @@ private struct DayCell: View {
             .accessibilityLabel(accessibilityText)
     }
 
+    /// The palette's own legibility contract: each swatch declares the ink
+    /// that reads on it (the light fills need black). A mixed split tile
+    /// has no single right answer — white, the majority of the palette,
+    /// wins the tie.
     private var numeralColor: Color {
-        if !colors.isEmpty { return .white }
-        return Color.ink.opacity(isFuture ? 0.25 : 0.5)
+        guard let first = colors.first else {
+            return Color.ink.opacity(isFuture ? 0.25 : 0.5)
+        }
+        let onFills = colors.map(\.onFill)
+        return onFills.dropFirst().allSatisfy { $0 == first.onFill }
+            ? first.onFill : .white
     }
 
     /// One color fills the tile; more split it on the diagonal, a stripe
@@ -151,12 +161,12 @@ private struct DayCell: View {
             return AnyShapeStyle(Color(light: Color.white.opacity(0.5),
                                        dark: Color.white.opacity(0.07)))
         case 1:
-            return AnyShapeStyle(colors[0])
+            return AnyShapeStyle(colors[0].fill)
         default:
             var stops: [Gradient.Stop] = []
             for (index, color) in colors.enumerated() {
-                stops.append(.init(color: color, location: Double(index) / Double(colors.count)))
-                stops.append(.init(color: color, location: Double(index + 1) / Double(colors.count)))
+                stops.append(.init(color: color.fill, location: Double(index) / Double(colors.count)))
+                stops.append(.init(color: color.fill, location: Double(index + 1) / Double(colors.count)))
             }
             return AnyShapeStyle(LinearGradient(stops: stops,
                                                 startPoint: .topLeading,
@@ -171,14 +181,16 @@ private struct DayCell: View {
     }
 }
 
-/// The pool's deck: dry tile with its grout grid — the same surface Deep
-/// End stands on.
+/// The pool's deck: dry tile with its grout grid. The constants MIRROR
+/// PondScene's full-detail deck (tile 28, grout 0.75, width 1.2) — the
+/// front of this card shows that deck's border, and the two faces must
+/// read as the same physical surface mid-flip.
 private struct DeckTexture: View {
     var body: some View {
         Canvas { context, size in
             context.fill(Path(CGRect(origin: .zero, size: size)),
                          with: .color(Color.tileDry))
-            let spacing: CGFloat = 42
+            let spacing: CGFloat = 28
             var lines = Path()
             var x = spacing
             while x < size.width { lines.move(to: CGPoint(x: x, y: 0))
@@ -186,8 +198,8 @@ private struct DeckTexture: View {
             var y = spacing
             while y < size.height { lines.move(to: CGPoint(x: 0, y: y))
                 lines.addLine(to: CGPoint(x: size.width, y: y)); y += spacing }
-            context.stroke(lines, with: .color(Color.tileGrout.opacity(0.5)),
-                           lineWidth: 1)
+            context.stroke(lines, with: .color(Color.tileGrout.opacity(0.75)),
+                           lineWidth: 1.2)
         }
     }
 }

@@ -79,9 +79,7 @@ private func weekDays(from entries: [PondEntry], now: Date) -> [WeekDay] {
     return (0..<7).compactMap { offset in
         guard let day = calendar.date(byAdding: .day, value: offset, to: week.start)
         else { return nil }
-        let done = entries
-            .filter { calendar.isDate($0.completedAt, inSameDayAs: day) }
-            .max { $0.completedAt < $1.completedAt }
+        let done = entries.finished(on: day, calendar: calendar).last
         return WeekDay(
             letter: symbols[calendar.component(.weekday, from: day) - 1],
             isToday: calendar.isDate(day, inSameDayAs: now),

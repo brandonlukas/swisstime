@@ -36,6 +36,12 @@ struct PondView: View {
                              hasHistory: pages.count > 1,
                              isVisible: month == page,
                              newIDs: newIDs)
+                        // Pull-to-dismiss re-renders this body per drag
+                        // frame with freshly allocated inputs; content
+                        // equality lets every unchanged page skip its whole
+                        // subtree — both faces, where SceneCache shields
+                        // only the water.
+                        .equatable()
                         .tag(month)
                 }
             }
@@ -69,13 +75,19 @@ struct PondView: View {
     }
 }
 
-private struct PondPage: View {
+private struct PondPage: View, Equatable {
     let month: MonthKey
     let entries: [PondEntry]
     let isCurrent: Bool
     let hasHistory: Bool
     let isVisible: Bool
     let newIDs: Set<UUID>
+
+    static func == (a: PondPage, b: PondPage) -> Bool {
+        a.month == b.month && a.entries == b.entries
+            && a.isCurrent == b.isCurrent && a.hasHistory == b.hasHistory
+            && a.isVisible == b.isVisible && a.newIDs == b.newIDs
+    }
     /// The pool card is a postcard: the month's ledger is written on the
     /// back. Tap anywhere on the water to turn it over.
     @State private var flipped = false
@@ -120,9 +132,14 @@ private struct PondPage: View {
             }
             .rotation3DEffect(.degrees(reduceMotion ? 0 : (flipped ? 0 : -90)),
                               axis: (x: 0, y: 1, z: 0), perspective: 0.3)
-            .animation(reduceMotion ? nil : (flipped ? halfTurn.delay(0.22) : halfTurn),
+            .animation(reduceMotion ? nil
+                       : (flipped ? halfTurn.delay(Self.flipHalfDuration) : halfTurn),
                        value: flipped)
             .opacity(reduceMotion && !flipped ? 0 : 1)
+            // The Reduce Motion cross-fade is declared here, below the
+            // opacity it animates — never left to whoever mutates flipped.
+            .animation(reduceMotion ? .easeInOut(duration: 0.25) : nil,
+                       value: flipped)
             .accessibilityHidden(!flipped)
             card {
                 PondSceneView(monthKey: month, entries: entries, mode: .live,
@@ -130,9 +147,12 @@ private struct PondPage: View {
             }
             .rotation3DEffect(.degrees(reduceMotion ? 0 : (flipped ? 90 : 0)),
                               axis: (x: 0, y: 1, z: 0), perspective: 0.3)
-            .animation(reduceMotion ? nil : (flipped ? halfTurn : halfTurn.delay(0.22)),
+            .animation(reduceMotion ? nil
+                       : (flipped ? halfTurn : halfTurn.delay(Self.flipHalfDuration)),
                        value: flipped)
             .opacity(reduceMotion && flipped ? 0 : 1)
+            .animation(reduceMotion ? .easeInOut(duration: 0.25) : nil,
+                       value: flipped)
             .accessibilityHidden(flipped)
         }
         .aspectRatio(0.8, contentMode: .fit)
@@ -143,12 +163,21 @@ private struct PondPage: View {
         // resting frame under perspective).
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .onTapGesture {
-            Haptics.selection()
             reveal()
         }
-        .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(flipped ? "\(month.monthName) calendar" : "\(month.monthName) pool")
-        .accessibilityHint("Double tap to flip the pool over.")
+        // Pool up: one button. Calendar up: the day cells stay navigable
+        // and the flip lives in the actions rotor — a double-tap on a
+        // focused day would otherwise land in the tap gesture and flip
+        // the card away mid-read.
+        .accessibilityElement(children: flipped ? .contain : .ignore)
+        .accessibilityAddTraits(flipped ? [] : .isButton)
+        .accessibilityLabel(flipped ? "\(accessibilityMonth) calendar"
+                                    : "\(accessibilityMonth) pool")
+        .accessibilityHint(flipped ? "" : "Double tap to flip the pool over.")
+        .accessibilityAction(named: flipped ? "Flip back to the pool"
+                                            : "Flip to the calendar") {
+            reveal()
+        }
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-pondFlip"),
                isCurrent, !DebugLaunch.didPondFlip {
@@ -165,21 +194,29 @@ private struct PondPage: View {
         }
     }
 
+    /// Half the turn: the out-going face's whole animation, and exactly
+    /// the delay the in-coming face waits — one constant, so tuning the
+    /// speed can never split the edge-on hand-off.
+    static let flipHalfDuration: TimeInterval = 0.22
+
     /// One face's share of the turn. The delay swaps sides with the
     /// direction — declared per face in its .animation(value:) modifier,
     /// exactly the community pattern: angles are pure functions of one
     /// state, and no imperative choreography exists to drop a delay (the
     /// withAnimation version did, on the return leg — filmed).
     private var halfTurn: Animation {
-        .easeInOut(duration: 0.22)
+        .easeInOut(duration: Self.flipHalfDuration)
     }
 
+    /// Every animation is declared on the faces; flipping is just a fact.
     private func reveal() {
-        if reduceMotion {
-            withAnimation(.easeInOut(duration: 0.25)) { flipped.toggle() }
-        } else {
-            flipped.toggle()
-        }
+        Haptics.selection()
+        flipped.toggle()
+    }
+
+    /// Past pools carry their year — two Julys must not sound alike.
+    private var accessibilityMonth: String {
+        isCurrent ? month.monthName : month.title
     }
 
     /// Both sides share the card chrome, so the flip reads as one object.
