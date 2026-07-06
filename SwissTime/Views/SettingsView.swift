@@ -428,6 +428,9 @@ struct SettingsView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            // The value carries the open/closed state — hints are muted when
+            // Speak Hints is off, so state can't live only in the hint.
+            .accessibilityValue(voicesExpanded ? "Expanded" : "Collapsed")
             .accessibilityHint(voicesExpanded ? "Double tap to collapse."
                                               : "Double tap to expand.")
             if voicesExpanded {
