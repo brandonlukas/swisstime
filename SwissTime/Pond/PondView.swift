@@ -124,34 +124,12 @@ private struct PondPage: View {
             .animation(flipsCards ? (drained ? halfTurn.delay(0.22) : halfTurn) : nil,
                        value: drained)
             .accessibilityHidden(!drained)
-            card {
-                PondSceneView(monthKey: month, entries: entries, mode: .live,
-                              paused: !isVisible || drained, newIDs: newIDs)
-            }
-            .opacity(reduceMotion ? (drained ? 0 : 1) : 1)
-            .mask(alignment: .bottom) {
-                GeometryReader { geo in
-                    Rectangle()
-                        .frame(height: geo.size.height * waterLevel)
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                }
-            }
-            .overlay {
-                // The waterline's crest, visible only mid-drain.
-                GeometryReader { geo in
-                    Rectangle()
-                        .fill(Color.white.opacity(0.55))
-                        .frame(height: 2)
-                        .offset(y: geo.size.height * (1 - waterLevel) - 1)
-                        .opacity(waterLevel > 0.02 && waterLevel < 0.98 ? 1 : 0)
-                }
-                .allowsHitTesting(false)
-            }
-            .rotation3DEffect(.degrees(flipsCards ? (drained ? 90 : 0) : 0),
-                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
-            .animation(flipsCards ? (drained ? halfTurn : halfTurn.delay(0.22)) : nil,
-                       value: drained)
-            .accessibilityHidden(drained)
+            frontFace
+                .rotation3DEffect(.degrees(flipsCards ? (drained ? 90 : 0) : 0),
+                                  axis: (x: 0, y: 1, z: 0), perspective: 0.3)
+                .animation(flipsCards ? (drained ? halfTurn : halfTurn.delay(0.22)) : nil,
+                           value: drained)
+                .accessibilityHidden(drained)
         }
         .aspectRatio(0.8, contentMode: .fit)
         .frame(maxWidth: .infinity)
@@ -196,6 +174,42 @@ private struct PondPage: View {
     /// (water falls to the floor) or flip (two-phase card turn).
     enum RevealStyle { case drain, flip }
     static let transition: RevealStyle = .flip
+
+    /// The pool side. In flip mode it's a full card — chrome rotates with
+    /// it, and no mask exists to square off its shadow. In drain mode the
+    /// scene rides chromeless under the waterline mask (a mask clips to
+    /// its own rectangular bounds, so a shadow under it gets terminated in
+    /// hard 90° corners just outside the rounded card — Brandon spotted
+    /// the grey edges); the calendar card behind keeps the chrome.
+    @ViewBuilder private var frontFace: some View {
+        let scene = PondSceneView(monthKey: month, entries: entries, mode: .live,
+                                  paused: !isVisible || drained, newIDs: newIDs)
+        if flipsCards {
+            card { scene }
+        } else {
+            scene
+                .opacity(reduceMotion ? (drained ? 0 : 1) : 1)
+                .mask(alignment: .bottom) {
+                    GeometryReader { geo in
+                        Rectangle()
+                            .frame(height: geo.size.height * waterLevel)
+                            .frame(maxHeight: .infinity, alignment: .bottom)
+                    }
+                }
+                .overlay {
+                    // The waterline's crest, visible only mid-drain.
+                    GeometryReader { geo in
+                        Rectangle()
+                            .fill(Color.white.opacity(0.55))
+                            .frame(height: 2)
+                            .offset(y: geo.size.height * (1 - waterLevel) - 1)
+                            .opacity(waterLevel > 0.02 && waterLevel < 0.98 ? 1 : 0)
+                    }
+                    .allowsHitTesting(false)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        }
+    }
 
     /// Whether taps turn the card (vs draining the water).
     private var flipsCards: Bool {
