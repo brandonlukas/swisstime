@@ -79,6 +79,10 @@ private struct PondPage: View {
     /// The month's ledger is written on the pool floor. Tap the water and
     /// the pool drains to reveal it; tap again and it fills back over.
     @State private var drained = false
+    /// Two-phase card flip (community pattern): each face rotates only its
+    /// own quarter-turn, sequenced by a delay, so the swap happens edge-on.
+    @State private var frontDegrees = 0.0
+    @State private var backDegrees = -90.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -119,6 +123,9 @@ private struct PondPage: View {
             card {
                 PoolCalendarView(month: month, entries: entries)
             }
+            .rotation3DEffect(.degrees(PondPage.transition == .flip && !reduceMotion
+                                       ? backDegrees : 0),
+                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
             .accessibilityHidden(!drained)
             card {
                 PondSceneView(monthKey: month, entries: entries, mode: .live,
@@ -143,6 +150,9 @@ private struct PondPage: View {
                 }
                 .allowsHitTesting(false)
             }
+            .rotation3DEffect(.degrees(PondPage.transition == .flip && !reduceMotion
+                                       ? frontDegrees : 0),
+                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
             .accessibilityHidden(drained)
         }
         .aspectRatio(0.8, contentMode: .fit)
@@ -151,9 +161,7 @@ private struct PondPage: View {
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .onTapGesture {
             Haptics.selection()
-            withAnimation(drainAnimation) {
-                drained.toggle()
-            }
+            reveal()
         }
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(drained ? "\(month.monthName) calendar" : "\(month.monthName) pool")
@@ -165,9 +173,7 @@ private struct PondPage: View {
                 DebugLaunch.didPondFlip = true
                 // Delayed, so a command-line run films the drain itself.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    withAnimation(drainAnimation) {
-                        drained = true
-                    }
+                    reveal()
                 }
             }
         }
@@ -177,12 +183,34 @@ private struct PondPage: View {
     /// where it is and cross-fades instead.
     private var waterLevel: CGFloat {
         if reduceMotion { return 1 }
+        if PondPage.transition == .flip { return 1 }
         return drained ? 0 : 1
     }
 
-    private var drainAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.25)
-                     : .easeInOut(duration: 0.55)
+    /// Comparison switch while the reveal direction is decided: drain
+    /// (water falls to the floor) or flip (two-phase card turn).
+    enum RevealStyle { case drain, flip }
+    static let transition: RevealStyle = .flip
+
+    private func reveal() {
+        if reduceMotion || PondPage.transition == .drain {
+            withAnimation(reduceMotion ? .easeInOut(duration: 0.25)
+                                       : .easeInOut(duration: 0.55)) {
+                drained.toggle()
+            }
+            return
+        }
+        // The community two-phase flip: out-going face turns to 90°,
+        // in-coming face turns from -90°, sequenced by the delay — the
+        // hand-off happens edge-on, where neither face is visible.
+        drained.toggle()
+        if drained {
+            withAnimation(.easeIn(duration: 0.22)) { frontDegrees = 90 }
+            withAnimation(.easeOut(duration: 0.22).delay(0.22)) { backDegrees = 0 }
+        } else {
+            withAnimation(.easeIn(duration: 0.22)) { backDegrees = -90 }
+            withAnimation(.easeOut(duration: 0.22).delay(0.22)) { frontDegrees = 0 }
+        }
     }
 
     /// Both sides share the card chrome, so the flip reads as one object.
