@@ -76,9 +76,9 @@ private struct PondPage: View {
     let hasHistory: Bool
     let isVisible: Bool
     let newIDs: Set<UUID>
-    /// The month's ledger is written on the pool floor. Tap the water and
-    /// the pool drains to reveal it; tap again and it fills back over.
-    @State private var drained = false
+    /// The pool card is a postcard: the month's ledger is written on the
+    /// back. Tap anywhere on the water to turn it over.
+    @State private var flipped = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -108,28 +108,32 @@ private struct PondPage: View {
         .padding(.top, 8)
     }
 
-    /// The calendar is the pool floor; the water is a bottom-anchored mask
-    /// over the scene, and draining is one built-in height animation — no
-    /// custom animatable machinery, nothing to glitch. A thin crest rides
-    /// the falling waterline, the app's signature move. Reduce Motion
-    /// swaps the drain for a cross-fade. No hint glyph: the floor can
-    /// afford to be a secret.
+    /// The community two-phase card flip: each face turns only its own
+    /// quarter, the delay declared per face and swapping sides with the
+    /// direction — the hand-off happens edge-on, where neither face is
+    /// visible. Reduce Motion cross-fades instead. No hint glyph: the
+    /// back can afford to be a secret.
     private var flipCard: some View {
         ZStack {
             card {
                 PoolCalendarView(month: month, entries: entries)
             }
-            .rotation3DEffect(.degrees(flipsCards ? (drained ? 0 : -90) : 0),
+            .rotation3DEffect(.degrees(reduceMotion ? 0 : (flipped ? 0 : -90)),
                               axis: (x: 0, y: 1, z: 0), perspective: 0.3)
-            .animation(flipsCards ? (drained ? halfTurn.delay(0.22) : halfTurn) : nil,
-                       value: drained)
-            .accessibilityHidden(!drained)
-            frontFace
-                .rotation3DEffect(.degrees(flipsCards ? (drained ? 90 : 0) : 0),
-                                  axis: (x: 0, y: 1, z: 0), perspective: 0.3)
-                .animation(flipsCards ? (drained ? halfTurn : halfTurn.delay(0.22)) : nil,
-                           value: drained)
-                .accessibilityHidden(drained)
+            .animation(reduceMotion ? nil : (flipped ? halfTurn.delay(0.22) : halfTurn),
+                       value: flipped)
+            .opacity(reduceMotion && !flipped ? 0 : 1)
+            .accessibilityHidden(!flipped)
+            card {
+                PondSceneView(monthKey: month, entries: entries, mode: .live,
+                              paused: !isVisible || flipped, newIDs: newIDs)
+            }
+            .rotation3DEffect(.degrees(reduceMotion ? 0 : (flipped ? 90 : 0)),
+                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
+            .animation(reduceMotion ? nil : (flipped ? halfTurn : halfTurn.delay(0.22)),
+                       value: flipped)
+            .opacity(reduceMotion && flipped ? 0 : 1)
+            .accessibilityHidden(flipped)
         }
         .aspectRatio(0.8, contentMode: .fit)
         .frame(maxWidth: .infinity)
@@ -143,14 +147,13 @@ private struct PondPage: View {
             reveal()
         }
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(drained ? "\(month.monthName) calendar" : "\(month.monthName) pool")
-        .accessibilityHint(drained ? "Double tap to refill the pool."
-                                   : "Double tap to drain the pool.")
+        .accessibilityLabel(flipped ? "\(month.monthName) calendar" : "\(month.monthName) pool")
+        .accessibilityHint("Double tap to flip the pool over.")
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-pondFlip"),
                isCurrent, !DebugLaunch.didPondFlip {
                 DebugLaunch.didPondFlip = true
-                // Delayed, so a command-line run films the drain itself.
+                // Delayed, so a command-line run films the flip itself.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     reveal()
                 }
@@ -160,60 +163,6 @@ private struct PondPage: View {
                 }
             }
         }
-    }
-
-    /// 1 = full pool, 0 = floor showing. Reduce Motion keeps the water
-    /// where it is and cross-fades instead.
-    private var waterLevel: CGFloat {
-        if reduceMotion { return 1 }
-        if PondPage.transition == .flip { return 1 }
-        return drained ? 0 : 1
-    }
-
-    /// Comparison switch while the reveal direction is decided: drain
-    /// (water falls to the floor) or flip (two-phase card turn).
-    enum RevealStyle { case drain, flip }
-    static let transition: RevealStyle = .flip
-
-    /// The pool side. In flip mode it's a full card — chrome rotates with
-    /// it, and no mask exists to square off its shadow. In drain mode the
-    /// scene rides chromeless under the waterline mask (a mask clips to
-    /// its own rectangular bounds, so a shadow under it gets terminated in
-    /// hard 90° corners just outside the rounded card — Brandon spotted
-    /// the grey edges); the calendar card behind keeps the chrome.
-    @ViewBuilder private var frontFace: some View {
-        let scene = PondSceneView(monthKey: month, entries: entries, mode: .live,
-                                  paused: !isVisible || drained, newIDs: newIDs)
-        if flipsCards {
-            card { scene }
-        } else {
-            scene
-                .opacity(reduceMotion ? (drained ? 0 : 1) : 1)
-                .mask(alignment: .bottom) {
-                    GeometryReader { geo in
-                        Rectangle()
-                            .frame(height: geo.size.height * waterLevel)
-                            .frame(maxHeight: .infinity, alignment: .bottom)
-                    }
-                }
-                .overlay {
-                    // The waterline's crest, visible only mid-drain.
-                    GeometryReader { geo in
-                        Rectangle()
-                            .fill(Color.white.opacity(0.55))
-                            .frame(height: 2)
-                            .offset(y: geo.size.height * (1 - waterLevel) - 1)
-                            .opacity(waterLevel > 0.02 && waterLevel < 0.98 ? 1 : 0)
-                    }
-                    .allowsHitTesting(false)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        }
-    }
-
-    /// Whether taps turn the card (vs draining the water).
-    private var flipsCards: Bool {
-        PondPage.transition == .flip && !reduceMotion
     }
 
     /// One face's share of the turn. The delay swaps sides with the
@@ -226,13 +175,10 @@ private struct PondPage: View {
     }
 
     private func reveal() {
-        if flipsCards {
-            drained.toggle()
-            return
-        }
-        withAnimation(reduceMotion ? .easeInOut(duration: 0.25)
-                                   : .easeInOut(duration: 0.55)) {
-            drained.toggle()
+        if reduceMotion {
+            withAnimation(.easeInOut(duration: 0.25)) { flipped.toggle() }
+        } else {
+            flipped.toggle()
         }
     }
 
