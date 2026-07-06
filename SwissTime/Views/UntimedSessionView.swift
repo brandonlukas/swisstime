@@ -193,7 +193,7 @@ private struct ExerciseTile: View {
         .buttonStyle(.plain)
         .accessibilityLabel(exercise.name)
         .accessibilityValue(done ? "Done" : "Not done")
-        .accessibilityHint("Double tap to mark \(done ? "not done" : "done").")
+        .accessibilityHint("Marks \(done ? "not done" : "done").")
     }
 
     /// "4 × 8", or "3 sets" when reps are unset. Rest never appears here —

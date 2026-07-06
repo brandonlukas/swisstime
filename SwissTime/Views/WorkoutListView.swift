@@ -45,7 +45,7 @@ struct WorkoutListView: View {
                     .accessibilityLabel(currentEntries.isEmpty
                         ? "\(MonthKey.current.monthName) pool"
                         : "\(MonthKey.current.monthName) pool, \(currentEntries.count) afloat")
-                    .accessibilityHint("Double tap to open the pool.")
+                    .accessibilityHint("Opens the pool.")
                     .padding(.bottom, 24)
                     PageHeader(title: "Workouts")
                         .padding(.bottom, 24)

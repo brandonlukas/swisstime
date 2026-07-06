@@ -174,7 +174,7 @@ private struct PondPage: View, Equatable {
         .accessibilityAddTraits(flipped ? [] : .isButton)
         .accessibilityLabel(flipped ? "\(accessibilityMonth) calendar"
                                     : "\(accessibilityMonth) pool")
-        .accessibilityHint(flipped ? "" : "Double tap to flip the pool over.")
+        .accessibilityHint(flipped ? "" : "Flips the pool over.")
         .accessibilityAction(named: flipped ? "Flip back to the pool"
                                             : "Flip to the calendar") {
             reveal()

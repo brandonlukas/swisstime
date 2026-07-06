@@ -135,6 +135,10 @@ struct PickerField<Value: Hashable>: View {
             // Opening a picker over the keyboard reads as a mistake — drop it.
             // Simultaneous, so the menu itself opens untouched.
             .simultaneousGesture(TapGesture().onEnded { hideKeyboard() })
+            // Name the pop-up after the field, not its value — two duration
+            // fields both reading "0:30, pop up button" are indistinguishable.
+            .accessibilityLabel(label)
+            .accessibilityValue(display(selection))
         }
     }
 }

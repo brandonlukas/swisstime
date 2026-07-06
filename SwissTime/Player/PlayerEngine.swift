@@ -53,6 +53,8 @@ final class PlayerEngine: ObservableObject {
     let exerciseCount: Int
 
     @Published private(set) var phase: Phase = .countdown
+    /// Actively ticking — running or counting down, not paused or finished.
+    var isRunning: Bool { phase == .running || phase == .countdown }
     /// Index into `steps`; -1 while counting down.
     @Published private(set) var index: Int = -1
     /// End of the current countdown step.
@@ -375,7 +377,7 @@ final class PlayerEngine: ObservableObject {
     }
 
     private func tick() {
-        guard phase == .running || phase == .countdown else { return }
+        guard isRunning else { return }
         let now = Date()
         // Untimed set work never auto-advances; the user ends it with a tap.
         if index >= 0, currentStep?.countsUp == true { return }

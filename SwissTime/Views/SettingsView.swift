@@ -431,8 +431,8 @@ struct SettingsView: View {
             // The value carries the open/closed state — hints are muted when
             // Speak Hints is off, so state can't live only in the hint.
             .accessibilityValue(voicesExpanded ? "Expanded" : "Collapsed")
-            .accessibilityHint(voicesExpanded ? "Double tap to collapse."
-                                              : "Double tap to expand.")
+            .accessibilityHint(voicesExpanded ? "Collapses the voice list."
+                                              : "Expands the voice list.")
             if voicesExpanded {
                 voiceRow(name: "Automatic",
                          detail: "The most natural voice on this device",

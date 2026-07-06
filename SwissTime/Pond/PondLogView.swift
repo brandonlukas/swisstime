@@ -40,6 +40,9 @@ struct PondLogView: View {
                                 LogRow(entry: entry)
                                     .contentShape(Rectangle())
                                     .onTapGesture { notingEntry = entry }
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityAddTraits(.isButton)
+                                    .accessibilityHint("Opens the note editor.")
                                     .listRowBackground(Color.paperCardFill.opacity(0.7))
                                     .listRowSeparatorTint(Color.hairline)
                             }

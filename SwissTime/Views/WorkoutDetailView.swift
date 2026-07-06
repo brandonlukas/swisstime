@@ -337,6 +337,12 @@ struct WorkoutDetailView: View {
         .onTapGesture {
             sheet = .editExercise(exercise)
         }
+        // A gesture, not a Button — edit mode would swallow a Button's tap.
+        // The trait tells VoiceOver the row acts; double-tap lands in the
+        // gesture like any tap.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Opens the exercise editor.")
     }
 }
 

@@ -151,7 +151,7 @@ struct PlayerView: View {
             dismiss()
             return
         }
-        if engine.phase == .running || engine.phase == .countdown {
+        if engine.isRunning {
             engine.togglePause()
         }
         confirmEnd = true
@@ -379,10 +379,9 @@ struct PlayerView: View {
                 engine.previous()
             }
             Spacer()
-            let isPlaying = engine.phase == .running || engine.phase == .countdown
             controlButton(
-                isPlaying ? "pause" : "play",
-                label: isPlaying ? "Pause" : "Play",
+                engine.isRunning ? "pause" : "play",
+                label: engine.isRunning ? "Pause" : "Play",
                 enabled: engine.phase != .finished
             ) {
                 engine.togglePause()
