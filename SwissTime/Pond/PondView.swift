@@ -69,34 +69,23 @@ struct PondView: View {
     }
 }
 
-/// One face of the turning card. Animatable, so `angle` interpolates per
-/// frame and each face can decide its visibility from the card's ACTUAL
-/// rotation: a hard swap at 90°, when the card is edge-on and either face
-/// is a sliver — never a fade that leaks the other side early. With
-/// `rotates` off (Reduce Motion) the same angle drives a plain cross-fade.
-private struct FlipFace: ViewModifier, Animatable {
-    var angle: Double
-    let isBack: Bool
-    let rotates: Bool
+/// A face's visibility through the flip. The rotation itself is a plain
+/// rotation3DEffect — built-in, reliably interpolated — and only this
+/// switch needs custom animation: `.rounded()` flips at 0.5, exactly when
+/// the card passes edge-on, synchronized because opacity and rotation ride
+/// the same curve. With `steps` off (Reduce Motion) the same data is a
+/// plain cross-fade.
+private struct FaceVisibility: ViewModifier, Animatable {
+    var pct: Double
+    let steps: Bool
 
     var animatableData: Double {
-        get { angle }
-        set { angle = newValue }
+        get { pct }
+        set { pct = newValue }
     }
 
     func body(content: Content) -> some View {
-        content
-            // The back is pre-turned so it lands upright at 180.
-            .rotation3DEffect(.degrees(rotates ? angle + (isBack ? 180 : 0) : 0),
-                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
-            .opacity(faceOpacity)
-    }
-
-    private var faceOpacity: Double {
-        if rotates {
-            return (angle >= 90) == isBack ? 1 : 0
-        }
-        return isBack ? angle / 180 : 1 - angle / 180
+        content.opacity(steps ? pct.rounded() : pct)
     }
 }
 
@@ -148,26 +137,31 @@ private struct PondPage: View {
             card {
                 PoolCalendarView(month: month, entries: entries)
             }
-            .modifier(FlipFace(angle: flipped ? 180 : 0, isBack: true,
-                               rotates: !reduceMotion))
+            .modifier(FaceVisibility(pct: flipped ? 1 : 0, steps: !reduceMotion))
+            .rotation3DEffect(.degrees(reduceMotion ? 0 : (flipped ? 0 : -180)),
+                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
             .accessibilityHidden(!flipped)
             card {
                 PondSceneView(monthKey: month, entries: entries, mode: .live,
                               paused: !isVisible || flipped, newIDs: newIDs)
             }
-            .modifier(FlipFace(angle: flipped ? 180 : 0, isBack: false,
-                               rotates: !reduceMotion))
+            .modifier(FaceVisibility(pct: flipped ? 0 : 1, steps: !reduceMotion))
+            .rotation3DEffect(.degrees(reduceMotion ? 0 : (flipped ? 180 : 0)),
+                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
             .accessibilityHidden(flipped)
         }
         .aspectRatio(0.8, contentMode: .fit)
         .frame(maxWidth: .infinity)
-        .animation(reduceMotion ? .easeInOut(duration: 0.25)
-                                : .spring(response: 0.7, dampingFraction: 0.85),
-                   value: flipped)
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        // Explicit withAnimation, not .animation(value:): the implicit
+        // modifier animates the built-in rotations but skips the custom
+        // FaceVisibility's animatableData, which then steps instantly —
+        // both faces swap at the tap and only the rotation plays.
         .onTapGesture {
             Haptics.selection()
-            flipped.toggle()
+            withAnimation(flipAnimation) {
+                flipped.toggle()
+            }
         }
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(flipped ? "\(month.monthName) calendar" : "\(month.monthName) pool")
@@ -178,10 +172,17 @@ private struct PondPage: View {
                 DebugLaunch.didPondFlip = true
                 // Delayed, so a command-line run films the flip itself.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    flipped = true
+                    withAnimation(flipAnimation) {
+                        flipped = true
+                    }
                 }
             }
         }
+    }
+
+    private var flipAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.25)
+                     : .spring(response: 0.7, dampingFraction: 0.85)
     }
 
     /// Both sides share the card chrome, so the flip reads as one object.
