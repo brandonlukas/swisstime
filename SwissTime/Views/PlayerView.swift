@@ -375,18 +375,21 @@ struct PlayerView: View {
 
     private var controls: some View {
         HStack {
-            controlButton("backward.end", enabled: true) {
+            controlButton("backward.end", label: "Previous step", enabled: true) {
                 engine.previous()
             }
             Spacer()
+            let isPlaying = engine.phase == .running || engine.phase == .countdown
             controlButton(
-                engine.phase == .running || engine.phase == .countdown ? "pause" : "play",
+                isPlaying ? "pause" : "play",
+                label: isPlaying ? "Pause" : "Play",
                 enabled: engine.phase != .finished
             ) {
                 engine.togglePause()
             }
             Spacer()
-            controlButton("forward.end", enabled: engine.phase != .finished) {
+            controlButton("forward.end", label: "Next step",
+                          enabled: engine.phase != .finished) {
                 engine.next()
             }
         }
@@ -410,7 +413,8 @@ struct PlayerView: View {
         }
     }
 
-    private func controlButton(_ icon: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+    private func controlButton(_ icon: String, label: String, enabled: Bool,
+                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 21, weight: .medium))
@@ -420,6 +424,7 @@ struct PlayerView: View {
         }
         .buttonStyle(PressableButtonStyle())
         .disabled(!enabled)
+        .accessibilityLabel(label)
     }
 }
 

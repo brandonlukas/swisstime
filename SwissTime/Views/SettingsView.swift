@@ -422,11 +422,14 @@ struct SettingsView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Color.inkSecondary)
                         .rotationEffect(.degrees(voicesExpanded ? 180 : 0))
+                        .accessibilityHidden(true)
                 }
                 .padding(.vertical, 6)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityHint(voicesExpanded ? "Double tap to collapse."
+                                              : "Double tap to expand.")
             if voicesExpanded {
                 voiceRow(name: "Automatic",
                          detail: "The most natural voice on this device",
@@ -482,12 +485,14 @@ struct SettingsView: View {
                 if selected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 15, weight: .semibold))
+                        .accessibilityHidden(true)
                 }
             }
             .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private static func detailLine(for voice: AVSpeechSynthesisVoice) -> String {

@@ -26,6 +26,7 @@ struct PondView: View {
                         .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Logbook")
             }
             .padding(20)
             TabView(selection: $page) {

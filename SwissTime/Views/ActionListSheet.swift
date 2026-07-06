@@ -24,6 +24,7 @@ struct ActionListSheet: View {
                     HStack(spacing: 16) {
                         Image(systemName: item.icon)
                             .font(.system(size: 18))
+                            .accessibilityHidden(true)
                         Text(item.title)
                             .appFont(17)
                     }

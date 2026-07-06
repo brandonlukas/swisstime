@@ -126,6 +126,7 @@ struct PickerField<Value: Hashable>: View {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 14))
                         .foregroundStyle(Color.inkSecondary)
+                        .accessibilityHidden(true)
                 }
                 .padding(.horizontal, 14)
                 .frame(minHeight: 52)
@@ -160,10 +161,13 @@ struct ColorPickerRow: View {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 15, weight: .bold))
                                         .foregroundStyle(Palette.all[index].onFill)
+                                        .accessibilityHidden(true)
                                 }
                             }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Palette.all[index].name)
+                    .accessibilityAddTraits(selection == index ? .isSelected : [])
                 }
             }
             HStack(spacing: 14) {

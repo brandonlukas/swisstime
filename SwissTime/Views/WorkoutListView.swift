@@ -39,6 +39,8 @@ struct WorkoutListView: View {
                                      newIDs: pond.newEntryIDs)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("This month's pool")
+                    .accessibilityHint("Double tap to open the pool.")
                     .padding(.bottom, 24)
                     PageHeader(title: "Workouts")
                         .padding(.bottom, 24)
@@ -69,6 +71,7 @@ struct WorkoutListView: View {
                                         }
                                         .buttonStyle(PressableButtonStyle())
                                         .padding(.trailing, 20)
+                                        .accessibilityLabel("Play \(workout.title)")
                                     }
                                 }
                             }
@@ -97,6 +100,7 @@ struct WorkoutListView: View {
                     } label: {
                         Image(systemName: "gearshape")
                     }
+                    .accessibilityLabel("Settings")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -104,6 +108,7 @@ struct WorkoutListView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("New workout")
                 }
             }
             .sheet(isPresented: $showingCreate) {
@@ -206,6 +211,7 @@ struct WorkoutListView: View {
             Image(systemName: "plus")
                 .font(.system(size: 15))
                 .foregroundStyle(Color.inkSecondary)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

@@ -237,6 +237,7 @@ struct WorkoutDetailView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 15))
                     .frame(minWidth: 30, alignment: .leading)
+                    .accessibilityHidden(true)
                 Text("Add exercise")
                     .appFont(16)
                 Spacer()
@@ -286,6 +287,7 @@ struct WorkoutDetailView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "plus")
                             .font(.system(size: 15))
+                            .accessibilityHidden(true)
                         Text("Add exercise")
                             .appFont(16)
                     }

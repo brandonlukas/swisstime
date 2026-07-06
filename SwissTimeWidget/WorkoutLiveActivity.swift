@@ -68,6 +68,7 @@ struct WorkoutLiveActivity: Widget {
                                         .frame(width: 44, height: 36)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel(context.state.paused ? "Play" : "Pause")
                             }
                             Button(intent: SkipStepIntent()) {
                                 Image(systemName: "forward.end")
@@ -76,6 +77,7 @@ struct WorkoutLiveActivity: Widget {
                                     .frame(width: 44, height: 36)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Next step")
                         }
                     }
                     .padding(.horizontal, 4)
@@ -154,6 +156,7 @@ private struct LockScreenView: View {
                                         in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(context.state.paused ? "Play" : "Pause")
                 }
                 Button(intent: SkipStepIntent()) {
                     Image(systemName: "forward.end")
@@ -164,6 +167,7 @@ private struct LockScreenView: View {
                                     in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Next step")
             }
         }
         .padding(16)

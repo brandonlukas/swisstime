@@ -76,6 +76,7 @@ struct SheetCloseButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Close")
     }
 }
 
