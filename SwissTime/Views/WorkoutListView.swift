@@ -27,19 +27,24 @@ struct WorkoutListView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    let currentEntries = pond.entries(in: .current)
                     Button {
                         showingPond = true
                     } label: {
                         // The hero rests while anything hides it: the pool
                         // cover, the player, or a pushed detail screen
                         // (whose own Play cover this list can't see).
-                        PondHeroCard(entries: pond.entries(in: .current),
+                        PondHeroCard(entries: currentEntries,
                                      paused: showingPond || playing != nil
                                          || !path.isEmpty,
                                      newIDs: pond.newEntryIDs)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("This month's pool")
+                    // Keep the month + afloat count the card already shows on
+                    // screen — an explicit label would otherwise replace them.
+                    .accessibilityLabel(currentEntries.isEmpty
+                        ? "\(MonthKey.current.monthName) pool"
+                        : "\(MonthKey.current.monthName) pool, \(currentEntries.count) afloat")
                     .accessibilityHint("Double tap to open the pool.")
                     .padding(.bottom, 24)
                     PageHeader(title: "Workouts")
