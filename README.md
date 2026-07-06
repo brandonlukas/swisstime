@@ -149,6 +149,17 @@ native sheets already cross-fade under the system's own Prefer Cross-Fade
 setting. Controls are the platform's (system switches, real `.disabled`
 semantics for assistive input).
 
+VoiceOver names every icon-only control (play/pause/skip, gear, plus,
+close, chevrons, swatch checkmarks) instead of leaving a bare glyph to
+announce itself, and state rides in the channel that's always spoken: the
+voice picker's expanded/collapsed state is an `accessibilityValue`, not a
+hint, since VoiceOver users can mute Speak Hints and state can't live only
+there. Hints describe outcomes ("Opens the pool.") rather than gestures —
+"double tap" isn't how Switch Control or Full Keyboard Access act. The Live
+Activity's pause button keeps its icon and its spoken name in lockstep from
+one source (`ContentState.pauseIcon`/`pauseLabel`), so the Dynamic Island
+and the lock screen can't drift apart.
+
 ## Flow
 
 The list is play-first: each timed card has a play button (the play verb
