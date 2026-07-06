@@ -69,26 +69,6 @@ struct PondView: View {
     }
 }
 
-/// A face's visibility through the flip. The rotation itself is a plain
-/// rotation3DEffect — built-in, reliably interpolated — and only this
-/// switch needs custom animation: `.rounded()` flips at 0.5, exactly when
-/// the card passes edge-on, synchronized because opacity and rotation ride
-/// the same curve. With `steps` off (Reduce Motion) the same data is a
-/// plain cross-fade.
-private struct FaceVisibility: ViewModifier, Animatable {
-    var pct: Double
-    let steps: Bool
-
-    var animatableData: Double {
-        get { pct }
-        set { pct = newValue }
-    }
-
-    func body(content: Content) -> some View {
-        content.opacity(steps ? pct.rounded() : pct)
-    }
-}
-
 private struct PondPage: View {
     let month: MonthKey
     let entries: [PondEntry]
@@ -96,9 +76,9 @@ private struct PondPage: View {
     let hasHistory: Bool
     let isVisible: Bool
     let newIDs: Set<UUID>
-    /// The pool card is a postcard: the month's ledger is written on the
-    /// back. Tap anywhere on the water to turn it over.
-    @State private var flipped = false
+    /// The month's ledger is written on the pool floor. Tap the water and
+    /// the pool drains to reveal it; tap again and it fills back over.
+    @State private var drained = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -128,61 +108,81 @@ private struct PondPage: View {
         .padding(.top, 8)
     }
 
-    /// Front: the pool, toys afloat. Back: the month's calendar. The faces
-    /// trade places in a hard switch at the card's edge-on moment — a fade
-    /// would show the new face before the turn. No hint glyph: the pool's
-    /// calm is the feature, and the back can afford to be a secret.
+    /// The calendar is the pool floor; the water is a bottom-anchored mask
+    /// over the scene, and draining is one built-in height animation — no
+    /// custom animatable machinery, nothing to glitch. A thin crest rides
+    /// the falling waterline, the app's signature move. Reduce Motion
+    /// swaps the drain for a cross-fade. No hint glyph: the floor can
+    /// afford to be a secret.
     private var flipCard: some View {
         ZStack {
             card {
                 PoolCalendarView(month: month, entries: entries)
             }
-            .modifier(FaceVisibility(pct: flipped ? 1 : 0, steps: !reduceMotion))
-            .rotation3DEffect(.degrees(reduceMotion ? 0 : (flipped ? 0 : -180)),
-                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
-            .accessibilityHidden(!flipped)
+            .accessibilityHidden(!drained)
             card {
                 PondSceneView(monthKey: month, entries: entries, mode: .live,
-                              paused: !isVisible || flipped, newIDs: newIDs)
+                              paused: !isVisible || drained, newIDs: newIDs)
             }
-            .modifier(FaceVisibility(pct: flipped ? 0 : 1, steps: !reduceMotion))
-            .rotation3DEffect(.degrees(reduceMotion ? 0 : (flipped ? 180 : 0)),
-                              axis: (x: 0, y: 1, z: 0), perspective: 0.3)
-            .accessibilityHidden(flipped)
+            .opacity(reduceMotion ? (drained ? 0 : 1) : 1)
+            .mask(alignment: .bottom) {
+                GeometryReader { geo in
+                    Rectangle()
+                        .frame(height: geo.size.height * waterLevel)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+            }
+            .overlay {
+                // The waterline's crest, visible only mid-drain.
+                GeometryReader { geo in
+                    Rectangle()
+                        .fill(Color.white.opacity(0.55))
+                        .frame(height: 2)
+                        .offset(y: geo.size.height * (1 - waterLevel) - 1)
+                        .opacity(waterLevel > 0.02 && waterLevel < 0.98 ? 1 : 0)
+                }
+                .allowsHitTesting(false)
+            }
+            .accessibilityHidden(drained)
         }
         .aspectRatio(0.8, contentMode: .fit)
         .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        // Explicit withAnimation, not .animation(value:): the implicit
-        // modifier animates the built-in rotations but skips the custom
-        // FaceVisibility's animatableData, which then steps instantly —
-        // both faces swap at the tap and only the rotation plays.
         .onTapGesture {
             Haptics.selection()
-            withAnimation(flipAnimation) {
-                flipped.toggle()
+            withAnimation(drainAnimation) {
+                drained.toggle()
             }
         }
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(flipped ? "\(month.monthName) calendar" : "\(month.monthName) pool")
-        .accessibilityHint("Double tap to flip the pool over.")
+        .accessibilityLabel(drained ? "\(month.monthName) calendar" : "\(month.monthName) pool")
+        .accessibilityHint(drained ? "Double tap to refill the pool."
+                                   : "Double tap to drain the pool.")
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-pondFlip"),
                isCurrent, !DebugLaunch.didPondFlip {
                 DebugLaunch.didPondFlip = true
-                // Delayed, so a command-line run films the flip itself.
+                // Delayed, so a command-line run films the drain itself.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    withAnimation(flipAnimation) {
-                        flipped = true
+                    withAnimation(drainAnimation) {
+                        drained = true
                     }
                 }
             }
         }
     }
 
-    private var flipAnimation: Animation {
+    /// 1 = full pool, 0 = floor showing. Reduce Motion keeps the water
+    /// where it is and cross-fades instead.
+    private var waterLevel: CGFloat {
+        if reduceMotion { return 1 }
+        return drained ? 0 : 1
+    }
+
+    private var drainAnimation: Animation {
         reduceMotion ? .easeInOut(duration: 0.25)
-                     : .spring(response: 0.7, dampingFraction: 0.85)
+                     : .easeInOut(duration: 0.55)
     }
 
     /// Both sides share the card chrome, so the flip reads as one object.
