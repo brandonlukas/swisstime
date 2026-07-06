@@ -155,7 +155,10 @@ private struct PondPage: View {
         }
         .aspectRatio(0.8, contentMode: .fit)
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        // No clip on the container: each face clips itself BEFORE the 3D
+        // rotation, and a container clip shears the projected card flat at
+        // the top and bottom mid-turn (the near edge grows past the
+        // resting frame under perspective).
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .onTapGesture {
             Haptics.selection()
