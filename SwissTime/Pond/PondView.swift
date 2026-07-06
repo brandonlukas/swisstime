@@ -79,10 +79,6 @@ private struct PondPage: View {
     /// The month's ledger is written on the pool floor. Tap the water and
     /// the pool drains to reveal it; tap again and it fills back over.
     @State private var drained = false
-    /// Two-phase card flip (community pattern): each face rotates only its
-    /// own quarter-turn, sequenced by a delay, so the swap happens edge-on.
-    @State private var frontDegrees = 0.0
-    @State private var backDegrees = -90.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -123,9 +119,10 @@ private struct PondPage: View {
             card {
                 PoolCalendarView(month: month, entries: entries)
             }
-            .rotation3DEffect(.degrees(PondPage.transition == .flip && !reduceMotion
-                                       ? backDegrees : 0),
+            .rotation3DEffect(.degrees(flipsCards ? (drained ? 0 : -90) : 0),
                               axis: (x: 0, y: 1, z: 0), perspective: 0.3)
+            .animation(flipsCards ? (drained ? halfTurn.delay(0.22) : halfTurn) : nil,
+                       value: drained)
             .accessibilityHidden(!drained)
             card {
                 PondSceneView(monthKey: month, entries: entries, mode: .live,
@@ -150,9 +147,10 @@ private struct PondPage: View {
                 }
                 .allowsHitTesting(false)
             }
-            .rotation3DEffect(.degrees(PondPage.transition == .flip && !reduceMotion
-                                       ? frontDegrees : 0),
+            .rotation3DEffect(.degrees(flipsCards ? (drained ? 90 : 0) : 0),
                               axis: (x: 0, y: 1, z: 0), perspective: 0.3)
+            .animation(flipsCards ? (drained ? halfTurn : halfTurn.delay(0.22)) : nil,
+                       value: drained)
             .accessibilityHidden(drained)
         }
         .aspectRatio(0.8, contentMode: .fit)
@@ -175,6 +173,10 @@ private struct PondPage: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     reveal()
                 }
+                // ...and back again, so the return leg gets filmed too.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
+                    reveal()
+                }
             }
         }
     }
@@ -192,24 +194,28 @@ private struct PondPage: View {
     enum RevealStyle { case drain, flip }
     static let transition: RevealStyle = .flip
 
+    /// Whether taps turn the card (vs draining the water).
+    private var flipsCards: Bool {
+        PondPage.transition == .flip && !reduceMotion
+    }
+
+    /// One face's share of the turn. The delay swaps sides with the
+    /// direction — declared per face in its .animation(value:) modifier,
+    /// exactly the community pattern: angles are pure functions of one
+    /// state, and no imperative choreography exists to drop a delay (the
+    /// withAnimation version did, on the return leg — filmed).
+    private var halfTurn: Animation {
+        .easeInOut(duration: 0.22)
+    }
+
     private func reveal() {
-        if reduceMotion || PondPage.transition == .drain {
-            withAnimation(reduceMotion ? .easeInOut(duration: 0.25)
-                                       : .easeInOut(duration: 0.55)) {
-                drained.toggle()
-            }
+        if flipsCards {
+            drained.toggle()
             return
         }
-        // The community two-phase flip: out-going face turns to 90°,
-        // in-coming face turns from -90°, sequenced by the delay — the
-        // hand-off happens edge-on, where neither face is visible.
-        drained.toggle()
-        if drained {
-            withAnimation(.easeIn(duration: 0.22)) { frontDegrees = 90 }
-            withAnimation(.easeOut(duration: 0.22).delay(0.22)) { backDegrees = 0 }
-        } else {
-            withAnimation(.easeIn(duration: 0.22)) { backDegrees = -90 }
-            withAnimation(.easeOut(duration: 0.22).delay(0.22)) { frontDegrees = 0 }
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.25)
+                                   : .easeInOut(duration: 0.55)) {
+            drained.toggle()
         }
     }
 
