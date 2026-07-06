@@ -7,14 +7,22 @@ full-screen player whose tilt-reactive water drains as the exercise counts
 down. Every finished workout drops a toy in your pool.
 
 (The repo, bundle id, and code names still say SwissTime; the product is
-Lido. The app icon — a rubber duck on tiled water — is code-drawn by
-`Design/lido_icon.swift`.)
+Lido. The app ships three code-drawn icons — **The Pool** (a rubber duck on
+tiled water, the default), **Deep End** (the pool corner with its ladder),
+and **Pool Type** (LIDO in the poster caps) — selectable in Settings, each
+with a "night swim" dark variant and a max-contrast tinted one. All are
+rendered by `Design/lido_icon.swift`.)
 
 ## Structure
 
 - **Workouts** are **timed** or **untimed** (`WorkoutKind`). A timed workout
-  plays in the full-screen player; an untimed one is done at your own pace
-  and logged with a "Mark as done" tap.
+  plays in the full-screen player. An untimed one gets a **walkthrough**:
+  Start lays its exercises out as a grid of tiles, and one tap sinks each
+  finished exercise under water in the workout's color — any order, no
+  timers, progress persisting across launches until Finish runs the
+  ceremony (the Sets tab times rests alongside; the screen is pushed, not
+  modal, so the tab bar stays reachable). "Mark as done" remains for
+  off-book days.
 - **Exercises** carry a per-exercise mode (`Exercise.mode`): **interval**
   (a duration, auto-advancing, hands-free — with optional "halfway done" /
   "5s left" spoken alerts) or **sets** (sets × reps you end with a tap, and
@@ -30,8 +38,9 @@ Lido. The app icon — a rubber duck on tiled water — is code-drawn by
   then the session is a single repeated tap, laid out like a stopwatch —
   Lap fills the clock with your rest, the water drains as it counts down,
   one beep marks zero, and the clock runs into the negative until the next
-  Lap. The Live Activity shows the rest countdown (its skip button doubles
-  as Lap).
+  Lap. Optional "Halfway done" / "5 seconds left" voices ride the same
+  rules as the player's alerts. The Live Activity shows the rest countdown
+  (its skip button doubles as Lap).
 - A first launch isn't a blank page: the empty workout list offers three
   curated **starter workouts** (one sets-mode, two timed) that one tap
   adopts into the library, fully editable. The shelf lives only in the
@@ -61,7 +70,11 @@ determined by the workout's palette swatch:
 One finish in twenty comes up **gilded** — a pearl-and-gold colorway of the
 earned toy, signaled quietly (a gold ceremony line, an occasional glint, a
 thin ring in the logbook). The pool resets monthly; past months stay
-swipeable and alive. Everything is code-drawn (`SwissTime/Pond/`):
+swipeable and alive. Tap any pool and the card flips over — the month's
+ledger is written on the back: a calendar whose days fill with their
+workouts' colors (two workouts split the tile on the diagonal), empty days
+staying quiet deck tile. No streaks, no tallies — the ledger celebrates
+presence and never advertises absence. Everything is code-drawn (`SwissTime/Pond/`):
 `PondScene` precomputes seeded layout and renders motion as a pure function
 of time into a `Canvas`, with toys bump-and-sliding via deterministic
 relaxation, so the live pool, the hero strip, and past months share one
@@ -112,17 +125,36 @@ alive to hear it.
 
 ## Settings and themes
 
-A gear on the Workouts toolbar opens Settings (a sheet): theme override
-(System / Day / **Night Swim** — a lit-pool dark mode on a blue-black
-deck), voice cues master switch, a collapsible voice picker whose audition
-rows speak the actual cue, haptics, and the Live Activity toggle. Low Power
-Mode automatics stay automatic: the water calms, the tilt stills, haptics
-rest.
+A gear on the Workouts toolbar opens Settings (a sheet), organized by
+quiet overline groups. **Appearance**: the theme (System / Day / **Night
+Swim** — a lit-pool dark mode on a blue-black deck) and the app icon, both
+picked from preview tiles that show the choice itself. **Sound**: the
+voice-cues switch with a collapsible voice picker whose audition rows speak
+the actual cue, and a "Beeps and chimes" switch — both off makes a visual
+timer, and it's the only mute the app can have, since the background-audio
+session ignores the silent switch. **Session**: haptics, water tilt, and
+the Live Activity. Low Power Mode automatics stay automatic: the water
+calms, the tilt stills, haptics rest.
+
+## Accessibility
+
+The app answers system signals instead of growing parallel toggles.
+Dynamic Type scales everything — body text on the `.body` curve, poster
+titles and timer numerals on `.largeTitle`'s damped one (a clock grows
+without swallowing its screen), half-width rows stacking at accessibility
+sizes. The palette answers Increase Contrast (`Color.inkOpacity`: captions,
+field borders, and hairlines firm up; defaults already clear 4.5:1). Reduce
+Motion calms the water and swaps the pool flip for a cross-fade — the
+native sheets already cross-fade under the system's own Prefer Cross-Fade
+setting. Controls are the platform's (system switches, real `.disabled`
+semantics for assistive input).
 
 ## Flow
 
-The list is play-first: each timed card has a play button, and recently
-played workouts sort to the top. The detail screen is read-only until you
+The list is play-first: each timed card has a play button (the play verb
+belongs to the player alone — untimed details pair **Start workout** with
+**Mark as done** instead), and recently touched workouts — finished or
+newly created — sort to the top. The detail screen is read-only until you
 tap Edit (the system back button — restyled to the Swiss arrow via
 `UINavigationBarAppearance`, native edge-swipe intact — hides while
 editing, so leaving always goes through Done).
@@ -151,14 +183,21 @@ Debug launch arguments (used for command-line UI verification; one-shot):
   (optionally in edit mode); `-autoEditWorkout`, `-autoEditFirstExercise`,
   `-autoAddItem` open the corresponding sheets from there
 - `-autoMarkDone` — mark the opened untimed workout as done (completion ceremony)
+- `-autoStartUntimed` — push the untimed walkthrough grid from the opened
+  detail; `-autoFinishUntimed` floods it and takes the Finish,
+  `-autoDismissCeremony` then exits via the Done button's exact path
 - `-autoAdoptFirstSample` — empty library only: adopt the first starter from
   the sample shelf and open its detail
 - `-seedWorkouts` / `-seedPond` — replace the library / pool in-memory with
   fakes (seeded runs never persist)
 - `-autoOpenPond` — open the fullscreen pool; add `-pondShowPast` to land on
-  the newest past month, `-pondOpenLog` for the Logbook
+  the newest past month, `-pondOpenLog` for the Logbook, `-pondFlip` to turn
+  the pool over to its calendar (and back), `-pondPulled` to freeze a
+  pull-to-dismiss mid-drag
 - `-autoOpenSets` / `-autoStartSets` — land on the Sets tab (optionally with
   a counter running); add `-autoAdvanceOnce` to end the first set a few
   seconds in
 - `-autoOpenSettings` — open Settings; `-autoCycleTheme` walks
-  day → system → night for screenshots, `-debugScheme` shows a scheme readout
+  day → system → night for screenshots, `-debugScheme` shows a scheme
+  readout, and `-autoPickPoolIcon` / `-autoPickDeepEndIcon` /
+  `-autoPickPoolTypeIcon` drive the app-icon switch end to end
