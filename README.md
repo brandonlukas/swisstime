@@ -146,19 +146,11 @@ sizes. The palette answers Increase Contrast (`Color.inkOpacity`: captions,
 field borders, and hairlines firm up; defaults already clear 4.5:1). Reduce
 Motion calms the water and swaps the pool flip for a cross-fade — the
 native sheets already cross-fade under the system's own Prefer Cross-Fade
-setting. Controls are the platform's (system switches, real `.disabled`
-semantics for assistive input).
-
-VoiceOver names every icon-only control (play/pause/skip, gear, plus,
-close, chevrons, swatch checkmarks) instead of leaving a bare glyph to
-announce itself, and state rides in the channel that's always spoken: the
-voice picker's expanded/collapsed state is an `accessibilityValue`, not a
-hint, since VoiceOver users can mute Speak Hints and state can't live only
-there. Hints describe outcomes ("Opens the pool.") rather than gestures —
-"double tap" isn't how Switch Control or Full Keyboard Access act. The Live
-Activity's pause button keeps its icon and its spoken name in lockstep from
-one source (`ContentState.pauseIcon`/`pauseLabel`), so the Dynamic Island
-and the lock screen can't drift apart.
+setting. VoiceOver labels every icon-only control, carries state in
+`accessibilityValue` rather than a suppressible hint, and phrases hints as
+outcomes ("Opens the pool.") instead of gestures. Controls are the
+platform's (system switches, real `.disabled` semantics for assistive
+input).
 
 ## Flow
 
