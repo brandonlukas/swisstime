@@ -17,6 +17,18 @@ struct PondEntry: Identifiable, Codable, Equatable {
     var isShiny: Bool { shiny == true }
 }
 
+extension Array where Element == PondEntry {
+    /// One day's finished workouts, in finish order — the single grouping
+    /// the pool's calendar and the home-screen week strip both read, so
+    /// the two surfaces can never disagree about what a day held (they
+    /// may present it differently: the calendar stripes every workout,
+    /// the widget's small squares show the last one's swatch).
+    func finished(on day: Date, calendar: Calendar = .current) -> [PondEntry] {
+        filter { calendar.isDate($0.completedAt, inSameDayAs: day) }
+            .sorted { $0.completedAt < $1.completedAt }
+    }
+}
+
 /// A calendar month — the pond's unit of time.
 struct MonthKey: Hashable, Comparable, Codable {
     var year: Int

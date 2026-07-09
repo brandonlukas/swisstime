@@ -3,7 +3,16 @@ import SwiftUI
 struct WorkoutListView: View {
     @EnvironmentObject private var store: WorkoutStore
     @EnvironmentObject private var pond: PondStore
-    @State private var path: [UUID] = []
+    /// One flat path for everything pushed: the detail page and, above it,
+    /// an untimed session. A single array mutation pops any depth in one
+    /// transition — completions land on the list atomically, with no
+    /// isPresented destination left to orphan mid-pop.
+    enum Route: Hashable {
+        case detail(UUID)
+        case session(UUID)
+    }
+
+    @State private var path: [Route] = []
     @State private var showingCreate = false
     @State private var showingPond = false
     @State private var showingSettings = false
@@ -18,18 +27,25 @@ struct WorkoutListView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    let currentEntries = pond.entries(in: .current)
                     Button {
                         showingPond = true
                     } label: {
                         // The hero rests while anything hides it: the pool
                         // cover, the player, or a pushed detail screen
                         // (whose own Play cover this list can't see).
-                        PondHeroCard(entries: pond.entries(in: .current),
+                        PondHeroCard(entries: currentEntries,
                                      paused: showingPond || playing != nil
                                          || !path.isEmpty,
                                      newIDs: pond.newEntryIDs)
                     }
                     .buttonStyle(.plain)
+                    // Keep the month + afloat count the card already shows on
+                    // screen — an explicit label would otherwise replace them.
+                    .accessibilityLabel(currentEntries.isEmpty
+                        ? "\(MonthKey.current.monthName) pool"
+                        : "\(MonthKey.current.monthName) pool, \(currentEntries.count) afloat")
+                    .accessibilityHint("Opens the pool.")
                     .padding(.bottom, 24)
                     PageHeader(title: "Workouts")
                         .padding(.bottom, 24)
@@ -42,7 +58,7 @@ struct WorkoutListView: View {
                             // wait out gesture disambiguation, which made
                             // starting a workout feel laggy.
                             ForEach(store.sortedWorkouts) { workout in
-                                NavigationLink(value: workout.id) {
+                                NavigationLink(value: Route.detail(workout.id)) {
                                     WorkoutCard(workout: workout)
                                 }
                                 .buttonStyle(.plain)
@@ -60,6 +76,7 @@ struct WorkoutListView: View {
                                         }
                                         .buttonStyle(PressableButtonStyle())
                                         .padding(.trailing, 20)
+                                        .accessibilityLabel("Play \(workout.title)")
                                     }
                                 }
                             }
@@ -70,8 +87,16 @@ struct WorkoutListView: View {
                 .padding(20)
             }
             .background(PaperBackground())
-            .navigationDestination(for: UUID.self) { id in
-                WorkoutDetailView(workoutID: id)
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .detail(let id):
+                    WorkoutDetailView(workoutID: id,
+                                      startSession: { path.append(.session(id)) })
+                case .session(let id):
+                    UntimedSessionView(workout: store.workout(id) ?? Workout(title: "")) {
+                        path.removeAll()
+                    }
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -80,6 +105,7 @@ struct WorkoutListView: View {
                     } label: {
                         Image(systemName: "gearshape")
                     }
+                    .accessibilityLabel("Settings")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -87,6 +113,7 @@ struct WorkoutListView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("New workout")
                 }
             }
             .sheet(isPresented: $showingCreate) {
@@ -94,7 +121,7 @@ struct WorkoutListView: View {
                 // the default swatch rotates through the palette.
                 WorkoutFormView(
                     defaultColorIndex: store.workouts.count % Palette.all.count,
-                    onCreated: { path = [$0] }
+                    onCreated: { path = [.detail($0)] }
                 )
             }
             .fullScreenCover(item: $playing) { workout in
@@ -123,7 +150,7 @@ struct WorkoutListView: View {
                           !DebugLaunch.didAutoOpen,
                           let first = store.sortedWorkouts.first {
                     DebugLaunch.didAutoOpen = true
-                    path = [first.id]
+                    path = [.detail(first.id)]
                 } else if arguments.contains("-autoAdoptFirstSample"),
                           !DebugLaunch.didAutoAdopt,
                           store.workouts.isEmpty,
@@ -152,7 +179,7 @@ struct WorkoutListView: View {
             }
             Text("Or start from a sample")
                 .overline()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
                 .padding(.top, 28)
                 .padding(.bottom, 12)
             VStack(spacing: 10) {
@@ -180,15 +207,16 @@ struct WorkoutListView: View {
                 .frame(width: 11, height: 11)
             VStack(alignment: .leading, spacing: 2) {
                 Text(sample.title)
-                    .font(.app(15, .semibold))
+                    .appFont(15, .semibold)
                 Text("\(sample.kind == .timed ? "Timed" : "Sets") · \(sample.summaryLine)")
-                    .font(.app(12))
-                    .foregroundStyle(.secondary)
+                    .appFont(12)
+                    .foregroundStyle(Color.inkSecondary)
             }
             Spacer(minLength: 8)
             Image(systemName: "plus")
                 .font(.system(size: 15))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.inkSecondary)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -211,7 +239,7 @@ struct WorkoutListView: View {
         guard store.workouts.isEmpty else { return }
         Haptics.impact()
         store.workouts.append(sample)
-        path = [sample.id]
+        path = [.detail(sample.id)]
     }
 }
 
@@ -257,20 +285,20 @@ private struct WorkoutCard: View {
                     .fill(workout.palette.fill)
                     .frame(width: 14, height: 14)
                 Text(workout.title)
-                    .font(.app(18, .semibold))
+                    .appFont(18, .semibold)
             }
             if !workout.details.isEmpty {
                 Text(workout.details)
-                    .font(.app(15))
-                    .foregroundStyle(.secondary)
+                    .appFont(15)
+                    .foregroundStyle(Color.inkSecondary)
             }
             Text(workout.summaryLine)
-                .font(.app(15))
+                .appFont(15)
                 .padding(.top, 2)
             if let line = Format.withLine(workout.exerciseNames) {
                 Text(line)
-                    .font(.app(15))
-                    .foregroundStyle(.secondary)
+                    .appFont(15)
+                    .foregroundStyle(Color.inkSecondary)
             }
         }
         // Clears the play button that overlays the card's trailing edge.

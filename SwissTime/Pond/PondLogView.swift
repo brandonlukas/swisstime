@@ -19,16 +19,16 @@ struct PondLogView: View {
                     .display(26)
                     .padding(.bottom, 8)
                 Text("Every finished workout, on the record. Tap an entry to note how it went; swipe one away to strike it — its toy leaves the pool.")
-                    .font(.app(14))
-                    .foregroundStyle(.secondary)
+                    .appFont(14)
+                    .foregroundStyle(Color.inkSecondary)
                     .padding(.bottom, 14)
                 InkRule()
             }
             .padding(.horizontal, 20)
             if pond.entries.isEmpty {
                 Text("Nothing on the record yet.")
-                    .font(.app(15))
-                    .foregroundStyle(.secondary)
+                    .appFont(15)
+                    .foregroundStyle(Color.inkSecondary)
                     .padding(20)
                 Spacer(minLength: 0)
             } else {
@@ -40,6 +40,9 @@ struct PondLogView: View {
                                 LogRow(entry: entry)
                                     .contentShape(Rectangle())
                                     .onTapGesture { notingEntry = entry }
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityAddTraits(.isButton)
+                                    .accessibilityHint("Opens the note editor.")
                                     .listRowBackground(Color.paperCardFill.opacity(0.7))
                                     .listRowSeparatorTint(Color.hairline)
                             }
@@ -89,16 +92,16 @@ private struct LogRow: View {
                         }
                     }
                 Text(entry.workoutTitle)
-                    .font(.app(16, .medium))
+                    .appFont(16, .medium)
                 Spacer(minLength: 8)
                 Text(entry.completedAt.formatted(
                     .dateTime.month(.abbreviated).day().hour().minute()))
-                    .font(.app(14))
-                    .foregroundStyle(.secondary)
+                    .appFont(14)
+                    .foregroundStyle(Color.inkSecondary)
             }
             if let note = entry.note, !note.isEmpty {
                 Text(note)
-                    .font(.app(15))
+                    .appFont(15)
                     .italic()
                     .foregroundStyle(Color.ink.opacity(0.7))
                     .padding(.leading, 24)

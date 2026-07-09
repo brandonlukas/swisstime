@@ -53,6 +53,8 @@ final class PlayerEngine: ObservableObject {
     let exerciseCount: Int
 
     @Published private(set) var phase: Phase = .countdown
+    /// Actively ticking — running or counting down, not paused or finished.
+    var isRunning: Bool { phase == .running || phase == .countdown }
     /// Index into `steps`; -1 while counting down.
     @Published private(set) var index: Int = -1
     /// End of the current countdown step.
@@ -64,8 +66,6 @@ final class PlayerEngine: ObservableObject {
 
     private let audio = AudioManager()
     private let liveActivity = LiveActivityController()
-    private let stepFeedback = UIImpactFeedbackGenerator(style: .medium)
-    private let pauseFeedback = UIImpactFeedbackGenerator(style: .light)
     private var ticker: Timer?
     private var observers: [NSObjectProtocol] = []
     private var halfwayFired = false
@@ -177,8 +177,6 @@ final class PlayerEngine: ObservableObject {
         Self.isActive = true
         NotificationCenter.default.post(name: .playerEngineDidStart, object: self)
         audio.start()
-        stepFeedback.prepare()
-        pauseFeedback.prepare()
         phase = .countdown
         index = -1
         endDate = Date().addingTimeInterval(countdownDuration)
@@ -208,7 +206,7 @@ final class PlayerEngine: ObservableObject {
 
     func togglePause() {
         guard phase != .finished else { return }
-        pauseFeedback.impactOccurred()
+        Haptics.lightImpact()
         switch phase {
         case .running, .countdown:
             pausedRemaining = remaining(at: Date())
@@ -328,7 +326,9 @@ final class PlayerEngine: ObservableObject {
     }
 
     private func announce(_ step: Step) {
-        stepFeedback.impactOccurred()
+        // Through Haptics, not a raw generator — the Settings switch and
+        // Low Power Mode must reach the player's buzzes too.
+        Haptics.impact()
         audio.playBeep()
         var parts: [String] = []
         switch step.kind {
@@ -357,23 +357,27 @@ final class PlayerEngine: ObservableObject {
             }
         }
         // Interrupt any queued speech so rapid skipping never stacks
-        // announcements; the delay clears the 0.15s step beep.
-        audio.speak(parts.joined(separator: " "), interrupting: true, delay: 0.4)
+        // announcements; the delay clears the 0.15s step beep — a beep the
+        // sounds setting may have silenced, in which case speak on time.
+        audio.speak(parts.joined(separator: " "), interrupting: true,
+                    delay: AppSettings.sounds ? 0.4 : 0)
     }
 
     private func finish() {
         phase = .finished
         index = steps.count - 1
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
         audio.setKeepAlive(false)
         audio.playDone()
-        // The finish chime runs 0.74s; speak after it rings out.
-        audio.speak("Workout complete.", interrupting: true, delay: 0.9)
+        // The finish chime runs 0.74s; speak after it rings out — or right
+        // away when the sounds setting silenced the chime.
+        audio.speak("Workout complete.", interrupting: true,
+                    delay: AppSettings.sounds ? 0.9 : 0)
         liveActivity.update(activityState())
     }
 
     private func tick() {
-        guard phase == .running || phase == .countdown else { return }
+        guard isRunning else { return }
         let now = Date()
         // Untimed set work never auto-advances; the user ends it with a tap.
         if index >= 0, currentStep?.countsUp == true { return }

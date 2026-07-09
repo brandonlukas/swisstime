@@ -20,11 +20,14 @@ extension Color {
     /// The ambient light pooled on the page behind content.
     static let pageLight = Color(light: Color.white.opacity(0.38),
                                  dark: Color.white.opacity(0.05))
-    /// Lifeguard red, destructive actions only.
-    static let signalRed = Color(light: Color(red: 0.82, green: 0.26, blue: 0.24),
+    /// Lifeguard red, destructive actions only. One shade deeper in the
+    /// light than it once was — 4.8:1, legible at any size.
+    static let signalRed = Color(light: Color(red: 0.75, green: 0.20, blue: 0.19),
                                  dark: Color(red: 0.93, green: 0.43, blue: 0.41))
-    /// The poster accent: airy periwinkle for index numbers and tags.
-    static let periwinkle = Color(light: Color(red: 0.52, green: 0.57, blue: 0.90),
+    /// The poster accent for index numbers and tags: an accessible indigo
+    /// by day (4.6:1 on paper — the airy original read at only 2.5:1),
+    /// still the airy periwinkle after dark, where it clears 8:1.
+    static let periwinkle = Color(light: Color(red: 0.333, green: 0.376, blue: 0.769),
                                   dark: Color(red: 0.64, green: 0.69, blue: 0.98))
 
     /// Pool scene colors. At night the water dims only a little — a lit
@@ -56,8 +59,13 @@ extension Color {
     /// Cool fill for plain sheet rows.
     static let card = Color(light: Color(red: 0.878, green: 0.902, blue: 0.933),
                             dark: Color(red: 0.145, green: 0.176, blue: 0.298))
-    static let fieldBorder = Color.ink.opacity(0.22)
-    static let hairline = Color.ink.opacity(0.10)
+    static let fieldBorder = Color.inkOpacity(0.22, highContrast: 0.50)
+    static let hairline = Color.inkOpacity(0.10, highContrast: 0.25)
+    /// Captions and supporting text — replaces SwiftUI's .secondary so the
+    /// opacity is ours to guarantee: 66% ink clears 4.5:1 on light paper
+    /// (60% fell just short at 4.05).
+    static let inkSecondary = Color.inkOpacity(0.66, highContrast: 0.78)
+
 }
 
 extension Workout {
@@ -66,32 +74,83 @@ extension Workout {
     }
 }
 
-extension Font {
-    /// SF Pro — body, controls, and timer numerals.
-    static func app(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight)
+/// Dynamic Type: all app text is set through these modifiers, whose
+/// @ScaledMetric tracks the user's text size. Body text rides the .body
+/// curve (up to ~3× at the top accessibility size); display faces — poster
+/// titles, timer numerals — ride .largeTitle's gentler curve (~1.6×), so a
+/// clock face grows meaningfully without swallowing its screen.
+private struct ScaledFont: ViewModifier {
+    @ScaledMetric private var scale: CGFloat
+    let size: CGFloat
+    let weight: Font.Weight
+    let expanded: Bool
+
+    init(size: CGFloat, weight: Font.Weight, relativeTo style: Font.TextStyle,
+         expanded: Bool = false) {
+        // Scale a 100 pt reference, not 1 pt: the metrics round to whole
+        // points, and at 1 pt that rounding flattens every size step
+        // within ±20% of the default back to no-op.
+        _scale = ScaledMetric(wrappedValue: 100, relativeTo: style)
+        self.size = size
+        self.weight = weight
+        self.expanded = expanded
     }
 
-    /// Expanded grotesque — the poster voice. Use through `Text.display`.
-    static func display(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> Font {
-        .system(size: size, weight: weight).width(.expanded)
+    func body(content: Content) -> some View {
+        let font: Font = .system(size: size * scale / 100, weight: weight)
+        content.font(expanded ? font.width(.expanded) : font)
     }
 }
 
-extension Text {
+/// Poster type: expanded, heavy, uppercase, tracked out — kerning scales
+/// with the glyphs so the tracking holds at every size.
+private struct DisplayType: ViewModifier {
+    @ScaledMetric(relativeTo: .largeTitle) private var scale: CGFloat = 100
+    let size: CGFloat
+    let weight: Font.Weight
+
+    func body(content: Content) -> some View {
+        content
+            .kerning(size * scale / 100 * 0.05)
+            .font(.system(size: size * scale / 100, weight: weight).width(.expanded))
+            .textCase(.uppercase)
+    }
+}
+
+/// Small tracked tag — index numbers, month labels, section overlines.
+private struct OverlineType: ViewModifier {
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 100
+    let size: CGFloat
+    let weight: Font.Weight
+
+    func body(content: Content) -> some View {
+        content
+            .kerning(1.5 * scale / 100)
+            .font(.system(size: size * scale / 100, weight: weight))
+            .monospacedDigit()
+            .textCase(.uppercase)
+    }
+}
+
+extension View {
+    /// SF Pro on the .body curve — text, controls, captions.
+    func appFont(_ size: CGFloat, _ weight: Font.Weight = .regular) -> some View {
+        modifier(ScaledFont(size: size, weight: weight, relativeTo: .body))
+    }
+
+    /// Big readouts (timer numerals) on the damped .largeTitle curve.
+    func readoutFont(_ size: CGFloat, _ weight: Font.Weight = .regular) -> some View {
+        modifier(ScaledFont(size: size, weight: weight, relativeTo: .largeTitle))
+    }
+
     /// Poster type: expanded, heavy, uppercase, tracked out.
     func display(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> some View {
-        kerning(size * 0.05)
-            .font(.display(size, weight))
-            .textCase(.uppercase)
+        modifier(DisplayType(size: size, weight: weight))
     }
 
     /// Small tracked tag — index numbers, month labels.
     func overline(_ size: CGFloat = 12, _ weight: Font.Weight = .semibold) -> some View {
-        kerning(1.5)
-            .font(.app(size, weight))
-            .monospacedDigit()
-            .textCase(.uppercase)
+        modifier(OverlineType(size: size, weight: weight))
     }
 }
 
@@ -383,6 +442,11 @@ enum DebugLaunch {
     static var didAutoStartSets = false
     static var didAutoAdvance = false
     static var didAutoAdopt = false
+    static var didAutoPickIcon = false
+    static var didAutoStartUntimed = false
+    static var didAutoFinishUntimed = false
+    static var didAutoDismissCeremony = false
+    static var didPondFlip = false
 }
 
 extension String {

@@ -24,6 +24,9 @@ struct WorkoutDetailView: View {
     @EnvironmentObject private var pond: PondStore
     @Environment(\.dismiss) private var dismiss
     let workoutID: UUID
+    /// The list owns the navigation path; Start workout pushes the untimed
+    /// session as a path element above this screen.
+    var startSession: () -> Void = {}
 
     @State private var editing = false
     @State private var sheet: DetailSheet?
@@ -57,14 +60,30 @@ struct WorkoutDetailView: View {
         .background(PaperBackground())
         .safeAreaInset(edge: .bottom) {
             if !editing && !workout.exercises.isEmpty {
-                PrimaryButton(title: workout.kind == .timed ? "Play workout" : "Mark as done",
-                              fill: workout.palette.fill,
-                              textColor: workout.palette.onFill) {
+                Group {
                     if workout.kind == .timed {
-                        Haptics.impact()
-                        playing = true
+                        PrimaryButton(title: "Play workout",
+                                      fill: workout.palette.fill,
+                                      textColor: workout.palette.onFill) {
+                            Haptics.impact()
+                            playing = true
+                        }
                     } else {
-                        markDone()
+                        // Side by side — stacked at accessibility sizes,
+                        // where two half-width buttons can't hold their
+                        // words. Walking through the session is the primary
+                        // act; logging an off-book day stays one tap away.
+                        AdaptiveRow {
+                            SecondaryButton(title: "Mark as done") {
+                                markDone()
+                            }
+                            PrimaryButton(title: "Start workout",
+                                          fill: workout.palette.fill,
+                                          textColor: workout.palette.onFill) {
+                                Haptics.impact()
+                                startSession()
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -84,7 +103,7 @@ struct WorkoutDetailView: View {
                     withAnimation { editing.toggle() }
                 } label: {
                     Text(editing ? "Done" : "Edit")
-                        .font(.app(17, editing ? .medium : .regular))
+                        .appFont(17, editing ? .medium : .regular)
                 }
             }
         }
@@ -148,12 +167,21 @@ struct WorkoutDetailView: View {
                 DebugLaunch.didAutoMarkDone = true
                 markDone()
             }
+            if ProcessInfo.processInfo.arguments.contains("-autoStartUntimed"),
+               !DebugLaunch.didAutoStartUntimed,
+               workout.kind == .untimed, !workout.exercises.isEmpty {
+                DebugLaunch.didAutoStartUntimed = true
+                startSession()
+            }
         }
     }
 
-    /// The untimed completion: they said they did it — toy earned.
+    /// The untimed completion: they said they did it — toy earned. Any
+    /// half-ticked session state is spent by the completion too: the next
+    /// Start workout begins fresh.
     private func markDone() {
         Haptics.success()
+        UntimedProgress.clear(workoutID)
         store.markPlayed(workoutID)
         ceremony = CompletionCeremony(entryID: pond.record(workout: workout))
     }
@@ -167,12 +195,12 @@ struct WorkoutDetailView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if !workout.details.isEmpty {
                     Text(workout.details)
-                        .font(.app(15))
-                        .foregroundStyle(.secondary)
+                        .appFont(15)
+                        .foregroundStyle(Color.inkSecondary)
                         .padding(.bottom, 10)
                 }
                 Text(workout.summaryLine)
-                    .font(.app(15))
+                    .appFont(15)
                 if workout.exercises.isEmpty {
                     emptyState
                         .padding(.top, 24)
@@ -209,11 +237,12 @@ struct WorkoutDetailView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 15))
                     .frame(minWidth: 30, alignment: .leading)
+                    .accessibilityHidden(true)
                 Text("Add exercise")
-                    .font(.app(16))
+                    .appFont(16)
                 Spacer()
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.inkSecondary)
             .padding(.vertical, 18)
             .contentShape(Rectangle())
         }
@@ -258,10 +287,11 @@ struct WorkoutDetailView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "plus")
                             .font(.system(size: 15))
+                            .accessibilityHidden(true)
                         Text("Add exercise")
-                            .font(.app(16))
+                            .appFont(16)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.inkSecondary)
                 }
                 .listRowBackground(Color.paperCardFill.opacity(0.7))
             }
@@ -270,13 +300,13 @@ struct WorkoutDetailView: View {
                     sheet = .editWorkout
                 } label: {
                     Text("Edit title & description")
-                        .font(.app(16))
+                        .appFont(16)
                 }
                 Button(role: .destructive) {
                     sheet = .confirmDelete
                 } label: {
                     Text("Delete workout")
-                        .font(.app(16))
+                        .appFont(16)
                 }
             }
             .listRowBackground(Color.clear)
@@ -291,22 +321,28 @@ struct WorkoutDetailView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(exercise.name)
-                    .font(.app(16, .medium))
+                    .appFont(16, .medium)
                 if !exercise.instructions.isEmpty {
                     Text(exercise.instructions)
-                        .font(.app(14))
-                        .foregroundStyle(.secondary)
+                        .appFont(14)
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
             Spacer(minLength: 8)
             Text(exercise.trailingSummary)
-                .font(.app(15))
+                .appFont(15)
                 .monospacedDigit()
         }
         .contentShape(Rectangle())
         .onTapGesture {
             sheet = .editExercise(exercise)
         }
+        // A gesture, not a Button — edit mode would swallow a Button's tap.
+        // The trait tells VoiceOver the row acts; double-tap lands in the
+        // gesture like any tap.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Opens the exercise editor.")
     }
 }
 
@@ -323,16 +359,16 @@ private struct ExerciseLine: View {
                 .frame(minWidth: 30, alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
                 Text(exercise.name)
-                    .font(.app(16, .medium))
+                    .appFont(16, .medium)
                 if !exercise.instructions.isEmpty {
                     Text(exercise.instructions)
-                        .font(.app(15))
-                        .foregroundStyle(.secondary)
+                        .appFont(15)
+                        .foregroundStyle(Color.inkSecondary)
                 }
             }
             Spacer(minLength: 8)
             Text(exercise.trailingSummary)
-                .font(.app(16))
+                .appFont(16)
                 .monospacedDigit()
         }
         .padding(.vertical, 18)

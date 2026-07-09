@@ -10,6 +10,7 @@ import UIKit
 struct SetCounterView: View {
     @AppStorage("setCounter.sets") private var sets = 4
     @AppStorage("setCounter.rest") private var rest: TimeInterval = 90
+    @AppStorage("setCounter.halfway") private var halfway = false
     @AppStorage("setCounter.fiveSeconds") private var fiveSeconds = true
     @AppStorage(SettingsKey.voiceCues) private var voiceCues = true
     /// Held in plain @State — the running child observes it; this view only
@@ -41,7 +42,7 @@ struct SetCounterView: View {
                 // Explicit values, so the debug run doesn't overwrite the
                 // remembered settings.
                 let engine = start(setCount: 3, restDuration: 15,
-                                   fiveSecondsCue: true)
+                                   halfwayCue: true, fiveSecondsCue: true)
                 // End the first set a few seconds in, so command-line
                 // verification can screenshot the rest countdown without
                 // touch input. Scoped to THIS auto-started session — wired
@@ -63,32 +64,30 @@ struct SetCounterView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Count your sets and time your rest — company for workouts you run yourself.")
-                    .font(.app(15))
-                    .foregroundStyle(.secondary)
-                HStack(alignment: .top, spacing: 12) {
+                    .appFont(15)
+                    .foregroundStyle(Color.inkSecondary)
+                AdaptiveRow {
                     PickerField(label: "Sets", options: Array(1...12),
                                 display: { "\($0)" }, selection: $sets)
                     PickerField(label: "Rest between sets", options: Presets.restDurations,
                                 display: { Format.mmss($0) }, selection: $rest)
                 }
                 Text("Tap Lap when you finish a set — the water fills with your rest, one beep marks zero, and the clock keeps counting past it.")
-                    .font(.app(14))
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 10) {
-                    CheckboxRow(title: "Announce 5s left", isOn: $fiveSeconds)
-                        .allowsHitTesting(voiceCues)
-                        .opacity(voiceCues ? 1 : 0.4)
+                    .appFont(14)
+                    .foregroundStyle(Color.inkSecondary)
+                AlertsSection(halfway: $halfway, fiveSeconds: $fiveSeconds,
+                              enabled: voiceCues) {
                     if !voiceCues {
-                        // The checkbox routes through the master switch —
+                        // These route through the master Voice cues switch —
                         // a dead control must say who turned it off.
                         Text("Voice cues are off in Settings.")
-                            .font(.app(13))
-                            .foregroundStyle(.secondary)
+                            .appFont(13)
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
                 PrimaryButton(title: "Start") {
                     start(setCount: sets, restDuration: rest,
-                          fiveSecondsCue: fiveSeconds)
+                          halfwayCue: halfway, fiveSecondsCue: fiveSeconds)
                 }
                 .padding(.top, 8)
             }
@@ -107,14 +106,16 @@ struct SetCounterView: View {
         guard DeepLink.pendingSetsStart else { return }
         DeepLink.pendingSetsStart = false
         guard engine == nil, !PlayerEngine.isActive else { return }
-        start(setCount: sets, restDuration: rest, fiveSecondsCue: fiveSeconds)
+        start(setCount: sets, restDuration: rest,
+              halfwayCue: halfway, fiveSecondsCue: fiveSeconds)
     }
 
     @discardableResult
     private func start(setCount: Int, restDuration: TimeInterval,
-                       fiveSecondsCue: Bool) -> SetCounterEngine {
+                       halfwayCue: Bool, fiveSecondsCue: Bool) -> SetCounterEngine {
         Haptics.impact()
         let engine = SetCounterEngine(setCount: setCount, rest: restDuration,
+                                      halfwayCue: halfwayCue,
                                       fiveSecondsCue: fiveSecondsCue)
         engine.start()
         ScreenSleep.hold()
@@ -142,6 +143,7 @@ private struct SetCounterRunView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var power = PowerState.shared
     @AppStorage(SettingsKey.waterTilt) private var waterTilt = true
+    @ScaledMetric(relativeTo: .largeTitle) private var buttonDiameter: CGFloat = 84
 
     private var waterPolicy: WaterPolicy {
         WaterPolicy(lowPower: power.lowPower, reduceMotion: reduceMotion,
@@ -238,15 +240,15 @@ private struct SetCounterRunView: View {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(sign + String(format: "%d:%02d",
                                    centiseconds / 6000, (centiseconds / 100) % 60))
-                    .font(.app(88, .light))
+                    .readoutFont(88, .light)
                 Text(String(format: ".%02d", centiseconds % 100))
-                    .font(.app(34, .light))
+                    .readoutFont(34, .light)
             }
             .monospacedDigit()
             CounterDots(total: engine.setCount, current: engine.currentSet)
             Text("Set \(engine.currentSet) of \(engine.setCount)")
-                .font(.app(15))
-                .opacity(0.6)
+                .appFont(15)
+                .opacity(0.66)
         }
         .offset(y: -56)
     }
@@ -267,9 +269,11 @@ private struct SetCounterRunView: View {
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.app(filled ? 18 : 17, filled ? .medium : .regular))
+                // Label and circle grow together on the same damped curve
+                // as the readout, so the word never escapes its button.
+                .readoutFont(filled ? 18 : 17, filled ? .medium : .regular)
                 .foregroundStyle(filled ? Color.onInk : Color.ink)
-                .frame(width: 84, height: 84)
+                .frame(width: buttonDiameter, height: buttonDiameter)
                 .background(Circle().fill(filled ? Color.ink : Color.paperCardFill.opacity(0.92)))
                 .overlay(Circle().stroke(Color.ink.opacity(filled ? 0 : 0.1), lineWidth: 1))
                 .shadow(color: Color.shade.opacity(filled ? 0.15 : 0.08), radius: 8, y: 3)

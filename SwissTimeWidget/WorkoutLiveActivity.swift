@@ -62,12 +62,13 @@ struct WorkoutLiveActivity: Widget {
                         if !context.state.finished {
                             if context.state.showsPause {
                                 Button(intent: TogglePauseIntent()) {
-                                    Image(systemName: context.state.paused ? "play" : "pause")
+                                    Image(systemName: context.state.pauseIcon)
                                         .font(.system(size: 18, weight: .medium))
                                         .foregroundStyle(.white)
                                         .frame(width: 44, height: 36)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel(context.state.pauseLabel)
                             }
                             Button(intent: SkipStepIntent()) {
                                 Image(systemName: "forward.end")
@@ -76,6 +77,7 @@ struct WorkoutLiveActivity: Widget {
                                     .frame(width: 44, height: 36)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Next step")
                         }
                     }
                     .padding(.horizontal, 4)
@@ -95,6 +97,13 @@ struct WorkoutLiveActivity: Widget {
             }
         }
     }
+}
+
+/// The pause button appears on the island and the lock screen; its face and
+/// spoken name must flip together, so both come from here.
+private extension WorkoutActivityAttributes.ContentState {
+    var pauseIcon: String { paused ? "play" : "pause" }
+    var pauseLabel: String { paused ? "Play" : "Pause" }
 }
 
 private func stepTitle(_ context: ActivityViewContext<WorkoutActivityAttributes>) -> String {
@@ -146,7 +155,7 @@ private struct LockScreenView: View {
             if !context.state.finished {
                 if context.state.showsPause {
                     Button(intent: TogglePauseIntent()) {
-                        Image(systemName: context.state.paused ? "play" : "pause")
+                        Image(systemName: context.state.pauseIcon)
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(Color.stInk)
                             .frame(width: 42, height: 42)
@@ -154,6 +163,7 @@ private struct LockScreenView: View {
                                         in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(context.state.pauseLabel)
                 }
                 Button(intent: SkipStepIntent()) {
                     Image(systemName: "forward.end")
@@ -164,6 +174,7 @@ private struct LockScreenView: View {
                                     in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Next step")
             }
         }
         .padding(16)

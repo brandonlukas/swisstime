@@ -11,11 +11,36 @@ struct PrimaryButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.app(17, .medium))
+                .appFont(17, .medium)
                 .foregroundStyle(textColor)
                 .frame(maxWidth: .infinity)
-                .frame(height: 56)
+                .frame(minHeight: 56)
                 .inkButton(fill)
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+}
+
+/// The quieter sibling beside a PrimaryButton — outlined, ink text, same
+/// height and radius so a side-by-side pair reads as one control row.
+struct SecondaryButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .appFont(17, .medium)
+                .foregroundStyle(Color.ink)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 56)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.paperCardFill.opacity(0.6)))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.fieldBorder, lineWidth: 1))
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(PressableButtonStyle())
     }
@@ -51,6 +76,7 @@ struct SheetCloseButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Close")
     }
 }
 
@@ -64,13 +90,13 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
-                .font(.app(17, .medium))
+                .appFont(17, .medium)
             Text(message)
-                .font(.app(15))
-                .foregroundStyle(.secondary)
+                .appFont(15)
+                .foregroundStyle(Color.inkSecondary)
             Button(action: action) {
                 Text(buttonTitle)
-                    .font(.app(16, .medium))
+                    .appFont(16, .medium)
                     .foregroundStyle(Color.onInk)
                     .padding(.horizontal, 24)
                     .frame(height: 48)

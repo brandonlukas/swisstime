@@ -73,24 +73,24 @@ struct LabeledField: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label)
-                    .font(.app(17, .medium))
+                    .appFont(17, .medium)
                 Spacer()
                 // The cap is silent until it's near — then say where it is,
                 // so truncation never reads as a broken keyboard.
                 if let maxLength, focused, text.count >= maxLength - 8 {
                     Text("\(text.count)/\(maxLength)")
-                        .font(.app(13))
+                        .appFont(13)
                         .monospacedDigit()
                         .foregroundStyle(text.count >= maxLength
-                                         ? Color.signalRed : .secondary)
+                                         ? Color.signalRed : Color.inkSecondary)
                 }
             }
             TextField(placeholder, text: $text)
-                .font(.app(17))
+                .appFont(17)
                 .submitLabel(.done)
                 .focused($focused)
                 .padding(.horizontal, 14)
-                .frame(height: 52)
+                .frame(minHeight: 52)
                 .fieldBorder(focused: focused)
                 .onChange(of: text) { _, newValue in
                     if let maxLength, newValue.count > maxLength {
@@ -110,7 +110,7 @@ struct PickerField<Value: Hashable>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(label)
-                .font(.app(17, .medium))
+                .appFont(17, .medium)
             Menu {
                 Picker(label, selection: $selection) {
                     ForEach(options, id: \.self) { option in
@@ -120,20 +120,25 @@ struct PickerField<Value: Hashable>: View {
             } label: {
                 HStack {
                     Text(display(selection))
-                        .font(.app(17))
+                        .appFont(17)
                         .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.inkSecondary)
+                        .accessibilityHidden(true)
                 }
                 .padding(.horizontal, 14)
-                .frame(height: 52)
+                .frame(minHeight: 52)
                 .fieldBorder(focused: false)
             }
             // Opening a picker over the keyboard reads as a mistake — drop it.
             // Simultaneous, so the menu itself opens untouched.
             .simultaneousGesture(TapGesture().onEnded { hideKeyboard() })
+            // Name the pop-up after the field, not its value — two duration
+            // fields both reading "0:30, pop up button" are indistinguishable.
+            .accessibilityLabel(label)
+            .accessibilityValue(display(selection))
         }
     }
 }
@@ -146,7 +151,7 @@ struct ColorPickerRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Color")
-                .font(.app(17, .medium))
+                .appFont(17, .medium)
             HStack(spacing: 12) {
                 ForEach(Palette.all.indices, id: \.self) { index in
                     Button {
@@ -160,10 +165,13 @@ struct ColorPickerRow: View {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 15, weight: .bold))
                                         .foregroundStyle(Palette.all[index].onFill)
+                                        .accessibilityHidden(true)
                                 }
                             }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Palette.all[index].name)
+                    .accessibilityAddTraits(selection == index ? .isSelected : [])
                 }
             }
             HStack(spacing: 14) {
@@ -173,15 +181,55 @@ struct ColorPickerRow: View {
                     .transition(.opacity)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Palette.color(selection).name)
-                        .font(.app(16, .medium))
+                        .appFont(16, .medium)
                     Text(Palette.color(selection).toy.pickerLine)
-                        .font(.app(15))
-                        .foregroundStyle(.secondary)
+                        .appFont(15)
+                        .foregroundStyle(Color.inkSecondary)
                 }
                 Spacer(minLength: 0)
             }
             .padding(.top, 2)
             .animation(.easeInOut(duration: 0.22), value: selection)
+        }
+    }
+}
+
+/// The cue checklist — the exercise form and the Sets tab both present it,
+/// and sharing the shape is what keeps the two reading as one control.
+/// `enabled` uses .disabled, not hit-testing: a native Toggle stays
+/// operable by VoiceOver and Switch Control through allowsHitTesting.
+struct AlertsSection<Footnote: View>: View {
+    @Binding var halfway: Bool
+    @Binding var fiveSeconds: Bool
+    var enabled: Bool = true
+    @ViewBuilder var footnote: () -> Footnote
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Alerts")
+                .appFont(17, .medium)
+            Group {
+                ToggleRow(title: "Halfway done", isOn: $halfway)
+                ToggleRow(title: "5s left", isOn: $fiveSeconds)
+            }
+            .disabled(!enabled)
+            .opacity(enabled ? 1 : 0.4)
+            footnote()
+        }
+    }
+}
+
+/// A row of half-width fields or tiles — stacked at accessibility text
+/// sizes, where side-by-side columns can't hold their words.
+struct AdaptiveRow<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 24) { content }
+        } else {
+            HStack(alignment: .top, spacing: 12) { content }
         }
     }
 }
@@ -196,7 +244,7 @@ struct SegmentRow<Value: Hashable>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(label)
-                .font(.app(17, .medium))
+                .appFont(17, .medium)
             HStack(spacing: 10) {
                 ForEach(options, id: \.self) { option in
                     Button {
@@ -209,10 +257,10 @@ struct SegmentRow<Value: Hashable>: View {
                         hideKeyboard()
                     } label: {
                         Text(display(option))
-                            .font(.app(16, selection == option ? .medium : .regular))
+                            .appFont(16, selection == option ? .medium : .regular)
                             .foregroundStyle(selection == option ? Color.onInk : Color.ink)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 46)
+                            .frame(minHeight: 46)
                             .background(
                                 selection == option ? Color.ink : .clear,
                                 in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -232,34 +280,26 @@ struct SegmentRow<Value: Hashable>: View {
     }
 }
 
-/// Flips on touch-DOWN, not finger-up — a checkbox should feel like a
-/// physical switch, and waiting out a full tap in a scroll view reads as
-/// lag. A zero-distance drag is the touch-down hook SwiftUI doesn't offer.
-struct CheckboxRow: View {
+/// The system switch, ink-tinted. It replaced a hand-drawn printed
+/// checkbox (Brandon's call, 2026-07-05): the native control brings its
+/// whole platform contract free — VoiceOver, Voice Control, Switch
+/// Control, the flick gesture, Dynamic Type, RTL — where the checkbox
+/// needed custom gesture code and an accessibility shim to approximate it.
+struct ToggleRow: View {
     let title: String
     @Binding var isOn: Bool
-    @State private var touchDown = false
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: isOn ? "checkmark.square" : "square")
-                .font(.system(size: 22, weight: .light))
-            Text(title)
-                .font(.app(17))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    guard !touchDown else { return }
-                    touchDown = true
-                    isOn.toggle()
-                    Haptics.selection()
-                    hideKeyboard()
-                }
-                .onEnded { _ in touchDown = false }
-        )
+        Toggle(title, isOn: $isOn)
+            .appFont(17)
+            .tint(Color.ink)
+            // No app-side haptic: the switch ticks on its own (device-
+            // verified), governed by the system's own haptics setting —
+            // ours added nothing a finger could tell apart and couldn't
+            // be silenced by the app's Haptics toggle anyway.
+            .onChange(of: isOn) { _, _ in
+                hideKeyboard()
+            }
     }
 }
 
@@ -302,8 +342,8 @@ struct WorkoutFormView: View {
                 Text(kind == .timed
                      ? "Plays step by step, with a timer and voice cues."
                      : "Done at your own pace, logged with a tap — the Sets tab can count sets and time rest.")
-                    .font(.app(14))
-                    .foregroundStyle(.secondary)
+                    .appFont(14)
+                    .foregroundStyle(Color.inkSecondary)
             }
             ColorPickerRow(selection: $colorIndex)
         }
@@ -438,23 +478,19 @@ struct ExerciseFormView: View {
             case .timed:
                 PickerField(label: "Duration", options: durationOptions,
                             display: { Format.mmss($0) }, selection: $duration)
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Alerts")
-                        .font(.app(17, .medium))
-                    CheckboxRow(title: "Halfway done", isOn: $halfway)
-                    CheckboxRow(title: "5s left", isOn: $fiveSeconds)
+                AlertsSection(halfway: $halfway, fiveSeconds: $fiveSeconds) {
                     // Matches the player's merged-cue rule for short steps —
                     // the user hears one thing, so the form promises one thing.
                     if duration <= VoiceCueRule.minimumSpan, halfway || fiveSeconds {
                         Text("At \(Format.mmss(duration)), halfway is the 5-second mark — one “5 seconds left” plays.")
-                            .font(.app(13))
-                            .foregroundStyle(.secondary)
+                            .appFont(13)
+                            .foregroundStyle(Color.inkSecondary)
                     }
                 }
             case .untimed:
                 // No rest field: untimed exercises never play, so a target
                 // rest would be write-only — the Sets tab times rest live.
-                HStack(alignment: .top, spacing: 12) {
+                AdaptiveRow {
                     PickerField(label: "Sets", options: Array(1...12),
                                 display: { "\($0)" }, selection: $sets)
                     PickerField(label: "Reps per set", options: [0] + Array(1...50),
