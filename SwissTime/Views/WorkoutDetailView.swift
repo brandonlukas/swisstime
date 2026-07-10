@@ -98,12 +98,15 @@ struct WorkoutDetailView: View {
         // swipe, matching the lockout.
         .navigationBarBackButtonHidden(editing)
         .toolbar {
-            // The program travels as a small .lido file — a friend with
-            // Lido taps it in Messages and gets this same sheet to adopt.
-            // Nothing to share until the program has content.
+            // The program travels as a link — tappable in Messages, opens
+            // straight into the import sheet on a phone with Lido, and a
+            // web fallback without one. (Received .lido files still import;
+            // the link is just the friendlier envelope.) Nothing to share
+            // until the program has content.
             ToolbarItem(placement: .topBarTrailing) {
-                if !editing, !workout.exercises.isEmpty {
-                    ShareLink(item: WorkoutFile(workout: workout),
+                if !editing, !workout.exercises.isEmpty,
+                   let link = WorkoutLink.url(for: workout) {
+                    ShareLink(item: link,
                               preview: SharePreview(workout.title)) {
                         Image(systemName: "square.and.arrow.up")
                     }

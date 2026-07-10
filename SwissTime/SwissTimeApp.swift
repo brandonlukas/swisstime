@@ -77,6 +77,16 @@ struct SwissTimeApp: App {
                 guard url.scheme == "swisstime", url.host == "sets" else { return }
                 if url.path == "/start" { DeepLink.requestSetsStart() } else { tab = .sets }
             }
+            // A tapped workout LINK arrives as a browsing activity, not a
+            // URL open — same import gate, same sheet as the file path.
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                guard let url = activity.webpageURL else { return }
+                if let workout = WorkoutLink.workout(from: url) {
+                    importedWorkout = workout
+                } else {
+                    importFailed = true
+                }
+            }
             .sheet(item: $importedWorkout) { workout in
                 ImportWorkoutView(workout: workout) {
                     store.workouts.append(workout)
@@ -112,6 +122,16 @@ struct SwissTimeApp: App {
                    let url = try? WorkoutFile.write(starter) {
                     DebugLaunch.didAutoImport = true
                     importedWorkout = Workout.imported(from: url)
+                    importFailed = importedWorkout == nil
+                }
+                // Same idea for the link: encode a starter into the real
+                // share URL and read it back through the real parser.
+                if ProcessInfo.processInfo.arguments.contains("-autoImportLink"),
+                   !DebugLaunch.didAutoImportLink,
+                   let starter = WorkoutStore.starterWorkouts().first,
+                   let link = WorkoutLink.url(for: starter) {
+                    DebugLaunch.didAutoImportLink = true
+                    importedWorkout = WorkoutLink.workout(from: link)
                     importFailed = importedWorkout == nil
                 }
             }
