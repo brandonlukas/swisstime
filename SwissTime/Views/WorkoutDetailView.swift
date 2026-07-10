@@ -98,6 +98,18 @@ struct WorkoutDetailView: View {
         // swipe, matching the lockout.
         .navigationBarBackButtonHidden(editing)
         .toolbar {
+            // The program travels as a small .lido file — a friend with
+            // Lido taps it in Messages and gets this same sheet to adopt.
+            // Nothing to share until the program has content.
+            ToolbarItem(placement: .topBarTrailing) {
+                if !editing, !workout.exercises.isEmpty {
+                    ShareLink(item: WorkoutFile(workout: workout),
+                              preview: SharePreview(workout.title)) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Share \(workout.title)")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     withAnimation { editing.toggle() }
@@ -347,7 +359,8 @@ struct WorkoutDetailView: View {
 }
 
 /// One line of the program sheet — purely informational, no gestures.
-private struct ExerciseLine: View {
+/// Shared with the import preview, which must show exactly this sheet.
+struct ExerciseLine: View {
     let number: String
     let exercise: Exercise
 

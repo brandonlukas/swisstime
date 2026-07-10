@@ -10,6 +10,9 @@ struct SwissTimeApp: App {
     @StateObject private var store = WorkoutStore()
     @StateObject private var pond = PondStore()
     @State private var tab: AppTab
+    /// A shared .lido file that just arrived, waiting on its preview sheet.
+    @State private var importedWorkout: Workout?
+    @State private var importFailed = false
     @AppStorage(SettingsKey.theme) private var theme = ThemeChoice.system.rawValue
     @Environment(\.scenePhase) private var scenePhase
 
@@ -56,9 +59,39 @@ struct SwissTimeApp: App {
             // swisstime://sets/start — the lock-screen widget door. The
             // Control Center door is StartSetsIntent (Shared/DeepLink.swift),
             // which performs in this process and posts the same request.
+            // File URLs are the other kind of arrival: a shared .lido
+            // workout tapped in Messages/Files/AirDrop.
             .onOpenURL { url in
+                if url.isFileURL {
+                    if let workout = Workout.imported(from: url) {
+                        importedWorkout = workout
+                    } else {
+                        importFailed = true
+                    }
+                    // The system copied the file into our Inbox
+                    // (LSSupportsOpeningDocumentsInPlace is NO), and
+                    // cleanup is the app's job — read once, then gone.
+                    try? FileManager.default.removeItem(at: url)
+                    return
+                }
                 guard url.scheme == "swisstime", url.host == "sets" else { return }
                 if url.path == "/start" { DeepLink.requestSetsStart() } else { tab = .sets }
+            }
+            .sheet(item: $importedWorkout) { workout in
+                ImportWorkoutView(workout: workout) {
+                    store.workouts.append(workout)
+                    // Land where the new arrival surfaced — unless a
+                    // workout is playing; it outranks the launchers,
+                    // same as the Sets deep link below.
+                    if !PlayerEngine.isActive {
+                        tab = .workouts
+                    }
+                }
+            }
+            .alert("Couldn't read that file", isPresented: $importFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("It doesn't look like a Lido workout.")
             }
             // A running workout outranks the launchers: consume the ask
             // and stay put rather than flipping tabs under the player.
@@ -68,6 +101,19 @@ struct SwissTimeApp: App {
                     return
                 }
                 tab = .sets
+            }
+            // Debug: round-trip a starter through the real export writer
+            // and the real file-open decoder, then show the import sheet —
+            // one screenshot vouches for the whole pipe.
+            .onAppear {
+                if ProcessInfo.processInfo.arguments.contains("-autoImportWorkout"),
+                   !DebugLaunch.didAutoImport,
+                   let starter = WorkoutStore.starterWorkouts().first,
+                   let url = try? WorkoutFile.write(starter) {
+                    DebugLaunch.didAutoImport = true
+                    importedWorkout = Workout.imported(from: url)
+                    importFailed = importedWorkout == nil
+                }
             }
             // Activation net, catching both slow doors: a group-defaults
             // flag from an extension-side control press, and a latch set

@@ -37,6 +37,13 @@ struct Workout: Identifiable, Codable, Equatable {
         }
     }
 
+    /// "Timed · 3 exercises · 15 min" — the summary with its mode up
+    /// front, for rows that show a workout out of context (the sample
+    /// shelf, a shared file's preview).
+    var kindSummaryLine: String {
+        "\(kind == .timed ? "Timed" : "Sets") · \(summaryLine)"
+    }
+
     /// Distinct exercise names in order of appearance, for the list subtitle.
     var exerciseNames: [String] {
         var names: [String] = []
@@ -126,6 +133,17 @@ enum ExerciseMode: String, Codable {
 enum Presets {
     static let restDurations: [TimeInterval] = [15, 20, 30, 45, 60, 75, 90,
                                                 120, 150, 180, 240, 300]
+}
+
+/// Hard caps on user-authored text — titles and names render in cards,
+/// breadcrumbs, and the Live Activity, and unbounded text breaks them.
+/// The forms enforce these as typed; imported files are clamped to the
+/// same numbers, so the two can never drift apart.
+enum FieldLimit {
+    /// Workout titles and exercise names.
+    static let name = 40
+    /// Workout details and exercise instructions.
+    static let notes = 120
 }
 
 struct Exercise: Identifiable, Codable, Equatable {
