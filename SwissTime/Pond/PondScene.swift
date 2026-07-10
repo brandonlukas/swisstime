@@ -54,6 +54,31 @@ struct PondScene {
     let caustics: [Caustic]
     /// Where the ladder hangs over the top edge, unit x in the water rect.
     let ladderX: CGFloat
+    /// A month that outgrows the municipal pool earns the grand one: wider
+    /// water, finer tile, a far ladder and a diving board. A pure function
+    /// of the toy count, so the hero strip, the fullscreen pool, and past
+    /// months' postcards can never disagree about which pool a month earned.
+    let grand: Bool
+    /// The grand pool's second ladder, hanging over the bottom edge.
+    private let farLadderX: CGFloat
+    /// The grand pool's diving board, reaching over the top edge.
+    private let boardX: CGFloat
+    /// Everything the crowd factor scales in `draw`.
+    private let crowd: CGFloat
+
+    static let grandThreshold = 20
+
+    /// Toys share the water: past a comfortable count the whole fleet eases
+    /// down together — a heavy month reads as a busy pool, never a broken
+    /// one. The exponent is gentler than the √ that pure area-sharing
+    /// suggests (Brandon's call: a wild month should feel crowded, not
+    /// miniaturized), and the floor is a backstop the curve barely reaches.
+    /// The grand pool has more water to spend, so its fleet eases later.
+    static func crowdScale(forToyCount count: Int) -> CGFloat {
+        let comfortable: CGFloat = count >= grandThreshold ? 18 : 12
+        guard CGFloat(count) > comfortable else { return 1 }
+        return max(0.5, pow(comfortable / CGFloat(count), 0.35))
+    }
 
     /// The dry-deck grout grid never moves (unlike the underwater one, which
     /// refracts with time) — a class box so this reference-semantics cache
@@ -80,22 +105,66 @@ struct PondScene {
         }
         self.caustics = caustics
         self.ladderX = CGFloat.random(in: 0.16...0.34, using: &monthRng)
+        // The grand fixtures draw from the month RNG AFTER the standard
+        // layout, so a month crossing the threshold keeps its caustics and
+        // near ladder exactly where they were.
+        self.farLadderX = CGFloat.random(in: 0.60...0.80, using: &monthRng)
+        self.boardX = CGFloat.random(in: 0.58...0.74, using: &monthRng)
+
+        let grand = entries.count >= Self.grandThreshold
+        self.grand = grand
+        self.crowd = Self.crowdScale(forToyCount: entries.count)
 
         // One toy per finished workout, seeded by the entry itself so it
-        // keeps its spot and habits for the whole month.
+        // keeps its spot and habits for the whole month. Anchor spacing
+        // steps by tier rather than tracking the count — a count-driven
+        // spacing would resample every anchor on every new arrival, and
+        // toys are supposed to keep their spots. The one reshuffle happens
+        // at the upgrade, when everything finds new spots in the bigger
+        // pool anyway.
+        let spacing: CGFloat = grand ? 0.095 : 0.16
+        let xRange: ClosedRange<CGFloat> = grand ? 0.15...0.85 : 0.18...0.82
+        let yRange: ClosedRange<CGFloat> = grand ? 0.19...0.81 : 0.22...0.78
+        // Anchors first, every toy's rng carried over — amplitudes are
+        // budgeted against the FINISHED neighborhood below, and each
+        // entry's draw sequence must not depend on how that goes.
         var placed: [CGPoint] = []
-        self.floaters = entries.map { entry in
+        var rngs: [SeededRandom] = []
+        for entry in entries {
             var rng = SeededRandom(entry.id)
             var anchor = CGPoint(x: 0.5, y: 0.5)
             for _ in 0..<24 {
-                let candidate = CGPoint(x: CGFloat.random(in: 0.18...0.82, using: &rng),
-                                        y: CGFloat.random(in: 0.22...0.78, using: &rng))
+                let candidate = CGPoint(x: CGFloat.random(in: xRange, using: &rng),
+                                        y: CGFloat.random(in: yRange, using: &rng))
                 anchor = candidate
-                if placed.allSatisfy({ hypot($0.x - candidate.x, $0.y - candidate.y) > 0.16 }) {
+                if placed.allSatisfy({ hypot($0.x - candidate.x, $0.y - candidate.y) > spacing }) {
                     break
                 }
             }
             placed.append(anchor)
+            rngs.append(rng)
+        }
+        self.floaters = entries.enumerated().map { index, entry in
+            var rng = rngs[index]
+            let anchor = placed[index]
+            // Wander budget: a toy hemmed in jiggles near home — there's
+            // no room in a packed pool, and ideal paths that sweep
+            // THROUGH a crowd are what made resolved clusters pinwheel
+            // (the bump pass must invent big corrections, and with three
+            // or more bodies those corrections spin). Pinwheeling needs
+            // three bodies, so the budget watches the SECOND-nearest
+            // anchor: a close pair in open water still roams — their
+            // crossings resolve pairwise — while a toy with two close
+            // neighbors stays home.
+            var nearest = CGFloat.greatestFiniteMagnitude
+            var second = CGFloat.greatestFiniteMagnitude
+            for (j, other) in placed.enumerated() where j != index {
+                let d = hypot(other.x - anchor.x, other.y - anchor.y)
+                if d < nearest { second = nearest; nearest = d }
+                else if d < second { second = d }
+            }
+            let wanderCap = second == .greatestFiniteMagnitude
+                ? 1 : max(0.06, 0.85 * second)
 
             let kind = Palette.toy(for: entry.colorIndex)
             // Vinyl drifts at the water's pace; only the duck has any hustle.
@@ -108,8 +177,8 @@ struct PondScene {
             case .flamingo: tempo = 0.65
             case .lilo: tempo = 0.5
             }
-            let maxAx = max(0.02, min(anchor.x - 0.10, 0.90 - anchor.x))
-            let maxAy = max(0.02, min(anchor.y - 0.12, 0.88 - anchor.y))
+            let maxAx = min(wanderCap, max(0.02, min(anchor.x - 0.10, 0.90 - anchor.x)))
+            let maxAy = min(wanderCap, max(0.02, min(anchor.y - 0.12, 0.88 - anchor.y)))
             return Floater(
                 kind: kind,
                 shiny: entry.isShiny,
@@ -139,16 +208,23 @@ struct PondScene {
 
     func draw(in context: GraphicsContext, size: CGSize, time: TimeInterval, detail: Detail,
               night: Bool = false, glints: Bool = true) {
-        let deckInset: CGFloat = detail == .hero ? 12 : 22
+        // The grand pool is the same card zoomed out: the deck pulls back,
+        // the tiles read finer, and the toys sit a notch smaller — more
+        // water, in the only way a fixed postcard can grant it. One row
+        // per (detail, tier) cell, so the zoom can't half-apply.
+        let (deckInset, tile, cornerRadius, toySize): (CGFloat, CGFloat, CGFloat, CGFloat)
+        switch (detail, grand) {
+        case (.hero, false): (deckInset, tile, cornerRadius, toySize) = (12, 22, 10, 0.85)
+        case (.hero, true):  (deckInset, tile, cornerRadius, toySize) = (8, 17, 8, 0.72)
+        case (.full, false): (deckInset, tile, cornerRadius, toySize) = (22, 28, 14, 1.0)
+        case (.full, true):  (deckInset, tile, cornerRadius, toySize) = (13, 21, 11, 0.85)
+        }
         let waterRect = CGRect(origin: .zero, size: size)
             .insetBy(dx: deckInset, dy: deckInset)
         guard waterRect.width > 40, waterRect.height > 40 else { return }
-        let tile: CGFloat = detail == .hero ? 22 : 28
-        let cornerRadius: CGFloat = detail == .hero ? 10 : 14
         let waterPath = Path(roundedRect: waterRect, cornerRadius: cornerRadius,
                              style: .continuous)
-        let crowd: CGFloat = floaters.count > 14 ? 0.8 : 1.0
-        let toyScale = (detail == .hero ? 0.85 : 1.0) * crowd
+        let toyScale = toySize * crowd
 
         // Dry deck: pale tile with straight grout, edge to edge. Static
         // while the view is on screen, so the sampled path is cached rather
@@ -190,10 +266,12 @@ struct PondScene {
         lifted.translateBy(x: 1.5, y: 1.5)
         lifted.stroke(wetGrout, with: .color(.white.opacity(0.14)), lineWidth: 1.2)
 
-        // At night the pool is lit from below: two underwater lamps glow
-        // through the water, anchored to the pool, steady like fixtures.
+        // At night the pool is lit from below: underwater lamps glow
+        // through the water, anchored to the pool, steady like fixtures —
+        // the grand pool runs to a third.
         if night {
-            for (ux, uy) in [(0.28, 0.30), (0.74, 0.72)] {
+            let lamps = [(0.28, 0.30), (0.74, 0.72)] + (grand ? [(0.26, 0.78)] : [])
+            for (ux, uy) in lamps {
                 let center = CGPoint(x: waterRect.minX + ux * waterRect.width,
                                      y: waterRect.minY + uy * waterRect.height)
                 water.fill(
@@ -246,33 +324,78 @@ struct PondScene {
         // motion stays a pure function of time — no simulation state.
         var positions = floaters.map { point($0.unitPosition(at: time)) }
         let radii = floaters.map { Self.bumpRadius($0.kind) * toyScale }
+        let fixtureScale: CGFloat = detail == .hero ? 0.8 : 1.0
         if !positions.isEmpty {
-            let ladderScale: CGFloat = detail == .hero ? 0.8 : 1.0
-            let ladderPoint = CGPoint(x: waterRect.minX + ladderX * waterRect.width,
-                                      y: waterRect.minY + 14 * ladderScale)
-            let ladderRadius = 16 * ladderScale
-            for _ in 0..<3 {
+            var fixtures = [(point: CGPoint(x: waterRect.minX + ladderX * waterRect.width,
+                                            y: waterRect.minY + 14 * fixtureScale),
+                             radius: 16 * fixtureScale)]
+            if grand {
+                fixtures.append((CGPoint(x: waterRect.minX + farLadderX * waterRect.width,
+                                         y: waterRect.maxY - 14 * fixtureScale),
+                                 16 * fixtureScale))
+                fixtures.append((CGPoint(x: waterRect.minX + boardX * waterRect.width,
+                                         y: waterRect.minY + 24 * fixtureScale),
+                                 15 * fixtureScale))
+            }
+            // A fuller pool needs a couple more passes to settle its bumps.
+            for _ in 0..<(floaters.count > 18 ? 5 : 3) {
                 for i in positions.indices {
                     for j in positions.indices where j > i {
+                        // Squared-distance rejection: at 60 toys this test
+                        // runs ~1,800 times per pass per frame and nearly
+                        // always says "no overlap" — the sqrt is deferred
+                        // to the few pairs actually touching.
                         let dx = positions[j].x - positions[i].x
                         let dy = positions[j].y - positions[i].y
-                        let dist = max(0.001, hypot(dx, dy))
                         let minDist = radii[i] + radii[j]
-                        guard dist < minDist else { continue }
+                        let distSquared = dx * dx + dy * dy
+                        guard distSquared < minDist * minDist else { continue }
+                        let dist = max(0.001, distSquared.squareRoot())
+                        // Parting direction: a glancing bump parts straight
+                        // apart. But when two ideal paths cross THROUGH
+                        // each other, the apart-vector flips 180° and spins
+                        // fast near the crossing — the pair pirouettes.
+                        // So the direction blends toward the pair's fixed
+                        // anchor axis as the overlap deepens: each toy
+                        // gives way toward its own patch of water, a
+                        // bump-and-slide with no orbit, and still a pure
+                        // function of time. (Coincident anchors — never
+                        // seen, but nothing forbids them — just keep the
+                        // straight-apart direction.)
+                        var dirX = dx / dist
+                        var dirY = dy / dist
+                        let blend = 1 - dist / minDist
+                        var ax = (floaters[j].anchor.x - floaters[i].anchor.x)
+                            * waterRect.width
+                        var ay = (floaters[j].anchor.y - floaters[i].anchor.y)
+                            * waterRect.height
+                        let anchorSpan = (ax * ax + ay * ay).squareRoot()
+                        if anchorSpan > 0.001 {
+                            ax /= anchorSpan
+                            ay /= anchorSpan
+                            dirX = dirX * (1 - blend) + ax * blend
+                            dirY = dirY * (1 - blend) + ay * blend
+                            let length = max(0.001, (dirX * dirX + dirY * dirY).squareRoot())
+                            dirX /= length
+                            dirY /= length
+                        }
                         let push = (minDist - dist) / 2
-                        positions[i].x -= dx / dist * push
-                        positions[i].y -= dy / dist * push
-                        positions[j].x += dx / dist * push
-                        positions[j].y += dy / dist * push
+                        positions[i].x -= dirX * push
+                        positions[i].y -= dirY * push
+                        positions[j].x += dirX * push
+                        positions[j].y += dirY * push
                     }
-                    // The ladder doesn't give way — toys shy off it whole.
-                    let dx = positions[i].x - ladderPoint.x
-                    let dy = positions[i].y - ladderPoint.y
-                    let dist = max(0.001, hypot(dx, dy))
-                    let minDist = radii[i] + ladderRadius
-                    if dist < minDist {
-                        positions[i].x += dx / dist * (minDist - dist)
-                        positions[i].y += dy / dist * (minDist - dist)
+                    // Fixtures don't give way — toys shy off them whole.
+                    for fixture in fixtures {
+                        let dx = positions[i].x - fixture.point.x
+                        let dy = positions[i].y - fixture.point.y
+                        let minDist = radii[i] + fixture.radius
+                        let distSquared = dx * dx + dy * dy
+                        if distSquared < minDist * minDist {
+                            let dist = max(0.001, distSquared.squareRoot())
+                            positions[i].x += dx / dist * (minDist - dist)
+                            positions[i].y += dy / dist * (minDist - dist)
+                        }
                     }
                 }
             }
@@ -328,7 +451,13 @@ struct PondScene {
         }
 
         drawLadder(in: context, water: water, waterRect: waterRect,
-                   scale: detail == .hero ? 0.8 : 1.0)
+                   unitX: ladderX, scale: fixtureScale)
+        if grand {
+            drawLadder(in: context, water: water, waterRect: waterRect,
+                       unitX: farLadderX, scale: fixtureScale, bottomEdge: true)
+            drawBoard(in: context, water: water, waterRect: waterRect,
+                      scale: fixtureScale)
+        }
     }
 
     /// How close another toy can drift before this one gives way, in points
@@ -387,45 +516,83 @@ struct PondScene {
         1.8 * sin(across / 17 + along / 41 + time * 0.55)
     }
 
-    /// Chrome ladder hanging over the top edge — rails bright on the deck,
-    /// dimmed where they continue underwater.
+    /// Chrome ladder hanging over an edge — rails bright on the deck,
+    /// dimmed where they continue underwater. The standard pool hangs one
+    /// over the top edge; the grand pool answers with a far ladder over
+    /// the bottom.
     private func drawLadder(in context: GraphicsContext, water: GraphicsContext,
-                            waterRect: CGRect, scale: CGFloat) {
-        let x = waterRect.minX + ladderX * waterRect.width
+                            waterRect: CGRect, unitX: CGFloat, scale: CGFloat,
+                            bottomEdge: Bool = false) {
+        let x = waterRect.minX + unitX * waterRect.width
         let gap = 14 * scale
         let above = 12 * scale
         let below = 30 * scale
+        let edgeY = bottomEdge ? waterRect.maxY : waterRect.minY
+        // Unit step toward the deck; the water lies the other way.
+        let deck: CGFloat = bottomEdge ? 1 : -1
         let chrome = Color(red: 0.93, green: 0.96, blue: 0.99)
 
         // The rails' sun shadow on the deck seats them in the scene.
         var shadow = Path()
         for railX in [x - gap / 2, x + gap / 2] {
-            shadow.move(to: CGPoint(x: railX + 2.5, y: waterRect.minY - above + 3))
-            shadow.addLine(to: CGPoint(x: railX + 2.5, y: waterRect.minY))
+            shadow.move(to: CGPoint(x: railX + 2.5, y: edgeY + deck * above + 3))
+            shadow.addLine(to: CGPoint(x: railX + 2.5, y: edgeY))
         }
-        shadow.move(to: CGPoint(x: x - gap / 2 + 2.5, y: waterRect.minY - above + 3))
-        shadow.addLine(to: CGPoint(x: x + gap / 2 + 2.5, y: waterRect.minY - above + 3))
+        shadow.move(to: CGPoint(x: x - gap / 2 + 2.5, y: edgeY + deck * above + 3))
+        shadow.addLine(to: CGPoint(x: x + gap / 2 + 2.5, y: edgeY + deck * above + 3))
         context.stroke(shadow, with: .color(.black.opacity(0.13)),
                        style: StrokeStyle(lineWidth: 3 * scale, lineCap: .round))
 
         for railX in [x - gap / 2, x + gap / 2] {
             var sunk = Path()
-            sunk.move(to: CGPoint(x: railX, y: waterRect.minY))
-            sunk.addLine(to: CGPoint(x: railX, y: waterRect.minY + below))
+            sunk.move(to: CGPoint(x: railX, y: edgeY))
+            sunk.addLine(to: CGPoint(x: railX, y: edgeY - deck * below))
             water.stroke(sunk, with: .color(chrome.opacity(0.6)),
                          style: StrokeStyle(lineWidth: 3.4 * scale, lineCap: .round))
 
             var rail = Path()
-            rail.move(to: CGPoint(x: railX, y: waterRect.minY - above))
-            rail.addLine(to: CGPoint(x: railX, y: waterRect.minY + 1))
+            rail.move(to: CGPoint(x: railX, y: edgeY + deck * above))
+            rail.addLine(to: CGPoint(x: railX, y: edgeY - deck * 1))
             context.stroke(rail, with: .color(chrome),
                            style: StrokeStyle(lineWidth: 3.4 * scale, lineCap: .round))
         }
         var rung = Path()
-        rung.move(to: CGPoint(x: x - gap / 2, y: waterRect.minY - above))
-        rung.addLine(to: CGPoint(x: x + gap / 2, y: waterRect.minY - above))
+        rung.move(to: CGPoint(x: x - gap / 2, y: edgeY + deck * above))
+        rung.addLine(to: CGPoint(x: x + gap / 2, y: edgeY + deck * above))
         context.stroke(rung, with: .color(chrome),
                        style: StrokeStyle(lineWidth: 3 * scale, lineCap: .round))
+    }
+
+    /// The grand pool's diving board from above: a pale plank anchored on
+    /// the deck, reaching out over the water, its shadow cast below.
+    private func drawBoard(in context: GraphicsContext, water: GraphicsContext,
+                           waterRect: CGRect, scale: CGFloat) {
+        let x = waterRect.minX + boardX * waterRect.width
+        let width = 15 * scale
+        let back = waterRect.minY - 10 * scale
+        let tip = waterRect.minY + 28 * scale
+        let plank = Path(roundedRect: CGRect(x: x - width / 2, y: back,
+                                             width: width, height: tip - back),
+                         cornerRadius: width * 0.35)
+
+        // Its shadow falls with the toys' sun, only onto the water — the
+        // clipped context loses the deck half, which reads as the plank
+        // sitting close over the tile.
+        var shadow = water
+        shadow.translateBy(x: 4 * scale, y: 6 * scale)
+        shadow.fill(plank, with: .color(.black.opacity(0.13)))
+
+        context.fill(plank, with: .color(Color(red: 0.97, green: 0.96, blue: 0.93)))
+        context.stroke(plank, with: .color(.black.opacity(0.14)), lineWidth: 1)
+        // Grip treads across the reach.
+        var treads = Path()
+        for step in 1...3 {
+            let y = waterRect.minY + CGFloat(step) * 7 * scale
+            treads.move(to: CGPoint(x: x - width / 2 + 2.5 * scale, y: y))
+            treads.addLine(to: CGPoint(x: x + width / 2 - 2.5 * scale, y: y))
+        }
+        context.stroke(treads, with: .color(.black.opacity(0.10)),
+                       lineWidth: 1.2 * scale)
     }
 
     private func drawRipple(in context: GraphicsContext, at point: CGPoint,

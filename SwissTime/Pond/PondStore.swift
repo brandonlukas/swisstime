@@ -10,7 +10,7 @@ final class PondStore: ObservableObject {
     private var loaded = false
     /// Debug-seeded runs never save: one recorded completion in a seeded
     /// session would otherwise overwrite the real file with the fakes.
-    private let seeded = ProcessInfo.processInfo.arguments.contains("-seedPond")
+    private let seeded: Bool
     private let fileURL: URL
 
     init() {
@@ -20,9 +20,14 @@ final class PondStore: ObservableObject {
            let decoded = try? JSONDecoder().decode([PondEntry].self, from: data) {
             entries = decoded
         }
-        // Debug: fake a populated pond (this month + history) for UI verification.
+        // Debug: fake a populated pond (this month + history) for UI
+        // verification; the crowded variant pushes this month past the
+        // grand-pool threshold.
+        let arguments = ProcessInfo.processInfo.arguments
+        let crowded = arguments.contains("-seedPondCrowded")
+        seeded = arguments.contains("-seedPond") || crowded
         if seeded {
-            entries = Self.sampleEntries()
+            entries = Self.sampleEntries(crowded: crowded)
         }
         loaded = true
     }
@@ -104,7 +109,7 @@ final class PondStore: ObservableObject {
 
     /// Deterministic fakes: fixed IDs keep seeded pond layouts identical
     /// between launches, so screenshots can be compared.
-    private static func sampleEntries() -> [PondEntry] {
+    private static func sampleEntries(crowded: Bool) -> [PondEntry] {
         let calendar = Calendar.current
         func entry(_ ordinal: Int, monthsAgo: Int, day: Int, colorIndex: Int) -> PondEntry? {
             guard let base = calendar.date(byAdding: .month, value: -monthsAgo, to: Date()),
@@ -128,6 +133,14 @@ final class PondStore: ObservableObject {
         }
         result += lastMonth.enumerated().compactMap { index, item in
             entry(index + 100, monthsAgo: 1, day: item.day, colorIndex: item.colorIndex)
+        }
+        // The heavy month: 24 more this-month finishes (32 total), well past
+        // the grand-pool threshold. Future days clamp to now inside entry().
+        if crowded {
+            result += (0..<24).compactMap { index in
+                entry(300 + index, monthsAgo: 0, day: 1 + index % 28,
+                      colorIndex: index % 6)
+            }
         }
         // One journaled entry, so the logbook's note row can be verified,
         // and a couple of gilded ones for the shiny art.
