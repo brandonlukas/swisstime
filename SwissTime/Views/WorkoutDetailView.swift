@@ -43,15 +43,9 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                Circle()
-                    .fill(workout.palette.fill)
-                    .frame(width: 16, height: 16)
-                    .padding(.bottom, 10)
-                PageHeader(title: workout.title, size: 24)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
+            WorkoutMasthead(workout: workout)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
             if editing {
                 editList
             } else {

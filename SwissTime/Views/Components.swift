@@ -61,6 +61,23 @@ struct PageHeader: View {
     }
 }
 
+/// The workout's identity block — its palette dot over the poster title.
+/// Shared by the detail screen and the import preview, which must always
+/// read as the same printed sheet (like ExerciseLine, for the same reason).
+struct WorkoutMasthead: View {
+    let workout: Workout
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Circle()
+                .fill(workout.palette.fill)
+                .frame(width: 16, height: 16)
+                .padding(.bottom, 10)
+            PageHeader(title: workout.title, size: 24)
+        }
+    }
+}
+
 /// The sheet-corner X with a full 44 pt target, anchored so the glyph sits
 /// where a bare icon would — a lone glyph's transparent pixels don't
 /// hit-test, and the glyph alone is far under the minimum tap size.
