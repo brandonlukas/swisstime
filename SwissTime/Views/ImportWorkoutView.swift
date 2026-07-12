@@ -16,12 +16,9 @@ struct ImportWorkoutView: View {
             onAdd()
         }) {
             VStack(alignment: .leading, spacing: 0) {
-                Circle()
-                    .fill(workout.palette.fill)
-                    .frame(width: 16, height: 16)
-                    .padding(.bottom, 10)
-                PageHeader(title: workout.title.isEmpty ? "Workout" : workout.title,
-                           size: 24)
+                // The import gate guarantees a non-empty title, so the
+                // masthead needs no fallback here.
+                WorkoutMasthead(workout: workout)
                     .padding(.bottom, 12)
                 if !workout.details.isEmpty {
                     Text(workout.details)
