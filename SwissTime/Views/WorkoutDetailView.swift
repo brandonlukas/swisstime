@@ -31,6 +31,7 @@ struct WorkoutDetailView: View {
     @State private var editing = false
     @State private var sheet: DetailSheet?
     @State private var playing = false
+    @State private var linkTooLong = false
     @State private var ceremony: CompletionCeremony?
     /// Set by the delete confirmation; acted on once its sheet is gone,
     /// so the pop-back never races the dismissing sheet.
@@ -42,15 +43,9 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                Circle()
-                    .fill(workout.palette.fill)
-                    .frame(width: 16, height: 16)
-                    .padding(.bottom, 10)
-                PageHeader(title: workout.title, size: 24)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
+            WorkoutMasthead(workout: workout)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
             if editing {
                 editList
             } else {
@@ -98,6 +93,30 @@ struct WorkoutDetailView: View {
         // swipe, matching the lockout.
         .navigationBarBackButtonHidden(editing)
         .toolbar {
+            // The program travels as a link — tappable in Messages, opens
+            // straight into the import sheet on a phone with Lido, and a
+            // web fallback without one. A program too big for a Messages-
+            // safe link can't be shared at all; the button says so
+            // instead of vanishing. Nothing to share until the program
+            // has content.
+            ToolbarItem(placement: .topBarTrailing) {
+                if !editing, !workout.exercises.isEmpty {
+                    if let link = WorkoutLink.messageSafeURL(for: workout) {
+                        ShareLink(item: link,
+                                  preview: SharePreview(workout.title)) {
+                            shareIcon
+                        }
+                        .accessibilityLabel("Share \(workout.title)")
+                    } else {
+                        Button {
+                            linkTooLong = true
+                        } label: {
+                            shareIcon
+                        }
+                        .accessibilityLabel("Share \(workout.title)")
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     withAnimation { editing.toggle() }
@@ -130,6 +149,13 @@ struct WorkoutDetailView: View {
                     },
                 ])
             }
+        }
+        // The support page (brandonlukas.github.io/lido/support) explains
+        // this same limit — if the behavior changes, both copies move.
+        .alert("Too big to share", isPresented: $linkTooLong) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Workouts travel as links, and this one doesn't fit. Trimming exercises or instructions lets it travel.")
         }
         .fullScreenCover(isPresented: $playing) {
             PlayerView(workout: workout)
@@ -174,6 +200,11 @@ struct WorkoutDetailView: View {
                 startSession()
             }
         }
+    }
+
+    /// Both share envelopes wear the same button.
+    private var shareIcon: some View {
+        Image(systemName: "square.and.arrow.up")
     }
 
     /// The untimed completion: they said they did it — toy earned. Any
@@ -347,7 +378,8 @@ struct WorkoutDetailView: View {
 }
 
 /// One line of the program sheet — purely informational, no gestures.
-private struct ExerciseLine: View {
+/// Shared with the import preview, which must show exactly this sheet.
+struct ExerciseLine: View {
     let number: String
     let exercise: Exercise
 

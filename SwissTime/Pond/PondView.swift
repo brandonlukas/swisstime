@@ -109,6 +109,13 @@ private struct PondPage: View, Equatable {
                     .appFont(15)
                     .foregroundStyle(Color.inkSecondary)
                     .padding(.top, 20)
+            } else if isCurrent, entries.count >= PondScene.grandThreshold {
+                // The month outgrew the municipal pool — the caption keeps
+                // the upgrade named for as long as the grand pool is up.
+                Text("Looks like you needed a bigger pool.")
+                    .appFont(15)
+                    .foregroundStyle(Color.inkSecondary)
+                    .padding(.top, 20)
             } else if isCurrent, !hasHistory {
                 Text("Past months will collect here.")
                     .appFont(13)

@@ -37,6 +37,15 @@ struct Workout: Identifiable, Codable, Equatable {
         }
     }
 
+    /// "Timed · 3 exercises · 15 min" — the summary with its mode up
+    /// front, for rows that show a workout out of context (the sample
+    /// shelf, a shared workout's preview). The kind is named exactly as
+    /// the Type picker names it — "Untimed", never "Sets", which
+    /// belongs to the Sets tab alone.
+    var kindSummaryLine: String {
+        "\(kind == .timed ? "Timed" : "Untimed") · \(summaryLine)"
+    }
+
     /// Distinct exercise names in order of appearance, for the list subtitle.
     var exerciseNames: [String] {
         var names: [String] = []
@@ -54,6 +63,10 @@ struct Workout: Identifiable, Codable, Equatable {
 }
 
 extension Workout {
+    // ⚠️ These keys (and the field defaults) are also decoded by the
+    // share fallback page — lido/w.html in the brandonlukas.github.io
+    // repo — which renders shared workouts for people without Lido.
+    // Key or default changes must land there too.
     enum CodingKeys: String, CodingKey {
         case id, title, details, kind, lastPlayedAt, createdAt, colorIndex
         // The key predates the rename; files on disk keep it.
@@ -128,6 +141,17 @@ enum Presets {
                                                 120, 150, 180, 240, 300]
 }
 
+/// Hard caps on user-authored text — titles and names render in cards,
+/// breadcrumbs, and the Live Activity, and unbounded text breaks them.
+/// The forms enforce these as typed; imported files are clamped to the
+/// same numbers, so the two can never drift apart.
+enum FieldLimit {
+    /// Workout titles and exercise names.
+    static let name = 40
+    /// Workout details and exercise instructions.
+    static let notes = 120
+}
+
 struct Exercise: Identifiable, Codable, Equatable {
     var id = UUID()
     var name: String
@@ -175,6 +199,10 @@ extension Exercise {
     }
 
     /// Lenient decoding so pre-sets files (and pre-pond seeds) still open.
+    /// ⚠️ These fallbacks are also the WIRE defaults for shared links —
+    /// TravelExercise (WorkoutTransfer.swift) omits fields that equal
+    /// them, and w.html renders them — so they are frozen: changing one
+    /// silently mutates every shared workout in transit.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()

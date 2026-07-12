@@ -332,9 +332,9 @@ struct WorkoutFormView: View {
             onSubmit: submit
         ) {
             LabeledField(label: "Title", placeholder: "Title", text: $title,
-                         maxLength: 40)
+                         maxLength: FieldLimit.name)
             LabeledField(label: "Description", placeholder: "Optional description",
-                         text: $details, maxLength: 120)
+                         text: $details, maxLength: FieldLimit.notes)
             VStack(alignment: .leading, spacing: 10) {
                 SegmentRow(label: "Type", options: [WorkoutKind.timed, .untimed],
                            display: { $0 == .timed ? "Timed" : "Untimed" },
@@ -471,9 +471,9 @@ struct ExerciseFormView: View {
             onSubmit: submit
         ) {
             LabeledField(label: "Name", placeholder: "Exercise name", text: $name,
-                         maxLength: 40)
+                         maxLength: FieldLimit.name)
             LabeledField(label: "Instructions", placeholder: "Optional instructions",
-                         text: $instructions, maxLength: 120)
+                         text: $instructions, maxLength: FieldLimit.notes)
             switch kind {
             case .timed:
                 PickerField(label: "Duration", options: durationOptions,

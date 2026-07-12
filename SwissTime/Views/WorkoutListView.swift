@@ -208,7 +208,7 @@ struct WorkoutListView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(sample.title)
                     .appFont(15, .semibold)
-                Text("\(sample.kind == .timed ? "Timed" : "Sets") · \(sample.summaryLine)")
+                Text(sample.kindSummaryLine)
                     .appFont(12)
                     .foregroundStyle(Color.inkSecondary)
             }
