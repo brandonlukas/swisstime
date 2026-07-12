@@ -115,30 +115,12 @@ enum WorkoutLink {
     }
 }
 
-/// ShareLink's item when the program fits a Messages-safe link: one
-/// share, two envelopes. Destinations that speak text take the link
-/// (Messages, Mail — listed first, so preferred); destinations that
-/// want a document (Save to Files) take the .lido file. Both decode
-/// through the same import gate. Oversize programs share a bare
-/// WorkoutFile instead — no link to split.
-struct WorkoutShare: Transferable {
-    let workout: Workout
-    let link: URL
-
-    init?(workout: Workout) {
-        guard let link = WorkoutLink.messageSafeURL(for: workout) else { return nil }
-        self.workout = workout
-        self.link = link
-    }
-
-    static var transferRepresentation: some TransferRepresentation {
-        ProxyRepresentation(exporting: \.link)
-        FileRepresentation(exportedContentType: .lidoWorkout) { share in
-            SentTransferredFile(try WorkoutFile.write(share.workout),
-                                allowAccessingOriginalFile: false)
-        }
-    }
-}
+// A share item carrying BOTH a link proxy and a file representation was
+// tried and reverted (2026-07-11): representation order is a global
+// preference, not per-destination matching — Files happily takes a URL
+// (saving a bookmark), so no ordering serves link-to-Messages and
+// file-to-Files from one item. The share button shares the link; the
+// deliberate file export lives in the workout's edit list.
 
 extension Workout {
     /// The most exercises a shared workout may carry — far past any

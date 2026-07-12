@@ -39,9 +39,11 @@ struct Workout: Identifiable, Codable, Equatable {
 
     /// "Timed · 3 exercises · 15 min" — the summary with its mode up
     /// front, for rows that show a workout out of context (the sample
-    /// shelf, a shared file's preview).
+    /// shelf, a shared workout's preview). The kind is named exactly as
+    /// the Type picker names it — "Untimed", never "Sets", which
+    /// belongs to the Sets tab alone.
     var kindSummaryLine: String {
-        "\(kind == .timed ? "Timed" : "Sets") · \(summaryLine)"
+        "\(kind == .timed ? "Timed" : "Untimed") · \(summaryLine)"
     }
 
     /// Distinct exercise names in order of appearance, for the list subtitle.

@@ -105,8 +105,8 @@ struct WorkoutDetailView: View {
             // never broken. Nothing to share until the program has content.
             ToolbarItem(placement: .topBarTrailing) {
                 if !editing, !workout.exercises.isEmpty {
-                    if let share = WorkoutShare(workout: workout) {
-                        ShareLink(item: share,
+                    if let link = WorkoutLink.messageSafeURL(for: workout) {
+                        ShareLink(item: link,
                                   preview: SharePreview(workout.title)) {
                             shareIcon
                         }
@@ -328,6 +328,15 @@ struct WorkoutDetailView: View {
                 } label: {
                     Text("Edit title & description")
                         .appFont(16)
+                }
+                // The archival copy — Save to Files gets a real .lido
+                // here, which the share button's link can't give it.
+                if !workout.exercises.isEmpty {
+                    ShareLink(item: WorkoutFile(workout: workout),
+                              preview: SharePreview(workout.title)) {
+                        Text("Export as a file")
+                            .appFont(16)
+                    }
                 }
                 Button(role: .destructive) {
                     sheet = .confirmDelete
