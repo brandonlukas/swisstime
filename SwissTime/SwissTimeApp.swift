@@ -10,7 +10,7 @@ struct SwissTimeApp: App {
     @StateObject private var store = WorkoutStore()
     @StateObject private var pond = PondStore()
     @State private var tab: AppTab
-    /// A shared .lido file that just arrived, waiting on its preview sheet.
+    /// A shared workout that just arrived, waiting on its preview sheet.
     @State private var importedWorkout: Workout?
     @State private var importFailed = false
     @AppStorage(SettingsKey.theme) private var theme = ThemeChoice.system.rawValue
@@ -37,8 +37,8 @@ struct SwissTimeApp: App {
                      || arguments.contains("-autoStartSets") ? .sets : .workouts)
     }
 
-    /// Every door a shared workout arrives through — file open, link
-    /// open, browsing activity, debug hooks — ends here. An import
+    /// Every door a shared workout arrives through — link open,
+    /// browsing activity, the debug hook — ends here. An import
     /// already on screen wins over a second delivery of the same tap
     /// (universal links can knock on two doors at once).
     private func receive(_ workout: Workout?) {
@@ -72,22 +72,12 @@ struct SwissTimeApp: App {
             // swisstime://sets/start — the lock-screen widget door. The
             // Control Center door is StartSetsIntent (Shared/DeepLink.swift),
             // which performs in this process and posts the same request.
-            // File URLs are the other kind of arrival: a shared .lido
-            // workout tapped in Messages/Files/AirDrop.
             .onOpenURL { url in
-                if url.isFileURL {
-                    receive(Workout.imported(from: url))
-                    // The system copied the file into our Inbox
-                    // (LSSupportsOpeningDocumentsInPlace is NO), and
-                    // cleanup is the app's job — read once, then gone.
-                    try? FileManager.default.removeItem(at: url)
-                    return
-                }
-                // Universal links land HERE in the SwiftUI lifecycle —
-                // not only in the browsing-activity handler below (kept
-                // for deliveries that do take that path). Only workout
-                // links are answered; the app stays mute on anything
-                // else from the associated domain.
+                // Universal links (shared workouts) land HERE in the
+                // SwiftUI lifecycle — not only in the browsing-activity
+                // handler below (kept for deliveries that do take that
+                // path). Only workout links are answered; the app stays
+                // mute on anything else from the associated domain.
                 if WorkoutLink.matches(url) {
                     receive(WorkoutLink.workout(from: url))
                     return
@@ -116,7 +106,7 @@ struct SwissTimeApp: App {
             .alert("Couldn't open that workout", isPresented: $importFailed) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("The link or file doesn't hold a Lido workout.")
+                Text("This link doesn't hold a Lido workout.")
             }
             // A running workout outranks the launchers: consume the ask
             // and stay put rather than flipping tabs under the player.
@@ -127,19 +117,10 @@ struct SwissTimeApp: App {
                 }
                 tab = .sets
             }
-            // Debug: round-trip a starter through the real export writer
-            // and the real file-open decoder, then show the import sheet —
+            // Debug: encode a starter into the real share URL, read it
+            // back through the real parser, and show the import sheet —
             // one screenshot vouches for the whole pipe.
             .onAppear {
-                if ProcessInfo.processInfo.arguments.contains("-autoImportWorkout"),
-                   !DebugLaunch.didAutoImport,
-                   let starter = WorkoutStore.starterWorkouts().first,
-                   let url = try? WorkoutFile.write(starter) {
-                    DebugLaunch.didAutoImport = true
-                    receive(Workout.imported(from: url))
-                }
-                // Same idea for the link: encode a starter into the real
-                // share URL and read it back through the real parser.
                 if ProcessInfo.processInfo.arguments.contains("-autoImportLink"),
                    !DebugLaunch.didAutoImportLink,
                    let starter = WorkoutStore.starterWorkouts().first,

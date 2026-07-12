@@ -1,45 +1,4 @@
-import CoreTransferable
 import Foundation
-import UniformTypeIdentifiers
-
-extension UTType {
-    /// The file a workout travels as, friend to friend — a `.lido` JSON
-    /// file, declared in Support/Info.plist as an exported type this app
-    /// owns, so tapping one in Messages opens it here.
-    static let lidoWorkout = UTType(exportedAs: "com.brandonlukas.swisstime.workout")
-}
-
-/// ShareLink's item: a workout leaving the library. Written lazily, only
-/// when a share destination actually asks for the file.
-struct WorkoutFile: Transferable {
-    let workout: Workout
-
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .lidoWorkout) { file in
-            SentTransferredFile(try write(file.workout),
-                                allowAccessingOriginalFile: false)
-        }
-    }
-
-    /// Writes the traveling file and returns its URL. In its own fresh
-    /// temp directory: the filename IS the workout title (it's what the
-    /// Messages bubble shows), and two exports of the same title must
-    /// not race over one path.
-    static func write(_ workout: Workout) throws -> URL {
-        let data = try JSONEncoder().encode(workout.travelCopy)
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: directory,
-                                                withIntermediateDirectories: true)
-        let title = workout.title.trimmed.replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: ":", with: "-")
-        let url = directory
-            .appendingPathComponent(title.isEmpty ? "Workout" : title)
-            .appendingPathExtension("lido")
-        try data.write(to: url)
-        return url
-    }
-}
 
 /// Where shared workouts point on the web: the Pages site that owns the
 /// app's universal links. The workout rides in the URL FRAGMENT, which
@@ -53,8 +12,8 @@ enum WorkoutLink {
 
     /// Longer links get SPLIT by Messages — the preview card keeps the
     /// bare URL and the fragment strands as plain text (seen on device,
-    /// 2026-07-11). Under this length they survive whole; over it, the
-    /// share falls back to the .lido file, which always transfers.
+    /// 2026-07-11). Under this length they survive whole; a program
+    /// that can't fit doesn't share, and the share button says why.
     static let messageSafeLength = 500
 
     /// Inbound fragments larger than this are junk by construction (we
@@ -82,11 +41,11 @@ enum WorkoutLink {
         return link
     }
 
-    /// The workout as a tappable https link — deflated JSON, base64url,
-    /// after the #. Compression isn't thrift, it's transport: a typical
-    /// program has to fit under `messageSafeLength`.
+    /// The workout as a tappable https link — travel-encoded JSON,
+    /// deflated, base64url, after the #. Both steps are transport, not
+    /// thrift: a real program has to fit under `messageSafeLength`.
     static func url(for workout: Workout) -> URL? {
-        guard let json = try? JSONEncoder().encode(workout.travelCopy),
+        guard let json = try? JSONEncoder().encode(TravelWorkout(workout)),
               let squeezed = try? (json as NSData).compressed(using: .zlib) as Data,
               var components = URLComponents(url: base, resolvingAgainstBaseURL: false)
         else { return nil }
@@ -115,12 +74,53 @@ enum WorkoutLink {
     }
 }
 
-// A share item carrying BOTH a link proxy and a file representation was
-// tried and reverted (2026-07-11): representation order is a global
-// preference, not per-destination matching — Files happily takes a URL
-// (saving a bookmark), so no ordering serves link-to-Messages and
-// file-to-Files from one item. The share button shares the link; the
-// deliberate file export lives in the workout's edit list.
+/// The traveling shape of a workout: the same JSON schema the app has
+/// always decoded, minus everything the lenient decoders default — the
+/// sender's history, identities (import mints fresh ones), empty text,
+/// and every field at its default value. Half the bytes of a full
+/// encoding BEFORE compression, which is what keeps real programs under
+/// the Messages-safe length. The web fallback (lido/w.html) applies the
+/// same defaults when it renders.
+private struct TravelWorkout: Encodable {
+    let title: String
+    let details: String?
+    let kind: WorkoutKind
+    let colorIndex: Int?
+    let items: [TravelExercise]
+
+    init(_ workout: Workout) {
+        title = workout.title
+        details = workout.details.isEmpty ? nil : workout.details
+        kind = workout.kind
+        colorIndex = workout.colorIndex
+        items = workout.exercises.map(TravelExercise.init)
+    }
+}
+
+private struct TravelExercise: Encodable {
+    let name: String
+    let instructions: String?
+    let mode: ExerciseMode?
+    let duration: TimeInterval?
+    let halfwayAlert: Bool?
+    let fiveSecondsAlert: Bool?
+    let sets: Int?
+    let reps: Int?
+    let restDuration: TimeInterval?
+
+    init(_ exercise: Exercise) {
+        let sets = exercise.mode == .sets
+        name = exercise.name
+        instructions = exercise.instructions.isEmpty ? nil : exercise.instructions
+        mode = sets ? .sets : nil
+        duration = !sets && exercise.duration != 60 ? exercise.duration : nil
+        halfwayAlert = exercise.halfwayAlert ? true : nil
+        fiveSecondsAlert = exercise.fiveSecondsAlert ? nil : false
+        self.sets = sets && exercise.sets != 4 ? exercise.sets : nil
+        reps = sets ? exercise.reps : nil
+        restDuration = sets && exercise.restDuration != 60 ? exercise.restDuration : nil
+    }
+}
 
 extension Workout {
     /// The most exercises a shared workout may carry — far past any
@@ -128,46 +128,18 @@ extension Workout {
     /// instantly.
     static let importedExerciseCap = 100
 
-    /// What travels when a workout is shared: the program, not the
-    /// sender's history — and not its identities. Import mints fresh ids
-    /// regardless, and a payload full of distinct UUIDs is pure entropy
-    /// to the deflate that has to fit the link under Messages' limit;
-    /// one repeated blank id compresses to almost nothing.
-    var travelCopy: Workout {
-        let blank = UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-        var copy = self
-        copy.lastPlayedAt = nil
-        copy.createdAt = nil
-        copy.id = blank
-        for index in copy.exercises.indices {
-            copy.exercises[index].id = blank
-        }
-        return copy
-    }
-
-    /// Reads a shared `.lido` file into a workout ready to enter this
-    /// library, or nil for anything that isn't one.
-    static func imported(from url: URL) -> Workout? {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
-              size < 1_000_000,
-              let data = try? Data(contentsOf: url)
-        else { return nil }
-        return imported(fromShared: data)
-    }
-
-    /// The one gate every arriving workout passes — file or link. The
-    /// result is exactly what Add to Library appends; the preview must
-    /// never show a program that differs from what arrives.
+    /// The one gate every arriving workout passes. The result is
+    /// exactly what Add to Library appends; the preview must never show
+    /// a program that differs from what arrives.
     ///
-    /// The lenient decoder forgives missing fields (that's vintage); the
-    /// work here is junk: an empty husk or an implausibly large payload
-    /// bounces, and everything a hand-edited payload could inflate is
-    /// clamped — text to the forms' caps, numbers to the app's ranges
-    /// (an Infinity duration would trap `Int()` in Format.mmss), ids to
-    /// fresh ones so a twice-opened share can never collide, dates to a
-    /// blank history that starts now, at the top of the list.
+    /// The lenient decoder forgives missing fields (that's both vintage
+    /// and the travel encoding's whole trick); the work here is junk:
+    /// an empty husk or an implausibly large payload bounces, and
+    /// everything a hand-edited payload could inflate is clamped — text
+    /// to the forms' caps, numbers to the app's ranges (an Infinity
+    /// duration would trap `Int()` in Format.mmss), ids to fresh ones
+    /// so a twice-opened share can never collide, dates to a blank
+    /// history that starts now, at the top of the list.
     static func imported(fromShared data: Data) -> Workout? {
         guard data.count < 1_000_000,
               var workout = try? JSONDecoder().decode(Workout.self, from: data)

@@ -447,7 +447,6 @@ enum DebugLaunch {
     static var didAutoFinishUntimed = false
     static var didAutoDismissCeremony = false
     static var didPondFlip = false
-    static var didAutoImport = false
     static var didAutoImportLink = false
 }
 

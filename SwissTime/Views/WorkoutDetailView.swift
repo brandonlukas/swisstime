@@ -31,6 +31,7 @@ struct WorkoutDetailView: View {
     @State private var editing = false
     @State private var sheet: DetailSheet?
     @State private var playing = false
+    @State private var linkTooLong = false
     @State private var ceremony: CompletionCeremony?
     /// Set by the delete confirmation; acted on once its sheet is gone,
     /// so the pop-back never races the dismissing sheet.
@@ -101,8 +102,9 @@ struct WorkoutDetailView: View {
             // The program travels as a link — tappable in Messages, opens
             // straight into the import sheet on a phone with Lido, and a
             // web fallback without one. A program too big for a Messages-
-            // safe link travels as a .lido file instead: less pretty,
-            // never broken. Nothing to share until the program has content.
+            // safe link can't be shared at all; the button says so
+            // instead of vanishing. Nothing to share until the program
+            // has content.
             ToolbarItem(placement: .topBarTrailing) {
                 if !editing, !workout.exercises.isEmpty {
                     if let link = WorkoutLink.messageSafeURL(for: workout) {
@@ -112,8 +114,9 @@ struct WorkoutDetailView: View {
                         }
                         .accessibilityLabel("Share \(workout.title)")
                     } else {
-                        ShareLink(item: WorkoutFile(workout: workout),
-                                  preview: SharePreview(workout.title)) {
+                        Button {
+                            linkTooLong = true
+                        } label: {
                             shareIcon
                         }
                         .accessibilityLabel("Share \(workout.title)")
@@ -152,6 +155,11 @@ struct WorkoutDetailView: View {
                     },
                 ])
             }
+        }
+        .alert("Too big to share", isPresented: $linkTooLong) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Workouts travel as links, and this one doesn't fit. Trimming exercises or instructions lets it travel.")
         }
         .fullScreenCover(isPresented: $playing) {
             PlayerView(workout: workout)
@@ -328,15 +336,6 @@ struct WorkoutDetailView: View {
                 } label: {
                     Text("Edit title & description")
                         .appFont(16)
-                }
-                // The archival copy — Save to Files gets a real .lido
-                // here, which the share button's link can't give it.
-                if !workout.exercises.isEmpty {
-                    ShareLink(item: WorkoutFile(workout: workout),
-                              preview: SharePreview(workout.title)) {
-                        Text("Export as a file")
-                            .appFont(16)
-                    }
                 }
                 Button(role: .destructive) {
                     sheet = .confirmDelete
