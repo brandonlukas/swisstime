@@ -74,6 +74,18 @@ struct SwissTimeApp: App {
                     try? FileManager.default.removeItem(at: url)
                     return
                 }
+                // Universal links land HERE in the SwiftUI lifecycle —
+                // not only in the browsing-activity handler below (kept
+                // for deliveries that do take that path). Only our
+                // associated domain's /lido/w links ever arrive.
+                if url.scheme == "https" {
+                    if let workout = WorkoutLink.workout(from: url) {
+                        importedWorkout = workout
+                    } else {
+                        importFailed = true
+                    }
+                    return
+                }
                 guard url.scheme == "swisstime", url.host == "sets" else { return }
                 if url.path == "/start" { DeepLink.requestSetsStart() } else { tab = .sets }
             }
