@@ -48,12 +48,21 @@ struct WorkoutFile: Transferable {
 enum WorkoutLink {
     static let base = URL(string: "https://brandonlukas.github.io/lido/w")!
 
-    /// The workout as a tappable https link — base64url JSON after the #.
+    /// Longer links get SPLIT by Messages — the preview card keeps the
+    /// bare URL and the fragment strands as plain text (seen on device,
+    /// 2026-07-11). Under this length they survive whole; over it, the
+    /// share falls back to the .lido file, which always transfers.
+    static let messageSafeLength = 500
+
+    /// The workout as a tappable https link — deflated JSON, base64url,
+    /// after the #. Compression isn't thrift, it's transport: a typical
+    /// program has to fit under `messageSafeLength`.
     static func url(for workout: Workout) -> URL? {
-        guard let data = try? JSONEncoder().encode(workout.travelCopy),
+        guard let json = try? JSONEncoder().encode(workout.travelCopy),
+              let squeezed = try? (json as NSData).compressed(using: .zlib) as Data,
               var components = URLComponents(url: base, resolvingAgainstBaseURL: false)
         else { return nil }
-        components.fragment = data.base64EncodedString()
+        components.fragment = squeezed.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
@@ -71,7 +80,10 @@ enum WorkoutLink {
             .replacingOccurrences(of: "_", with: "/")
         base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
         guard let data = Data(base64Encoded: base64) else { return nil }
-        return Workout.imported(fromShared: data)
+        // Deflated since 2026-07; a payload that won't inflate is read
+        // as plain JSON, so nothing hangs on the format's history.
+        let json = (try? (data as NSData).decompressed(using: .zlib) as Data) ?? data
+        return Workout.imported(fromShared: json)
     }
 }
 
@@ -82,11 +94,21 @@ extension Workout {
     static let importedExerciseCap = 100
 
     /// What travels when a workout is shared: the program, not the
-    /// sender's history.
+    /// sender's history — and not its identities. Import mints fresh ids
+    /// regardless, and a payload full of distinct UUIDs is pure entropy
+    /// to the deflate that has to fit the link under Messages' limit;
+    /// one repeated blank id compresses to almost nothing.
     var travelCopy: Workout {
+        let blank = UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         var copy = self
         copy.lastPlayedAt = nil
         copy.createdAt = nil
+        copy.id = blank
+        copy.exercises = copy.exercises.map { exercise in
+            var traveling = exercise
+            traveling.id = blank
+            return traveling
+        }
         return copy
     }
 
