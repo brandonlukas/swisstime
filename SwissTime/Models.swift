@@ -61,6 +61,10 @@ struct Workout: Identifiable, Codable, Equatable {
 }
 
 extension Workout {
+    // ⚠️ These keys (and the field defaults) are also decoded by the
+    // share fallback page — lido/w.html in the brandonlukas.github.io
+    // repo — which renders shared workouts for people without Lido.
+    // Key or default changes must land there too.
     enum CodingKeys: String, CodingKey {
         case id, title, details, kind, lastPlayedAt, createdAt, colorIndex
         // The key predates the rename; files on disk keep it.

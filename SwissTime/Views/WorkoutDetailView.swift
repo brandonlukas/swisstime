@@ -98,16 +98,26 @@ struct WorkoutDetailView: View {
         // swipe, matching the lockout.
         .navigationBarBackButtonHidden(editing)
         .toolbar {
-            // The program travels as a small .lido file — a friend with
-            // Lido taps it in Messages and gets this same sheet to adopt.
-            // Nothing to share until the program has content.
+            // The program travels as a link — tappable in Messages, opens
+            // straight into the import sheet on a phone with Lido, and a
+            // web fallback without one. A program too big for a Messages-
+            // safe link travels as a .lido file instead: less pretty,
+            // never broken. Nothing to share until the program has content.
             ToolbarItem(placement: .topBarTrailing) {
                 if !editing, !workout.exercises.isEmpty {
-                    ShareLink(item: WorkoutFile(workout: workout),
-                              preview: SharePreview(workout.title)) {
-                        Image(systemName: "square.and.arrow.up")
+                    if let link = WorkoutLink.messageSafeURL(for: workout) {
+                        ShareLink(item: link,
+                                  preview: SharePreview(workout.title)) {
+                            shareIcon
+                        }
+                        .accessibilityLabel("Share \(workout.title)")
+                    } else {
+                        ShareLink(item: WorkoutFile(workout: workout),
+                                  preview: SharePreview(workout.title)) {
+                            shareIcon
+                        }
+                        .accessibilityLabel("Share \(workout.title)")
                     }
-                    .accessibilityLabel("Share \(workout.title)")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -186,6 +196,11 @@ struct WorkoutDetailView: View {
                 startSession()
             }
         }
+    }
+
+    /// Both share envelopes wear the same button.
+    private var shareIcon: some View {
+        Image(systemName: "square.and.arrow.up")
     }
 
     /// The untimed completion: they said they did it — toy earned. Any
