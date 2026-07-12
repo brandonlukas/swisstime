@@ -46,6 +46,9 @@ struct WorkoutFile: Transferable {
 /// never reaches any server — the page is only a fallback face for a
 /// friend without Lido; a phone with Lido never loads it.
 enum WorkoutLink {
+    /// Effectively write-once: links live forever in old chat threads,
+    /// so if Lido ever moves domains, this host must stay ACCEPTED (in
+    /// `matches`) even if new links mint elsewhere.
     static let base = URL(string: "https://brandonlukas.github.io/lido/w")!
 
     /// Longer links get SPLIT by Messages — the preview card keeps the
@@ -53,6 +56,31 @@ enum WorkoutLink {
     /// 2026-07-11). Under this length they survive whole; over it, the
     /// share falls back to the .lido file, which always transfers.
     static let messageSafeLength = 500
+
+    /// Inbound fragments larger than this are junk by construction (we
+    /// never mint past `messageSafeLength`; the slack covers format
+    /// drift). The cap's real job is bounding the deflate: unchecked, a
+    /// crafted ~1MB fragment would inflate toward a gigabyte before any
+    /// later size check could object.
+    static let fragmentCap = 4_000
+
+    /// Whether a URL is ours to answer AT ALL. The app stays mute on
+    /// every other link from the associated domain — a widened AASA
+    /// must not turn support pages into false "couldn't read" alerts —
+    /// and the host compares case-folded because iOS routes applinks
+    /// case-insensitively.
+    static func matches(_ url: URL) -> Bool {
+        url.host()?.lowercased() == base.host() && url.path() == base.path()
+    }
+
+    /// The link, or nil when the program can't fit a Messages-safe one
+    /// — the transport policy lives here, beside the constant it
+    /// enforces, not in whichever view happens to share.
+    static func messageSafeURL(for workout: Workout) -> URL? {
+        guard let link = url(for: workout),
+              link.absoluteString.count < messageSafeLength else { return nil }
+        return link
+    }
 
     /// The workout as a tappable https link — deflated JSON, base64url,
     /// after the #. Compression isn't thrift, it's transport: a typical
@@ -72,8 +100,8 @@ enum WorkoutLink {
     /// The reverse trip: a tapped universal link back into an
     /// import-ready workout, or nil for links that aren't ours.
     static func workout(from url: URL) -> Workout? {
-        guard url.host() == base.host(), url.path().hasPrefix(base.path()),
-              let fragment = url.fragment(), fragment.count < 1_400_000
+        guard matches(url),
+              let fragment = url.fragment(), fragment.count < fragmentCap
         else { return nil }
         var base64 = fragment
             .replacingOccurrences(of: "-", with: "+")
@@ -104,10 +132,8 @@ extension Workout {
         copy.lastPlayedAt = nil
         copy.createdAt = nil
         copy.id = blank
-        copy.exercises = copy.exercises.map { exercise in
-            var traveling = exercise
-            traveling.id = blank
-            return traveling
+        for index in copy.exercises.indices {
+            copy.exercises[index].id = blank
         }
         return copy
     }

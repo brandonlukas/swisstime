@@ -105,17 +105,16 @@ struct WorkoutDetailView: View {
             // never broken. Nothing to share until the program has content.
             ToolbarItem(placement: .topBarTrailing) {
                 if !editing, !workout.exercises.isEmpty {
-                    if let link = WorkoutLink.url(for: workout),
-                       link.absoluteString.count <= WorkoutLink.messageSafeLength {
+                    if let link = WorkoutLink.messageSafeURL(for: workout) {
                         ShareLink(item: link,
                                   preview: SharePreview(workout.title)) {
-                            Image(systemName: "square.and.arrow.up")
+                            shareIcon
                         }
                         .accessibilityLabel("Share \(workout.title)")
                     } else {
                         ShareLink(item: WorkoutFile(workout: workout),
                                   preview: SharePreview(workout.title)) {
-                            Image(systemName: "square.and.arrow.up")
+                            shareIcon
                         }
                         .accessibilityLabel("Share \(workout.title)")
                     }
@@ -197,6 +196,11 @@ struct WorkoutDetailView: View {
                 startSession()
             }
         }
+    }
+
+    /// Both share envelopes wear the same button.
+    private var shareIcon: some View {
+        Image(systemName: "square.and.arrow.up")
     }
 
     /// The untimed completion: they said they did it — toy earned. Any

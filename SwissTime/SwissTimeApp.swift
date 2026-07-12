@@ -37,6 +37,19 @@ struct SwissTimeApp: App {
                      || arguments.contains("-autoStartSets") ? .sets : .workouts)
     }
 
+    /// Every door a shared workout arrives through — file open, link
+    /// open, browsing activity, debug hooks — ends here. An import
+    /// already on screen wins over a second delivery of the same tap
+    /// (universal links can knock on two doors at once).
+    private func receive(_ workout: Workout?) {
+        guard importedWorkout == nil else { return }
+        if let workout {
+            importedWorkout = workout
+        } else {
+            importFailed = true
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             TabView(selection: $tab) {
@@ -63,11 +76,7 @@ struct SwissTimeApp: App {
             // workout tapped in Messages/Files/AirDrop.
             .onOpenURL { url in
                 if url.isFileURL {
-                    if let workout = Workout.imported(from: url) {
-                        importedWorkout = workout
-                    } else {
-                        importFailed = true
-                    }
+                    receive(Workout.imported(from: url))
                     // The system copied the file into our Inbox
                     // (LSSupportsOpeningDocumentsInPlace is NO), and
                     // cleanup is the app's job — read once, then gone.
@@ -76,28 +85,22 @@ struct SwissTimeApp: App {
                 }
                 // Universal links land HERE in the SwiftUI lifecycle —
                 // not only in the browsing-activity handler below (kept
-                // for deliveries that do take that path). Only our
-                // associated domain's /lido/w links ever arrive.
-                if url.scheme == "https" {
-                    if let workout = WorkoutLink.workout(from: url) {
-                        importedWorkout = workout
-                    } else {
-                        importFailed = true
-                    }
+                // for deliveries that do take that path). Only workout
+                // links are answered; the app stays mute on anything
+                // else from the associated domain.
+                if WorkoutLink.matches(url) {
+                    receive(WorkoutLink.workout(from: url))
                     return
                 }
                 guard url.scheme == "swisstime", url.host == "sets" else { return }
                 if url.path == "/start" { DeepLink.requestSetsStart() } else { tab = .sets }
             }
-            // A tapped workout LINK arrives as a browsing activity, not a
-            // URL open — same import gate, same sheet as the file path.
+            // A tapped workout LINK can also arrive as a browsing
+            // activity — same funnel, and `receive` makes a double
+            // delivery of one tap harmless.
             .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
-                guard let url = activity.webpageURL else { return }
-                if let workout = WorkoutLink.workout(from: url) {
-                    importedWorkout = workout
-                } else {
-                    importFailed = true
-                }
+                guard let url = activity.webpageURL, WorkoutLink.matches(url) else { return }
+                receive(WorkoutLink.workout(from: url))
             }
             .sheet(item: $importedWorkout) { workout in
                 ImportWorkoutView(workout: workout) {
@@ -110,10 +113,10 @@ struct SwissTimeApp: App {
                     }
                 }
             }
-            .alert("Couldn't read that file", isPresented: $importFailed) {
+            .alert("Couldn't open that workout", isPresented: $importFailed) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("It doesn't look like a Lido workout.")
+                Text("The link or file doesn't hold a Lido workout.")
             }
             // A running workout outranks the launchers: consume the ask
             // and stay put rather than flipping tabs under the player.
@@ -133,8 +136,7 @@ struct SwissTimeApp: App {
                    let starter = WorkoutStore.starterWorkouts().first,
                    let url = try? WorkoutFile.write(starter) {
                     DebugLaunch.didAutoImport = true
-                    importedWorkout = Workout.imported(from: url)
-                    importFailed = importedWorkout == nil
+                    receive(Workout.imported(from: url))
                 }
                 // Same idea for the link: encode a starter into the real
                 // share URL and read it back through the real parser.
@@ -143,8 +145,7 @@ struct SwissTimeApp: App {
                    let starter = WorkoutStore.starterWorkouts().first,
                    let link = WorkoutLink.url(for: starter) {
                     DebugLaunch.didAutoImportLink = true
-                    importedWorkout = WorkoutLink.workout(from: link)
-                    importFailed = importedWorkout == nil
+                    receive(WorkoutLink.workout(from: link))
                 }
             }
             // Activation net, catching both slow doors: a group-defaults
