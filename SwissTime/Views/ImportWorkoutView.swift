@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// What a shared `.lido` file opens into: the program on approval, one
+/// What a shared workout link opens into: the program on approval, one
 /// button to take it. Read-only on purpose — it becomes editable the
 /// moment it's yours, not before. The workout shown is already the
 /// import-ready copy, so this sheet previews exactly what Add appends.

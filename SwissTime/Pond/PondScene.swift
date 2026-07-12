@@ -123,11 +123,15 @@ struct PondScene {
         // at the upgrade, when everything finds new spots in the bigger
         // pool anyway.
         let spacing: CGFloat = grand ? 0.095 : 0.16
+        let spacingSquared = spacing * spacing
         let xRange: ClosedRange<CGFloat> = grand ? 0.15...0.85 : 0.18...0.82
         let yRange: ClosedRange<CGFloat> = grand ? 0.19...0.81 : 0.22...0.78
         // Anchors first, every toy's rng carried over — amplitudes are
         // budgeted against the FINISHED neighborhood below, and each
         // entry's draw sequence must not depend on how that goes.
+        // Squared distances throughout: a packed month burns most of its
+        // 24 attempts per toy, and init runs on the main actor at the
+        // completion ceremony's most animated moment.
         var placed: [CGPoint] = []
         var rngs: [SeededRandom] = []
         for entry in entries {
@@ -137,9 +141,12 @@ struct PondScene {
                 let candidate = CGPoint(x: CGFloat.random(in: xRange, using: &rng),
                                         y: CGFloat.random(in: yRange, using: &rng))
                 anchor = candidate
-                if placed.allSatisfy({ hypot($0.x - candidate.x, $0.y - candidate.y) > spacing }) {
-                    break
+                let clear = placed.allSatisfy { other in
+                    let dx = other.x - candidate.x
+                    let dy = other.y - candidate.y
+                    return dx * dx + dy * dy > spacingSquared
                 }
+                if clear { break }
             }
             placed.append(anchor)
             rngs.append(rng)
@@ -156,15 +163,21 @@ struct PondScene {
             // anchor: a close pair in open water still roams — their
             // crossings resolve pairwise — while a toy with two close
             // neighbors stays home.
-            var nearest = CGFloat.greatestFiniteMagnitude
-            var second = CGFloat.greatestFiniteMagnitude
+            var nearestSquared = CGFloat.greatestFiniteMagnitude
+            var secondSquared = CGFloat.greatestFiniteMagnitude
             for (j, other) in placed.enumerated() where j != index {
-                let d = hypot(other.x - anchor.x, other.y - anchor.y)
-                if d < nearest { second = nearest; nearest = d }
-                else if d < second { second = d }
+                let dx = other.x - anchor.x
+                let dy = other.y - anchor.y
+                let dSquared = dx * dx + dy * dy
+                if dSquared < nearestSquared {
+                    secondSquared = nearestSquared
+                    nearestSquared = dSquared
+                } else if dSquared < secondSquared {
+                    secondSquared = dSquared
+                }
             }
-            let wanderCap = second == .greatestFiniteMagnitude
-                ? 1 : max(0.06, 0.85 * second)
+            let wanderCap = secondSquared == .greatestFiniteMagnitude
+                ? 1 : max(0.06, 0.85 * secondSquared.squareRoot())
 
             let kind = Palette.toy(for: entry.colorIndex)
             // Vinyl drifts at the water's pace; only the duck has any hustle.
@@ -274,12 +287,17 @@ struct PondScene {
             for (ux, uy) in lamps {
                 let center = CGPoint(x: waterRect.minX + ux * waterRect.width,
                                      y: waterRect.minY + uy * waterRect.height)
+                // The glow is fully transparent past endRadius — filling
+                // only its bounding square shades the same pixels for a
+                // fraction of the rasterization, per lamp per frame.
+                let reach = waterRect.width * 0.42
                 water.fill(
-                    Path(CGRect(origin: .zero, size: size)),
+                    Path(CGRect(x: center.x - reach, y: center.y - reach,
+                                width: reach * 2, height: reach * 2)),
                     with: .radialGradient(
                         Gradient(colors: [Color.white.opacity(0.13), .clear]),
                         center: center, startRadius: 0,
-                        endRadius: waterRect.width * 0.42))
+                        endRadius: reach))
             }
         }
 

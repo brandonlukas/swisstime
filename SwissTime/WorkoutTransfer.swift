@@ -25,11 +25,17 @@ enum WorkoutLink {
 
     /// Whether a URL is ours to answer AT ALL. The app stays mute on
     /// every other link from the associated domain — a widened AASA
-    /// must not turn support pages into false "couldn't read" alerts —
-    /// and the host compares case-folded because iOS routes applinks
-    /// case-insensitively.
+    /// must not turn support pages into false "couldn't read" alerts.
+    /// The host compares case-folded (iOS routes applinks
+    /// case-insensitively), and the path accepts every spelling the
+    /// AASA's `/lido/w*` component claims for the ONE page it means —
+    /// a tap iOS routes to the app must never die in silence here.
     static func matches(_ url: URL) -> Bool {
-        url.host()?.lowercased() == base.host() && url.path() == base.path()
+        guard url.host()?.lowercased() == base.host() else { return false }
+        let path = url.path()
+        return path == base.path()
+            || path == base.path() + "/"
+            || path == base.path() + ".html"
     }
 
     /// The link, or nil when the program can't fit a Messages-safe one
@@ -66,10 +72,12 @@ enum WorkoutLink {
             .replacingOccurrences(of: "-", with: "+")
             .replacingOccurrences(of: "_", with: "/")
         base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
-        guard let data = Data(base64Encoded: base64) else { return nil }
-        // Deflated since 2026-07; a payload that won't inflate is read
-        // as plain JSON, so nothing hangs on the format's history.
-        let json = (try? (data as NSData).decompressed(using: .zlib) as Data) ?? data
+        guard let data = Data(base64Encoded: base64),
+              // Every minted link has been deflated since before the
+              // first release that could mint one — a fragment that
+              // won't inflate is junk, not vintage.
+              let json = try? (data as NSData).decompressed(using: .zlib) as Data
+        else { return nil }
         return Workout.imported(fromShared: json)
     }
 }
@@ -97,6 +105,11 @@ private struct TravelWorkout: Encodable {
     }
 }
 
+/// ⚠️ The omit-when-default literals below are WIRE constants, frozen
+/// forever — they must equal the `decodeIfPresent` fallbacks in
+/// Exercise.init(from:) (Models.swift), which old links in old chat
+/// threads depend on. If the model's defaults ever change, these do
+/// NOT follow; stop omitting that field instead.
 private struct TravelExercise: Encodable {
     let name: String
     let instructions: String?
@@ -162,6 +175,11 @@ extension Workout {
             return safe
         }
         guard !(workout.title.isEmpty && workout.exercises.isEmpty) else { return nil }
+        // The preview falls an empty title back to "Workout" — the
+        // library must receive that same word, not a nameless row.
+        if workout.title.isEmpty {
+            workout.title = "Workout"
+        }
         return workout
     }
 

@@ -156,6 +156,8 @@ struct WorkoutDetailView: View {
                 ])
             }
         }
+        // The support page (brandonlukas.github.io/lido/support) explains
+        // this same limit — if the behavior changes, both copies move.
         .alert("Too big to share", isPresented: $linkTooLong) {
             Button("OK", role: .cancel) {}
         } message: {

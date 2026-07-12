@@ -12,6 +12,9 @@ struct SwissTimeApp: App {
     @State private var tab: AppTab
     /// A shared workout that just arrived, waiting on its preview sheet.
     @State private var importedWorkout: Workout?
+    /// The link the sheet came from — one tap can knock on two doors,
+    /// and only a repeat of the SAME link is a duplicate.
+    @State private var importURL: URL?
     @State private var importFailed = false
     @AppStorage(SettingsKey.theme) private var theme = ThemeChoice.system.rawValue
     @Environment(\.scenePhase) private var scenePhase
@@ -38,12 +41,14 @@ struct SwissTimeApp: App {
     }
 
     /// Every door a shared workout arrives through — link open,
-    /// browsing activity, the debug hook — ends here. An import
-    /// already on screen wins over a second delivery of the same tap
-    /// (universal links can knock on two doors at once).
-    private func receive(_ workout: Workout?) {
-        guard importedWorkout == nil else { return }
-        if let workout {
+    /// browsing activity, the debug hook — ends here. A second
+    /// delivery of the SAME link (one tap can knock on two doors) is
+    /// one ask; a DIFFERENT link tapped over a stale sheet replaces
+    /// it — the user asked for the new one.
+    private func receive(link url: URL) {
+        guard url != importURL || importedWorkout == nil else { return }
+        if let workout = WorkoutLink.workout(from: url) {
+            importURL = url
             importedWorkout = workout
         } else {
             importFailed = true
@@ -79,7 +84,7 @@ struct SwissTimeApp: App {
                 // path). Only workout links are answered; the app stays
                 // mute on anything else from the associated domain.
                 if WorkoutLink.matches(url) {
-                    receive(WorkoutLink.workout(from: url))
+                    receive(link: url)
                     return
                 }
                 guard url.scheme == "swisstime", url.host == "sets" else { return }
@@ -90,7 +95,7 @@ struct SwissTimeApp: App {
             // delivery of one tap harmless.
             .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                 guard let url = activity.webpageURL, WorkoutLink.matches(url) else { return }
-                receive(WorkoutLink.workout(from: url))
+                receive(link: url)
             }
             .sheet(item: $importedWorkout) { workout in
                 ImportWorkoutView(workout: workout) {
@@ -126,7 +131,7 @@ struct SwissTimeApp: App {
                    let starter = WorkoutStore.starterWorkouts().first,
                    let link = WorkoutLink.url(for: starter) {
                     DebugLaunch.didAutoImportLink = true
-                    receive(WorkoutLink.workout(from: link))
+                    receive(link: link)
                 }
             }
             // Activation net, catching both slow doors: a group-defaults

@@ -199,6 +199,10 @@ extension Exercise {
     }
 
     /// Lenient decoding so pre-sets files (and pre-pond seeds) still open.
+    /// ⚠️ These fallbacks are also the WIRE defaults for shared links —
+    /// TravelExercise (WorkoutTransfer.swift) omits fields that equal
+    /// them, and w.html renders them — so they are frozen: changing one
+    /// silently mutates every shared workout in transit.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
