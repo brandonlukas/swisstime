@@ -105,8 +105,8 @@ struct WorkoutDetailView: View {
             // never broken. Nothing to share until the program has content.
             ToolbarItem(placement: .topBarTrailing) {
                 if !editing, !workout.exercises.isEmpty {
-                    if let link = WorkoutLink.messageSafeURL(for: workout) {
-                        ShareLink(item: link,
+                    if let share = WorkoutShare(workout: workout) {
+                        ShareLink(item: share,
                                   preview: SharePreview(workout.title)) {
                             shareIcon
                         }
